@@ -6,7 +6,13 @@ import { getContentRevisions } from "@/lib/data/admin";
 export default async function EditorContentPage({
   searchParams,
 }: {
-  searchParams: Promise<{ created?: string; updated?: string; workflow?: string }>;
+  searchParams: Promise<{
+    created?: string;
+    updated?: string;
+    workflow?: string;
+    version?: string;
+    errorMessage?: string;
+  }>;
 }) {
   const revisions = await getContentRevisions();
   const notice = await searchParams;
@@ -28,6 +34,11 @@ export default async function EditorContentPage({
       {notice.workflow === "validation" && (
         <p className="mt-6 rounded-2xl bg-red-50 px-5 py-4 font-bold text-red-800">
           Chưa thể gửi duyệt. Hãy mở bài và xử lý các mục bắt buộc trong phần kiểm tra tự động.
+        </p>
+      )}
+      {(notice.workflow === "error" || notice.version === "error") && (
+        <p role="alert" className="mt-6 rounded-2xl bg-red-50 px-5 py-4 font-bold text-red-800">
+          {notice.errorMessage ?? "Không thể hoàn tất thao tác. Hãy tải lại và thử lại."}
         </p>
       )}
       <section className="surface-card mt-8 overflow-hidden bg-white">

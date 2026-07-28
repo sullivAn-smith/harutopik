@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { plans } from "@/lib/billing/plans";
+import { toUserFacingError } from "@/lib/errors/user-facing";
 import { createPayOSClient, isPayOSConfigured } from "@/lib/payos/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
@@ -27,7 +28,12 @@ export async function startProCheckout() {
     currency: plan.currency,
     status: "pending",
   });
-  if (error) redirect("/nang-cap?status=error");
+  if (error) {
+    const friendly = toUserFacingError(error, "Chưa thể tạo đơn thanh toán.");
+    redirect(
+      `/nang-cap?status=error&errorMessage=${encodeURIComponent(friendly.message)}`,
+    );
+  }
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
   let checkoutUrl: string;
@@ -47,13 +53,16 @@ export async function startProCheckout() {
       .eq("user_id", user.id)
       .eq("provider_order_code", String(orderCode));
     checkoutUrl = payment.checkoutUrl;
-  } catch {
+  } catch (error) {
     await supabase
       .from("billing_orders")
       .update({ status: "failed" })
       .eq("user_id", user.id)
       .eq("provider_order_code", String(orderCode));
-    redirect("/nang-cap?status=error");
+    const friendly = toUserFacingError(error, "Nhà cung cấp thanh toán chưa tạo được liên kết.");
+    redirect(
+      `/nang-cap?status=error&errorMessage=${encodeURIComponent(friendly.message)}`,
+    );
   }
   redirect(checkoutUrl);
 }

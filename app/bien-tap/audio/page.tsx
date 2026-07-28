@@ -51,6 +51,11 @@ export default async function AudioDashboardPage({
           Chưa có GOOGLE_CLOUD_TTS_API_KEY trong môi trường server.
         </p>
       )}
+      {query.error && query.error !== "not-configured" && (
+        <p role="alert" className="mt-6 rounded-2xl bg-red-50 p-4 font-bold text-red-800">
+          {query.error}
+        </p>
+      )}
       <section className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
           ["Từ đang quản lý", dashboard.total],

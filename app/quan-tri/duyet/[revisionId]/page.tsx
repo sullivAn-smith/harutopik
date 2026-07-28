@@ -9,12 +9,12 @@ export default async function ReviewDetailPage({
   searchParams,
 }: {
   params: Promise<{ revisionId: string }>;
-  searchParams: Promise<{ review?: string }>;
+  searchParams: Promise<{ review?: string; errorMessage?: string }>;
 }) {
   const { revisionId } = await params;
   const revision = await getLessonRevision(revisionId);
   if (!revision || revision.status !== "in_review") notFound();
-  const { review } = await searchParams;
+  const { review, errorMessage } = await searchParams;
   const lesson = revision.lesson;
   return (
     <main className="mx-auto max-w-7xl px-5 py-10 lg:px-8">
@@ -23,7 +23,7 @@ export default async function ReviewDetailPage({
         <div><p className="text-sm font-black uppercase tracking-widest text-blue-600">Bản xem trước · v{lesson.version}</p><h1 className="mt-2 text-4xl font-black">{lesson.title.vi}</h1><p lang="ko" className="mt-2 text-xl font-bold text-ink-600">{lesson.title.ko}</p></div>
         <span className="rounded-full bg-blue-100 px-4 py-2 text-sm font-black text-blue-800">Đang chờ quyết định</span>
       </div>
-      {review && <p className="mt-6 rounded-2xl bg-red-50 p-4 font-bold text-red-700">{review === "validation" ? "Bài chưa đạt kiểm tra dữ liệu bắt buộc nên chưa thể phê duyệt." : "Vui lòng nhập nhận xét ít nhất 3 ký tự."}</p>}
+      {review && <p className="mt-6 rounded-2xl bg-red-50 p-4 font-bold text-red-700">{review === "validation" ? "Bài chưa đạt kiểm tra dữ liệu bắt buộc nên chưa thể phê duyệt." : review === "error" ? (errorMessage ?? "Không thể lưu quyết định duyệt.") : "Vui lòng nhập nhận xét ít nhất 3 ký tự."}</p>}
       <div className="mt-8 grid gap-6 xl:grid-cols-[1fr_23rem]">
         <div className="space-y-6">
           <EligibilityReport lesson={lesson} />

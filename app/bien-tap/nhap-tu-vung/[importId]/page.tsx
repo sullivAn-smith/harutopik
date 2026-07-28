@@ -65,7 +65,7 @@ export default async function VocabularyImportPreviewPage({
       </div>
       {query.error && (
         <p role="alert" className="mt-5 rounded-2xl bg-red-50 p-4 font-bold text-red-700">
-          Chưa thể nhập dữ liệu. Hãy tải lại trang và thử lại.
+          {query.error}
         </p>
       )}
       {(query.completed || completed) && (

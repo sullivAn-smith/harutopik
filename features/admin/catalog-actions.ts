@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth/authorize";
+import { toUserFacingError } from "@/lib/errors/user-facing";
 import { createClient } from "@/lib/supabase/server";
 
 const id = z.string().trim().regex(/^[a-z0-9][a-z0-9-]*$/).max(200);
@@ -32,7 +33,10 @@ export async function createCourseStructure(formData: FormData) {
     p_level: parsed.data.level,
     p_lesson_count: parsed.data.lessonCount,
   });
-  if (error) redirect("/quan-tri/cau-truc?error=course");
+  if (error) {
+    const friendly = toUserFacingError(error, "Không thể tạo khóa học.");
+    redirect(`/quan-tri/cau-truc?error=${encodeURIComponent(friendly.message)}`);
+  }
   revalidatePath("/quan-tri/cau-truc");
   redirect("/quan-tri/cau-truc?created=course");
 }
@@ -59,7 +63,10 @@ export async function createModuleStructure(formData: FormData) {
     p_title_ko: parsed.data.titleKo,
     p_sort_order: parsed.data.sortOrder,
   });
-  if (error) redirect("/quan-tri/cau-truc?error=module");
+  if (error) {
+    const friendly = toUserFacingError(error, "Không thể tạo chương.");
+    redirect(`/quan-tri/cau-truc?error=${encodeURIComponent(friendly.message)}`);
+  }
   revalidatePath("/quan-tri/cau-truc");
   redirect("/quan-tri/cau-truc?created=module");
 }

@@ -6,6 +6,7 @@ import {
   signInSchema,
   signUpSchema,
 } from "@/lib/auth/schema";
+import { toUserFacingError } from "@/lib/errors/user-facing";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 
@@ -59,7 +60,7 @@ export async function signIn(
   if (error) {
     return {
       status: "error",
-      message: "Email hoặc mật khẩu chưa đúng.",
+      message: toUserFacingError(error, "Không thể đăng nhập.").message,
     };
   }
 
@@ -90,7 +91,10 @@ export async function signUp(
   });
 
   if (error) {
-    return { status: "error", message: error.message };
+    return {
+      status: "error",
+      message: toUserFacingError(error, "Không thể tạo tài khoản.").message,
+    };
   }
 
   if (data.session) redirect(await getPostAuthPath(supabase));

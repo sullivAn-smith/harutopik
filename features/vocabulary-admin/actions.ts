@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/authorize";
+import { toUserFacingError } from "@/lib/errors/user-facing";
 import { createClient } from "@/lib/supabase/server";
 import {
   parseAnswerLines,
@@ -73,12 +74,16 @@ export async function createVocabularyDraft(
     rpcPayload(parsed.data, parsed.examples),
   );
   if (error || typeof data !== "string") {
+    const friendly = toUserFacingError(
+      error ?? new Error("create_vocabulary_draft returned no id"),
+      "Chưa thể tạo từ vựng.",
+    );
     return {
       status: "error",
       message:
-        error?.code === "23505"
+        friendly.code === "DUPLICATE"
           ? "Từ này có thể đã tồn tại. Hãy tìm trong thư viện trước."
-          : "Chưa thể tạo từ vựng. Vui lòng thử lại.",
+          : friendly.message,
     };
   }
   revalidatePath("/bien-tap/tu-vung");
@@ -101,12 +106,13 @@ export async function updateVocabularyDraft(
     ...rpcPayload(parsed.data, parsed.examples),
   });
   if (error) {
+    const friendly = toUserFacingError(error, "Chưa thể lưu thay đổi.");
     return {
       status: "error",
       message:
-        error.code === "23505"
+        friendly.code === "DUPLICATE"
           ? "Nội dung này trùng với một từ đã tồn tại."
-          : "Chưa thể lưu thay đổi. Hãy tải lại và thử lại.",
+          : friendly.message,
     };
   }
   revalidatePath("/bien-tap/tu-vung");
@@ -128,7 +134,10 @@ export async function setLessonVocabulary(formData: FormData) {
     p_vocabulary_ids: vocabularyIds,
   });
   if (error) {
-    redirect(`/bien-tap/noi-dung/${revisionId}/tu-vung?attach=error`);
+    const friendly = toUserFacingError(error, "Chưa thể lưu bộ từ.");
+    redirect(
+      `/bien-tap/noi-dung/${revisionId}/tu-vung?attach=${encodeURIComponent(friendly.message)}`,
+    );
   }
   revalidatePath(`/bien-tap/noi-dung/${revisionId}`);
   redirect(`/bien-tap/noi-dung/${revisionId}?vocabulary=updated`);

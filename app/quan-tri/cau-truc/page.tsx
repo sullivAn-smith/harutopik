@@ -36,7 +36,11 @@ export default async function CatalogStructurePage({
       )}
       {query.error && (
         <p className="mt-6 rounded-2xl bg-red-50 p-4 font-bold text-red-700">
-          Không thể tạo cấu trúc. Hãy kiểm tra ID, slug và dữ liệu trùng.
+          {query.error === "course-invalid"
+            ? "Thông tin khóa học chưa hợp lệ. ID/slug chỉ dùng chữ thường không dấu, số và dấu gạch ngang; tên và mô tả không được để trống."
+            : query.error === "module-invalid"
+              ? "Thông tin chương chưa hợp lệ. Hãy kiểm tra khóa học, thứ tự, ID, slug và tên chương."
+              : query.error}
         </p>
       )}
       <section className="mt-8 grid gap-6 xl:grid-cols-2">

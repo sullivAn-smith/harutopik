@@ -6,6 +6,7 @@ import {
   profileFormSchema,
   type ProfileFormState,
 } from "@/lib/auth/schema";
+import { toUserFacingError } from "@/lib/errors/user-facing";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 
@@ -54,7 +55,7 @@ export async function updateProfile(
   if (error) {
     return {
       status: "error",
-      message: "Chưa thể lưu hồ sơ. Vui lòng thử lại.",
+      message: toUserFacingError(error, "Chưa thể lưu hồ sơ.").message,
     };
   }
 

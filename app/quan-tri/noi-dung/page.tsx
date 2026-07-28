@@ -9,15 +9,21 @@ export const metadata: Metadata = { title: "Quản trị nội dung" };
 export default async function AdminContentPage({
   searchParams,
 }: {
-  searchParams: Promise<{ created?: string; updated?: string; workflow?: string }>;
+  searchParams: Promise<{
+    created?: string;
+    updated?: string;
+    workflow?: string;
+    version?: string;
+    errorMessage?: string;
+  }>;
 }) {
   const revisions = await getContentRevisions();
-  const { created, updated, workflow } = await searchParams;
+  const { created, updated, workflow, version, errorMessage } = await searchParams;
   const workflowMessage: Record<string, string> = {
     in_review: "Đã gửi bản nháp sang hàng chờ duyệt.",
     approved: "Bản nội dung đã được phê duyệt.",
     published: "Đã xuất bản nội dung vào catalog dành cho người học.",
-    error: "Không thể chuyển trạng thái. Hãy tải lại và kiểm tra trạng thái hiện tại.",
+    error: errorMessage ?? "Không thể chuyển trạng thái. Hãy tải lại và kiểm tra trạng thái hiện tại.",
     invalid: "Không tìm thấy revision cần xử lý.",
     validation: "Bài chưa đạt kiểm tra dữ liệu bắt buộc. Hãy mở bài để xem chi tiết.",
   };
@@ -43,8 +49,13 @@ export default async function AdminContentPage({
         </p>
       )}
       {workflow && workflowMessage[workflow] && (
-        <p role="status" className="mt-6 rounded-2xl bg-sky-50 px-5 py-4 font-bold text-brand-800">
+        <p role={workflow === "error" ? "alert" : "status"} className={`mt-6 rounded-2xl px-5 py-4 font-bold ${workflow === "error" ? "bg-red-50 text-red-800" : "bg-sky-50 text-brand-800"}`}>
           {workflowMessage[workflow]}
+        </p>
+      )}
+      {version === "error" && (
+        <p role="alert" className="mt-6 rounded-2xl bg-red-50 px-5 py-4 font-bold text-red-800">
+          {errorMessage ?? "Không thể tạo phiên bản nội dung mới."}
         </p>
       )}
       <section className="surface-card mt-8 overflow-hidden bg-white">

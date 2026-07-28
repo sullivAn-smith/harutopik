@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { enqueueAudioJob } from "@/lib/audio/jobs";
 import { requirePermission } from "@/lib/auth/authorize";
+import { toUserFacingError } from "@/lib/errors/user-facing";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -20,7 +21,10 @@ export async function enqueueMissingVocabularyAudio() {
     .limit(500);
   if (!actor.roles.includes("admin")) query = query.eq("created_by", actor.id);
   const { data: items, error } = await query;
-  if (error) redirect("/bien-tap/audio?error=load");
+  if (error) {
+    const friendly = toUserFacingError(error, "Không thể tải danh sách từ thiếu audio.");
+    redirect(`/bien-tap/audio?error=${encodeURIComponent(friendly.message)}`);
+  }
 
   const admin = createAdminClient();
   let queued = 0;

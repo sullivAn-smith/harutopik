@@ -8,14 +8,14 @@ export const metadata: Metadata = { title: "Nâng cấp Haru Pro" };
 export default async function UpgradePage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; errorMessage?: string }>;
 }) {
-  const { status } = await searchParams;
+  const { status, errorMessage } = await searchParams;
   const messages: Record<string, string> = {
     "setup-required": "Checkout đang chờ thông tin kênh thanh toán payOS.",
     processing: "Đang xác nhận giao dịch. Quyền Pro sẽ tự bật sau khi ngân hàng xác nhận.",
     cancelled: "Bạn đã hủy thanh toán. Không có khoản phí nào được ghi nhận.",
-    error: "Chưa thể tạo phiên thanh toán. Vui lòng thử lại sau.",
+    error: errorMessage ?? "Chưa thể tạo phiên thanh toán. Vui lòng thử lại sau.",
   };
   const plan = plans.proAnnual;
 

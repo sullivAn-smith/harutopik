@@ -10,6 +10,7 @@ import {
   type ContentFormState,
 } from "@/features/admin/content-schema";
 import { requirePermission } from "@/lib/auth/authorize";
+import { toUserFacingError } from "@/lib/errors/user-facing";
 import { createClient } from "@/lib/supabase/server";
 import { evaluateLessonEligibility } from "@/lib/vocabulary/eligibility";
 
@@ -109,12 +110,13 @@ export async function createLessonDraft(
   });
 
   if (error) {
-    const duplicate = error.code === "23505";
+    const friendly = toUserFacingError(error, "Chưa thể tạo bản nháp.");
     return {
       status: "error",
-      message: duplicate
-        ? "ID hoặc slug này đã tồn tại."
-        : "Chưa thể tạo bản nháp. Vui lòng thử lại.",
+      message:
+        friendly.code === "DUPLICATE"
+          ? "ID bài học hoặc slug đã tồn tại. Hãy đổi ID/slug rồi thử lại."
+          : friendly.message,
     };
   }
 
@@ -198,7 +200,10 @@ export async function updateLessonDraft(
     p_change_summary: parsed.data.changeSummary,
   });
   if (error) {
-    return { status: "error", message: "Không thể cập nhật bản nháp. Hãy tải lại và thử lại." };
+    return {
+      status: "error",
+      message: toUserFacingError(error, "Không thể cập nhật bản nháp.").message,
+    };
   }
 
   const destination =
@@ -239,7 +244,12 @@ async function transitionRevision(
     p_revision_id: revisionId,
     p_target_status: targetStatus,
   });
-  if (error) redirect(`${destination}?workflow=error`);
+  if (error) {
+    const friendly = toUserFacingError(error, "Không thể chuyển trạng thái bài.");
+    redirect(
+      `${destination}?workflow=error&errorMessage=${encodeURIComponent(friendly.message)}`,
+    );
+  }
 
   revalidatePath(destination);
   revalidatePath("/courses/[courseSlug]", "page");
@@ -286,7 +296,12 @@ export async function reviewRevision(formData: FormData) {
     p_decision: decision,
     p_comment: comment.trim(),
   });
-  if (error) redirect(`/quan-tri/duyet/${revisionId}?review=error`);
+  if (error) {
+    const friendly = toUserFacingError(error, "Không thể lưu quyết định duyệt.");
+    redirect(
+      `/quan-tri/duyet/${revisionId}?review=error&errorMessage=${encodeURIComponent(friendly.message)}`,
+    );
+  }
 
   revalidatePath("/quan-tri");
   revalidatePath("/quan-tri/duyet");
@@ -306,7 +321,12 @@ export async function unpublishRevision(formData: FormData) {
     p_revision_id: revisionId,
     p_note: typeof note === "string" ? note.trim() : "",
   });
-  if (error) redirect("/quan-tri/phat-hanh?release=error");
+  if (error) {
+    const friendly = toUserFacingError(error, "Không thể tạm gỡ bài.");
+    redirect(
+      `/quan-tri/phat-hanh?release=error&errorMessage=${encodeURIComponent(friendly.message)}`,
+    );
+  }
 
   revalidatePath("/quan-tri/phat-hanh");
   revalidatePath("/courses/[courseSlug]", "page");
@@ -329,7 +349,15 @@ export async function createNewRevision(formData: FormData) {
     p_source_revision_id: revisionId,
     p_change_summary: "Tạo phiên bản cập nhật mới",
   });
-  if (error || typeof data !== "string") redirect(`${returnTo}?version=error`);
+  if (error || typeof data !== "string") {
+    const friendly = toUserFacingError(
+      error ?? new Error("create_new_content_revision returned no id"),
+      "Không thể tạo phiên bản nội dung mới.",
+    );
+    redirect(
+      `${returnTo}?version=error&errorMessage=${encodeURIComponent(friendly.message)}`,
+    );
+  }
   revalidatePath(returnTo);
   redirect(
     returnTo.startsWith("/bien-tap")

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { apiError, apiSuccess } from "./responses";
+import { apiBackendError, apiError, apiSuccess } from "./responses";
 
 describe("API responses", () => {
   it("trả envelope có version và request ID", async () => {
@@ -16,6 +16,20 @@ describe("API responses", () => {
     expect(body.error).toEqual({
       code: "INVALID_INPUT",
       message: "Dữ liệu không hợp lệ.",
+    });
+  });
+
+  it("converts backend conflicts into a stable API error", async () => {
+    const response = apiBackendError(
+      { code: "23505", message: "duplicate key" },
+      "Không thể lưu.",
+    );
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: "DUPLICATE",
+        message: "ID, slug hoặc dữ liệu này đã tồn tại. Hãy dùng một giá trị khác.",
+      },
     });
   });
 });

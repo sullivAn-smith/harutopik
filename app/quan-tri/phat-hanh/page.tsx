@@ -5,7 +5,7 @@ import { getReleaseQueue } from "@/lib/data/admin";
 export default async function ReleasePage({
   searchParams,
 }: {
-  searchParams: Promise<{ release?: string; workflow?: string }>;
+  searchParams: Promise<{ release?: string; workflow?: string; errorMessage?: string }>;
 }) {
   const items = await getReleaseQueue();
   const notice = await searchParams;
@@ -14,7 +14,20 @@ export default async function ReleasePage({
       <p className="text-sm font-black uppercase tracking-widest text-violet-600">Release center</p>
       <h1 className="mt-2 text-4xl font-black">Phát hành nội dung</h1>
       <p className="mt-3 max-w-2xl leading-7 text-ink-600">Chỉ bài đã được phê duyệt mới có thể đưa đến người học. Tạm gỡ không xóa dữ liệu hoặc tiến độ.</p>
-      {(notice.release || notice.workflow) && <p className="mt-6 rounded-2xl bg-emerald-50 px-5 py-4 font-bold text-emerald-800">Đã cập nhật trạng thái phát hành thành công.</p>}
+      {(notice.release || notice.workflow) && (
+        <p
+          role={notice.release === "error" || notice.workflow === "error" ? "alert" : "status"}
+          className={`mt-6 rounded-2xl px-5 py-4 font-bold ${
+            notice.release === "error" || notice.workflow === "error"
+              ? "bg-red-50 text-red-800"
+              : "bg-emerald-50 text-emerald-800"
+          }`}
+        >
+          {notice.release === "error" || notice.workflow === "error"
+            ? (notice.errorMessage ?? "Không thể cập nhật trạng thái phát hành.")
+            : "Đã cập nhật trạng thái phát hành thành công."}
+        </p>
+      )}
       <section className="surface-card mt-8 overflow-hidden bg-white">
         {items.length === 0 ? <div className="p-6"><EmptyState title="Chưa có nội dung để phát hành" description="Bài được admin phê duyệt sẽ xuất hiện tại đây." /></div> : (
           <div className="divide-y">

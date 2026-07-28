@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/authorize";
+import { toUserFacingError } from "@/lib/errors/user-facing";
 import { createClient } from "@/lib/supabase/server";
 import {
   parseVocabularyImport,
@@ -48,7 +49,10 @@ export async function uploadVocabularyImport(
   if (existingError)
     return {
       status: "error",
-      message: "Chưa thể kiểm tra dữ liệu trùng. Vui lòng thử lại.",
+      message: toUserFacingError(
+        existingError,
+        "Chưa thể kiểm tra dữ liệu trùng.",
+      ).message,
     };
 
   const existingKeys = new Map(
@@ -109,7 +113,13 @@ export async function uploadVocabularyImport(
     .select("id")
     .single();
   if (batchError || !batch)
-    return { status: "error", message: "Chưa thể tạo phiên nhập dữ liệu." };
+    return {
+      status: "error",
+      message: toUserFacingError(
+        batchError ?? new Error("content import id missing"),
+        "Chưa thể tạo phiên nhập dữ liệu.",
+      ).message,
+    };
 
   for (let index = 0; index < stagedRows.length; index += 250) {
     const chunk = stagedRows.slice(index, index + 250).map((row) => ({
@@ -121,7 +131,10 @@ export async function uploadVocabularyImport(
       await supabase.from("content_imports").delete().eq("id", batch.id);
       return {
         status: "error",
-        message: "Không thể lưu dữ liệu xem trước. Vui lòng tải lại tệp.",
+        message: toUserFacingError(
+          error,
+          "Không thể lưu dữ liệu xem trước.",
+        ).message,
       };
     }
   }
@@ -132,7 +145,10 @@ export async function uploadVocabularyImport(
   if (readyError)
     return {
       status: "error",
-      message: "Dữ liệu đã tải lên nhưng chưa thể hoàn tất kiểm tra.",
+      message: toUserFacingError(
+        readyError,
+        "Dữ liệu đã tải lên nhưng chưa thể hoàn tất kiểm tra.",
+      ).message,
     };
   redirect(`/bien-tap/nhap-tu-vung/${batch.id}`);
 }
@@ -146,8 +162,12 @@ export async function commitVocabularyImport(formData: FormData) {
   const { error } = await supabase.rpc("commit_vocabulary_import", {
     p_import_id: importId,
   });
-  if (error)
-    redirect(`/bien-tap/nhap-tu-vung/${importId}?error=commit`);
+  if (error) {
+    const friendly = toUserFacingError(error, "Chưa thể hoàn tất nhập dữ liệu.");
+    redirect(
+      `/bien-tap/nhap-tu-vung/${importId}?error=${encodeURIComponent(friendly.message)}`,
+    );
+  }
   revalidatePath("/bien-tap/tu-vung");
   revalidatePath(`/bien-tap/nhap-tu-vung/${importId}`);
   redirect(`/bien-tap/nhap-tu-vung/${importId}?completed=1`);
