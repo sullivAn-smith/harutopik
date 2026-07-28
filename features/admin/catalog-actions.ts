@@ -10,7 +10,11 @@ import { createClient } from "@/lib/supabase/server";
 const id = z.string().trim().regex(/^[a-z0-9][a-z0-9-]*$/).max(200);
 
 export async function createCourseStructure(formData: FormData) {
-  await requirePermission("content:publish");
+  await requirePermission("catalog:create");
+  const returnTo =
+    formData.get("returnTo") === "/bien-tap/cau-truc"
+      ? "/bien-tap/cau-truc"
+      : "/quan-tri/cau-truc";
   const parsed = z
     .object({
       id,
@@ -22,7 +26,7 @@ export async function createCourseStructure(formData: FormData) {
       lessonCount: z.coerce.number().int().positive().max(500),
     })
     .safeParse(Object.fromEntries(formData.entries()));
-  if (!parsed.success) redirect("/quan-tri/cau-truc?error=course-invalid");
+  if (!parsed.success) redirect(`${returnTo}?error=course-invalid`);
   const supabase = await createClient();
   const { error } = await supabase.rpc("create_course_structure", {
     p_id: parsed.data.id,
@@ -35,14 +39,19 @@ export async function createCourseStructure(formData: FormData) {
   });
   if (error) {
     const friendly = toUserFacingError(error, "Không thể tạo khóa học.");
-    redirect(`/quan-tri/cau-truc?error=${encodeURIComponent(friendly.message)}`);
+    redirect(`${returnTo}?error=${encodeURIComponent(friendly.message)}`);
   }
   revalidatePath("/quan-tri/cau-truc");
-  redirect("/quan-tri/cau-truc?created=course");
+  revalidatePath("/bien-tap/cau-truc");
+  redirect(`${returnTo}?created=course`);
 }
 
 export async function createModuleStructure(formData: FormData) {
-  await requirePermission("content:publish");
+  await requirePermission("catalog:create");
+  const returnTo =
+    formData.get("returnTo") === "/bien-tap/cau-truc"
+      ? "/bien-tap/cau-truc"
+      : "/quan-tri/cau-truc";
   const parsed = z
     .object({
       id,
@@ -53,7 +62,7 @@ export async function createModuleStructure(formData: FormData) {
       sortOrder: z.coerce.number().int().positive().max(500),
     })
     .safeParse(Object.fromEntries(formData.entries()));
-  if (!parsed.success) redirect("/quan-tri/cau-truc?error=module-invalid");
+  if (!parsed.success) redirect(`${returnTo}?error=module-invalid`);
   const supabase = await createClient();
   const { error } = await supabase.rpc("create_module_structure", {
     p_id: parsed.data.id,
@@ -65,8 +74,9 @@ export async function createModuleStructure(formData: FormData) {
   });
   if (error) {
     const friendly = toUserFacingError(error, "Không thể tạo chương.");
-    redirect(`/quan-tri/cau-truc?error=${encodeURIComponent(friendly.message)}`);
+    redirect(`${returnTo}?error=${encodeURIComponent(friendly.message)}`);
   }
   revalidatePath("/quan-tri/cau-truc");
-  redirect("/quan-tri/cau-truc?created=module");
+  revalidatePath("/bien-tap/cau-truc");
+  redirect(`${returnTo}?created=module`);
 }

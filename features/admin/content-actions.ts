@@ -11,6 +11,7 @@ import {
 } from "@/features/admin/content-schema";
 import { requirePermission } from "@/lib/auth/authorize";
 import { toUserFacingError } from "@/lib/errors/user-facing";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { evaluateLessonEligibility } from "@/lib/vocabulary/eligibility";
 
@@ -27,6 +28,52 @@ async function revisionPassesEligibility(
   if (data.content_type !== "lesson") return true;
   const lesson = lessonSchema.safeParse(data.payload);
   return lesson.success && evaluateLessonEligibility(lesson.data).canSubmit;
+}
+
+async function notifyWorkflow(
+  revisionId: string,
+  event: "submitted" | "approved" | "changes_requested",
+) {
+  const admin = createAdminClient();
+  const { data: revision } = await admin
+    .from("content_revisions")
+    .select("created_by,content_id,payload")
+    .eq("id", revisionId)
+    .maybeSingle();
+  if (!revision) return;
+  const title =
+    typeof revision.payload === "object" &&
+    revision.payload &&
+    "title" in revision.payload
+      ? String((revision.payload.title as { vi?: string }).vi ?? revision.content_id)
+      : revision.content_id;
+  if (event === "submitted") {
+    const { data: admins } = await admin
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "admin");
+    if (!admins?.length) return;
+    await admin.from("notifications").insert(
+      admins.map(({ user_id }) => ({
+        user_id,
+        type: "content_submitted",
+        title: "Có bài mới chờ duyệt",
+        message: `“${title}” vừa được gửi duyệt.`,
+        href: `/quan-tri/duyet/${revisionId}`,
+      })),
+    );
+    return;
+  }
+  await admin.from("notifications").insert({
+    user_id: revision.created_by,
+    type: event === "approved" ? "content_approved" : "content_changes_requested",
+    title: event === "approved" ? "Bài học đã được duyệt" : "Bài học cần chỉnh sửa",
+    message:
+      event === "approved"
+        ? `“${title}” đã được admin duyệt và đang chờ phát hành.`
+        : `“${title}” đã được trả về để bạn chỉnh sửa.`,
+    href: `/bien-tap/noi-dung/${revisionId}`,
+  });
 }
 
 export async function createLessonDraft(
@@ -251,7 +298,11 @@ async function transitionRevision(
     );
   }
 
+  if (targetStatus === "in_review") {
+    await notifyWorkflow(revisionId, "submitted");
+  }
   revalidatePath(destination);
+  revalidatePath("/thong-bao");
   revalidatePath("/courses/[courseSlug]", "page");
   revalidatePath("/api/v1/catalog");
   redirect(`${destination}?workflow=${targetStatus}`);
@@ -303,9 +354,11 @@ export async function reviewRevision(formData: FormData) {
     );
   }
 
+  await notifyWorkflow(revisionId, decision);
   revalidatePath("/quan-tri");
   revalidatePath("/quan-tri/duyet");
   revalidatePath("/quan-tri/noi-dung");
+  revalidatePath("/thong-bao");
   redirect(`/quan-tri/duyet?review=${decision}`);
 }
 
@@ -364,4 +417,54 @@ export async function createNewRevision(formData: FormData) {
       ? `/bien-tap/noi-dung/${data}`
       : `/quan-tri/noi-dung/${data}`,
   );
+}
+
+export async function deleteOrArchiveLesson(formData: FormData) {
+  await requirePermission("content:delete-own");
+  const revisionId = formData.get("revisionId");
+  const returnTo =
+    formData.get("returnTo") === "/quan-tri/noi-dung"
+      ? "/quan-tri/noi-dung"
+      : "/bien-tap/noi-dung";
+  if (typeof revisionId !== "string" || !revisionId) {
+    redirect(`${returnTo}?delete=invalid`);
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("delete_or_archive_lesson", {
+    p_revision_id: revisionId,
+  });
+  if (error) {
+    const friendly = toUserFacingError(error, "Chưa thể xóa bài học.");
+    redirect(
+      `${returnTo}?delete=error&errorMessage=${encodeURIComponent(friendly.message)}`,
+    );
+  }
+  revalidatePath("/bien-tap/noi-dung");
+  revalidatePath("/quan-tri/noi-dung");
+  redirect(`${returnTo}?delete=${data === "archived" ? "archived" : "done"}`);
+}
+
+export async function prepareAdminRevisionEdit(formData: FormData) {
+  await requirePermission("content:publish");
+  const revisionId = formData.get("revisionId");
+  if (typeof revisionId !== "string" || !revisionId) {
+    redirect("/quan-tri/noi-dung?quickEdit=invalid");
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("prepare_admin_revision_edit", {
+    p_revision_id: revisionId,
+  });
+  if (error || typeof data !== "string") {
+    const friendly = toUserFacingError(
+      error ?? new Error("prepare_admin_revision_edit returned no id"),
+      "Chưa thể mở bản chỉnh sửa cho admin.",
+    );
+    redirect(
+      `/quan-tri/noi-dung?quickEdit=error&errorMessage=${encodeURIComponent(friendly.message)}`,
+    );
+  }
+  revalidatePath("/quan-tri/noi-dung");
+  revalidatePath("/quan-tri/duyet");
+  revalidatePath("/quan-tri/phat-hanh");
+  redirect(`/quan-tri/noi-dung/${data}?quickEdit=ready`);
 }

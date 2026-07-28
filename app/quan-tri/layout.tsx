@@ -1,41 +1,21 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
+import { AdminSidebar } from "@/features/admin/admin-sidebar";
 import { requirePermission } from "@/lib/auth/authorize";
+import { getUnreadNotificationCount } from "@/lib/data/notifications";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const actor = await requirePermission("content:approve");
+  const unread = await getUnreadNotificationCount();
 
   return (
-    <div className="min-h-screen bg-[#f4f7fb] text-ink-900 lg:grid lg:grid-cols-[17rem_1fr]">
-      <aside className="border-r border-slate-200 bg-[#10243e] px-5 py-6 text-white lg:sticky lg:top-0 lg:h-screen">
-        <Link href="/quan-tri" className="flex items-center gap-3 text-xl font-black">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-400 text-[#10243e]">H</span>
-          Harutopik Admin
-        </Link>
-        <p className="mt-3 text-xs font-semibold text-slate-300">Kiểm duyệt và phát hành nội dung</p>
-        <nav className="mt-8 grid gap-2 text-sm font-bold" aria-label="Quản trị">
-          {[
-            ["▦", "Tổng quan", "/quan-tri"],
-            ["◎", "Hàng chờ duyệt", "/quan-tri/duyet"],
-            ["↑", "Phát hành", "/quan-tri/phat-hanh"],
-            ["⌘", "Khóa học & chương", "/quan-tri/cau-truc"],
-            ["≡", "Tất cả nội dung", "/quan-tri/noi-dung"],
-          ].map(([icon, label, href]) => (
-            <Link key={href} href={href} className="flex items-center gap-3 rounded-xl px-3 py-3 text-slate-100 transition hover:bg-white/10">
-              <span className="text-lg text-cyan-300">{icon}</span>{label}
-            </Link>
-          ))}
-        </nav>
-        <div className="mt-8 border-t border-white/10 pt-5 lg:absolute lg:bottom-6 lg:left-5 lg:right-5">
-          <p className="truncate text-xs text-slate-300">{actor.email}</p>
-          <Link href="/" className="mt-3 inline-flex text-sm font-bold text-cyan-300 hover:text-white">← Về website học</Link>
-        </div>
-      </aside>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,#edf3ff_0,#f5f8fc_32%,#f4f7fb_70%)] text-ink-900 lg:grid lg:grid-cols-[18rem_1fr]">
+      <AdminSidebar email={actor.email} unread={unread} />
       <div className="min-w-0">
-        <header className="border-b border-slate-200 bg-white px-5 py-4 lg:px-8">
-          <p className="text-sm font-bold text-ink-600">Trung tâm vận hành nội dung</p>
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/80 bg-white/80 px-5 py-4 backdrop-blur-xl lg:px-8">
+          <div><p className="text-xs font-black uppercase tracking-[0.16em] text-violet-600">Haru Control Center</p><p className="mt-1 text-sm font-bold text-ink-600">Quản trị hệ thống và chất lượng học liệu</p></div>
+          <div className="flex items-center gap-2 rounded-full border bg-white px-3 py-2 text-xs font-bold text-ink-600 shadow-sm"><span className="h-2 w-2 rounded-full bg-emerald-500" />Production</div>
         </header>
         {children}
       </div>

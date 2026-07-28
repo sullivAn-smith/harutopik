@@ -4,7 +4,14 @@ import { hasPermission, permissionsForRoles } from "./permissions";
 describe("role permissions", () => {
   it("không cho biên tập viên tự xuất bản", () => {
     expect(hasPermission(["content_editor"], "content:edit")).toBe(true);
+    expect(hasPermission(["content_editor"], "content:delete-own")).toBe(true);
+    expect(hasPermission(["content_editor"], "catalog:create")).toBe(true);
     expect(hasPermission(["content_editor"], "content:publish")).toBe(false);
+  });
+
+  it("không cho learner thay đổi catalog hoặc xóa nội dung", () => {
+    expect(hasPermission(["learner"], "catalog:create")).toBe(false);
+    expect(hasPermission(["learner"], "content:delete-own")).toBe(false);
   });
 
   it("tách quyền duyệt khỏi quyền chỉnh sửa", () => {

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { createNewRevision, submitRevision } from "@/features/admin/content-actions";
+import { createNewRevision } from "@/features/admin/content-actions";
 import { StatusBadge } from "@/features/admin/workflow-ui";
 import { getContentRevisions } from "@/lib/data/admin";
 
@@ -32,11 +32,11 @@ export default async function AdminContentPage({
     <main className="mx-auto max-w-7xl px-5 py-10">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-black uppercase tracking-widest text-brand-600">Content workflow</p>
-          <h1 className="mt-2 text-4xl font-black">Phiên bản nội dung</h1>
-          <p className="mt-3 text-ink-600">Nháp → gửi duyệt → phê duyệt → xuất bản, có lịch sử đầy đủ.</p>
+          <span className="inline-flex rounded-full bg-violet-100 px-3 py-1 text-xs font-black uppercase tracking-[0.16em] text-violet-700">Content registry</span>
+          <h1 className="mt-4 text-4xl font-black tracking-tight">Phiên bản nội dung</h1>
+          <p className="mt-3 text-ink-600">Quan sát toàn bộ vòng đời nội dung. Việc soạn bài mới thuộc không gian của content editor.</p>
         </div>
-        <Link href="/quan-tri/noi-dung/moi" className="rounded-2xl bg-brand-600 px-5 py-3 font-black text-white">+ Tạo bài học</Link>
+        <Link href="/quan-tri/duyet" className="rounded-2xl bg-[#10243e] px-5 py-3 font-black text-white shadow-lg">Mở hàng chờ duyệt →</Link>
       </div>
       {created === "1" && (
         <p role="status" className="mt-6 rounded-2xl bg-emerald-50 px-5 py-4 font-bold text-emerald-800">
@@ -82,10 +82,7 @@ export default async function AdminContentPage({
                     <td className="px-5 py-4">{new Intl.DateTimeFormat("vi-VN").format(new Date(revision.updatedAt))}</td>
                     <td className="px-5 py-4">
                       {revision.status === "draft" && (
-                        <form action={submitRevision}>
-                          <input type="hidden" name="revisionId" value={revision.id} />
-                          <button className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-black text-white">Gửi duyệt</button>
-                        </form>
+                        <Link href={`/quan-tri/noi-dung/${revision.id}`} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-black text-ink-700">Xem bản nháp</Link>
                       )}
                       {revision.status === "in_review" && (
                         <Link href={`/quan-tri/duyet/${revision.id}`} className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-black text-white">Mở duyệt</Link>

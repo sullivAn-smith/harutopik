@@ -17,6 +17,7 @@ type UseStudySessionOptions = {
   lessonVersion: number;
   state: StudySessionState;
   onRestore: (state: StudySessionState) => void;
+  enabled?: boolean;
 };
 
 const remoteDelayMs = 900;
@@ -26,6 +27,7 @@ export function useStudySession({
   lessonVersion,
   state,
   onRestore,
+  enabled = true,
 }: UseStudySessionOptions) {
   const localKey = `harutopik:study-session:v1:${lessonId}:${lessonVersion}`;
   const [syncState, setSyncState] = useState<SessionSyncState>("idle");
@@ -39,6 +41,7 @@ export function useStudySession({
   const latestPayloadRef = useRef(state);
 
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
 
     async function restore() {
@@ -77,9 +80,10 @@ export function useStudySession({
     return () => {
       cancelled = true;
     };
-  }, [lessonId, lessonVersion, localKey, onRestore]);
+  }, [enabled, lessonId, lessonVersion, localKey, onRestore]);
 
   useEffect(() => {
+    if (!enabled) return;
     latestPayloadRef.current = state;
     if (!readyRef.current) return;
     if (skipInitialStateEffectRef.current) {
@@ -113,25 +117,27 @@ export function useStudySession({
         window.clearTimeout(remoteTimerRef.current);
       }
     };
-  }, [lessonId, lessonVersion, localKey, state]);
+  }, [enabled, lessonId, lessonVersion, localKey, state]);
 
   useEffect(() => {
+    if (!enabled) return;
     function flushBeforeLeaving() {
       if (!readyRef.current) return;
       localStorage.setItem(localKey, JSON.stringify(latestPayloadRef.current));
     }
     window.addEventListener("pagehide", flushBeforeLeaving);
     return () => window.removeEventListener("pagehide", flushBeforeLeaving);
-  }, [localKey]);
+  }, [enabled, localKey]);
 
   const clearSession = useCallback(async () => {
+    if (!enabled) return;
     localStorage.removeItem(localKey);
     setRestored(false);
     await fetch(
       `/api/v1/learning/session?lessonId=${encodeURIComponent(lessonId)}`,
       { method: "DELETE" },
     ).catch(() => null);
-  }, [lessonId, localKey]);
+  }, [enabled, lessonId, localKey]);
 
   return {
     syncState,

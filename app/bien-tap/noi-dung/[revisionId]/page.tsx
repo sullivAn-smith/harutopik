@@ -36,6 +36,7 @@ export default async function EditorRevisionPage({ params }: { params: Promise<{
         <div><p className="text-sm font-black uppercase tracking-widest text-brand-600">Phiên bản {lesson.version}</p><h1 className="mt-2 text-4xl font-black">{lesson.title.vi}</h1></div>
         <StatusBadge status={revision.status} />
       </div>
+      <Link href={`/xem-truoc/${revision.id}`} className="mt-5 inline-flex rounded-2xl border-2 border-brand-500 px-5 py-3 font-black text-brand-700">▶ Xem như người học</Link>
       {editable && (
         <div className="mt-5 flex justify-end">
           <Link href={`/bien-tap/noi-dung/${revision.id}/tu-vung`} className="rounded-2xl bg-[#10243e] px-5 py-3 font-black text-white">Quản lý bộ từ của bài →</Link>

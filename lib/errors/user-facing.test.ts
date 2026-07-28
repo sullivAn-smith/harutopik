@@ -22,6 +22,19 @@ describe("toUserFacingError", () => {
     });
   });
 
+  it("tells the editor which lessons are using a vocabulary item", () => {
+    expect(
+      toUserFacingError({
+        code: "P0001",
+        message: "vocabulary_used_by_lessons:Động vật cơ bản, Ôn tập TOPIK",
+      }),
+    ).toEqual({
+      code: "VOCABULARY_USED_BY_LESSONS",
+      message:
+        "Từ đang được dùng trong bài: Động vật cơ bản, Ôn tập TOPIK. Hãy gỡ từ khỏi bài trước khi xóa.",
+    });
+  });
+
   it("adds a support reference without leaking backend details", () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     const result = toUserFacingError(

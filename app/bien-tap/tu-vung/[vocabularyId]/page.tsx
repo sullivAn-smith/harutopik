@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { generateVocabularyAudio } from "@/features/vocabulary-admin/audio-actions";
+import { deleteVocabularyDraft } from "@/features/vocabulary-admin/actions";
 import { VocabularyForm } from "@/features/vocabulary-admin/vocabulary-form";
 import { getVocabularyAdminItem } from "@/lib/data/vocabulary-admin";
 
@@ -9,7 +11,13 @@ export default async function VocabularyDetailPage({
   searchParams,
 }: {
   params: Promise<{ vocabularyId: string }>;
-  searchParams: Promise<{ created?: string; updated?: string; audio?: string }>;
+  searchParams: Promise<{
+    created?: string;
+    updated?: string;
+    audio?: string;
+    delete?: string;
+    errorMessage?: string;
+  }>;
 }) {
   const { vocabularyId } = await params;
   const item = await getVocabularyAdminItem(vocabularyId);
@@ -24,10 +32,32 @@ export default async function VocabularyDetailPage({
       {["generated", "reused"].includes(notice.audio ?? "") && <p className="mt-6 rounded-2xl bg-emerald-50 p-4 font-bold text-emerald-800">Audio đã sẵn sàng trên CDN và có thể dùng cho bài chép chính tả.</p>}
       {notice.audio === "not-configured" && <p className="mt-6 rounded-2xl bg-amber-50 p-4 font-bold text-amber-900">Chưa cấu hình Google Cloud TTS. Hãy thêm GOOGLE_CLOUD_TTS_API_KEY vào .env.local.</p>}
       {["failed", "queue-failed"].includes(notice.audio ?? "") && <p className="mt-6 rounded-2xl bg-red-50 p-4 font-bold text-red-700">Chưa thể tạo audio. Hệ thống đã lưu trạng thái lỗi để bạn có thể thử lại.</p>}
+      {notice.delete === "error" && (
+        <p role="alert" className="mt-6 rounded-2xl bg-red-50 p-4 font-bold text-red-700">
+          {notice.errorMessage ?? "Chưa thể xóa từ vựng."}
+        </p>
+      )}
       {editable && <section className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-violet-200 bg-violet-50 p-5"><div><h2 className="text-lg font-black">Audio phát âm tự động</h2><p className="mt-1 text-sm text-ink-600">{item.audioUrl ? "Audio hiện tại đã lưu trên CDN. Tạo lại chỉ cần thiết khi cách đọc thay đổi." : "Tạo một lần bằng Google TTS, sau đó web và app phát trực tiếp từ CDN."}</p></div><form action={generateVocabularyAudio}><input type="hidden" name="vocabularyId" value={item.id} /><button className="rounded-xl bg-violet-700 px-5 py-3 font-black text-white">{item.audioUrl ? "Tạo lại audio" : "Tạo audio TTS"}</button></form></section>}
       <section className="surface-card mt-7 bg-white p-6 sm:p-8">
         {editable ? <VocabularyForm defaults={{ id: item.id, hangul: item.hangul, romanization: item.romanization, meaningVi: item.meaningVi, partOfSpeech: item.partOfSpeech, level: item.level, category: item.category, audioUrl: item.audioUrl, imageUrl: item.imageUrl, acceptedVi: item.acceptedVi, acceptedKo: item.acceptedKo, examples: item.examples }} /> : <div className="py-12 text-center"><h2 className="text-2xl font-black">Từ đã xuất bản được bảo vệ</h2><p className="mt-2 text-ink-600">Từ đang được dùng trong bài học nên không thể chỉnh sửa trực tiếp ở phiên bản hiện tại.</p></div>}
       </section>
+      {editable && (
+        <section className="mt-7 rounded-3xl border border-red-200 bg-red-50 p-6">
+          <h2 className="text-lg font-black text-red-900">Xóa từ khỏi thư viện</h2>
+          <p className="mt-2 text-sm leading-6 text-red-800">
+            Chỉ xóa được từ bản nháp do bạn tạo và chưa được dùng trong bài học.
+          </p>
+          <form action={deleteVocabularyDraft} className="mt-4">
+            <input type="hidden" name="vocabularyId" value={item.id} />
+            <ConfirmSubmitButton
+              confirmation={`Xóa vĩnh viễn từ “${item.hangul}”? Thao tác này không thể hoàn tác.`}
+              className="rounded-xl bg-red-700 px-5 py-3 font-black text-white"
+            >
+              Xóa từ vựng
+            </ConfirmSubmitButton>
+          </form>
+        </section>
+      )}
     </main>
   );
 }

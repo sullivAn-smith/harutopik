@@ -70,6 +70,7 @@ export default async function LessonRevisionPage({
         </p>
       </div>
       <div className="mt-8"><EligibilityReport lesson={lesson} /></div>
+      <Link href={`/xem-truoc/${revision.id}`} className="mt-6 inline-flex rounded-2xl border-2 border-brand-500 px-5 py-3 font-black text-brand-700">▶ Xem như người học</Link>
       <section className="surface-card mt-8 bg-white p-6 sm:p-8">
         {["draft", "changes_requested"].includes(revision.status) ? (
           <LessonDraftForm revisionId={revision.id} defaults={defaults} returnTo="/quan-tri/noi-dung" catalogOptions={catalogOptions} />
@@ -77,7 +78,8 @@ export default async function LessonRevisionPage({
           <div className="rounded-2xl bg-slate-50 p-6">
             <p className="font-black">Phiên bản này đã bị khóa chỉnh sửa.</p>
             <p className="mt-2 text-ink-600">
-              Quay lại danh sách để tiếp tục bước duyệt hoặc xuất bản.
+              Chỉnh sửa nhanh chỉ được mở từ bước duyệt. Với thay đổi lớn, hãy
+              yêu cầu người biên tập tạo phiên bản mới.
             </p>
           </div>
         )}

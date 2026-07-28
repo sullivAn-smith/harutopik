@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { reviewRevision } from "@/features/admin/content-actions";
+import { prepareAdminRevisionEdit, reviewRevision } from "@/features/admin/content-actions";
 import { EligibilityReport } from "@/features/admin/eligibility-report";
 import { getLessonRevision } from "@/lib/data/admin";
 
@@ -23,6 +23,15 @@ export default async function ReviewDetailPage({
         <div><p className="text-sm font-black uppercase tracking-widest text-blue-600">Bản xem trước · v{lesson.version}</p><h1 className="mt-2 text-4xl font-black">{lesson.title.vi}</h1><p lang="ko" className="mt-2 text-xl font-bold text-ink-600">{lesson.title.ko}</p></div>
         <span className="rounded-full bg-blue-100 px-4 py-2 text-sm font-black text-blue-800">Đang chờ quyết định</span>
       </div>
+      <form action={prepareAdminRevisionEdit} className="mt-5">
+        <input type="hidden" name="revisionId" value={revision.id} />
+        <button className="rounded-xl border-2 border-amber-400 bg-amber-50 px-5 py-3 font-black text-amber-900">
+          Chỉnh sửa nhanh thay cho gửi về biên tập
+        </button>
+      </form>
+      <Link href={`/xem-truoc/${revision.id}`} className="mt-3 inline-flex rounded-xl border-2 border-brand-500 px-5 py-3 font-black text-brand-700">
+        ▶ Xem như người học
+      </Link>
       {review && <p className="mt-6 rounded-2xl bg-red-50 p-4 font-bold text-red-700">{review === "validation" ? "Bài chưa đạt kiểm tra dữ liệu bắt buộc nên chưa thể phê duyệt." : review === "error" ? (errorMessage ?? "Không thể lưu quyết định duyệt.") : "Vui lòng nhập nhận xét ít nhất 3 ký tự."}</p>}
       <div className="mt-8 grid gap-6 xl:grid-cols-[1fr_23rem]">
         <div className="space-y-6">

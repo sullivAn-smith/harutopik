@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { createNewRevision, submitRevision } from "@/features/admin/content-actions";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { createNewRevision, deleteOrArchiveLesson, submitRevision } from "@/features/admin/content-actions";
 import { EmptyState, StatusBadge } from "@/features/admin/workflow-ui";
 import { getContentRevisions } from "@/lib/data/admin";
 
@@ -11,6 +12,7 @@ export default async function EditorContentPage({
     updated?: string;
     workflow?: string;
     version?: string;
+    delete?: string;
     errorMessage?: string;
   }>;
 }) {
@@ -41,6 +43,18 @@ export default async function EditorContentPage({
           {notice.errorMessage ?? "Không thể hoàn tất thao tác. Hãy tải lại và thử lại."}
         </p>
       )}
+      {["done", "archived"].includes(notice.delete ?? "") && (
+        <p role="status" className="mt-6 rounded-2xl bg-emerald-50 px-5 py-4 font-bold text-emerald-800">
+          {notice.delete === "archived"
+            ? "Bài từng phát hành đã được lưu trữ và ẩn khỏi danh sách của bạn."
+            : "Đã xóa bài học bản nháp."}
+        </p>
+      )}
+      {notice.delete === "error" && (
+        <p role="alert" className="mt-6 rounded-2xl bg-red-50 px-5 py-4 font-bold text-red-800">
+          {notice.errorMessage ?? "Chưa thể xóa bài học."}
+        </p>
+      )}
       <section className="surface-card mt-8 overflow-hidden bg-white">
         {revisions.length === 0 ? (
           <div className="p-6"><EmptyState title="Chưa có bài học" description="Hãy bắt đầu với bài đầu tiên. Bài sẽ được lưu dưới dạng bản nháp." action={<Link href="/bien-tap/noi-dung/moi" className="font-black text-brand-700">Soạn bài đầu tiên</Link>} /></div>
@@ -68,6 +82,22 @@ export default async function EditorContentPage({
                     <input type="hidden" name="revisionId" value={revision.id} />
                     <input type="hidden" name="returnTo" value="/bien-tap/noi-dung" />
                     <button className="rounded-xl border px-4 py-2 text-sm font-black">Tạo phiên bản mới</button>
+                  </form>
+                )}
+                {["draft", "changes_requested", "unpublished", "archived"].includes(revision.status) && (
+                  <form action={deleteOrArchiveLesson}>
+                    <input type="hidden" name="revisionId" value={revision.id} />
+                    <input type="hidden" name="returnTo" value="/bien-tap/noi-dung" />
+                    <ConfirmSubmitButton
+                      confirmation={
+                        ["unpublished", "archived"].includes(revision.status)
+                          ? `Lưu trữ và ẩn bài “${revision.title}” khỏi danh sách?`
+                          : `Xóa vĩnh viễn bản nháp “${revision.title}”?`
+                      }
+                      className="rounded-xl border border-red-300 px-4 py-2 text-sm font-black text-red-700"
+                    >
+                      Xóa
+                    </ConfirmSubmitButton>
                   </form>
                 )}
               </article>

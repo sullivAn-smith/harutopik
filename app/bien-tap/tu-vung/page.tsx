@@ -2,8 +2,13 @@ import Link from "next/link";
 import { VocabularyLibrary } from "@/features/vocabulary-admin/vocabulary-library";
 import { getVocabularyLibrary } from "@/lib/data/vocabulary-admin";
 
-export default async function VocabularyLibraryPage() {
+export default async function VocabularyLibraryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ delete?: string }>;
+}) {
   const items = await getVocabularyLibrary();
+  const notice = await searchParams;
   return (
     <main className="mx-auto max-w-7xl px-5 py-10">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -13,6 +18,11 @@ export default async function VocabularyLibraryPage() {
           <Link href="/bien-tap/tu-vung/moi" className="rounded-2xl bg-brand-600 px-5 py-3 font-black text-white">+ Tạo từ mới</Link>
         </div>
       </div>
+      {notice.delete === "done" && (
+        <p role="status" className="mt-6 rounded-2xl bg-emerald-50 p-4 font-bold text-emerald-800">
+          Đã xóa từ vựng bản nháp khỏi thư viện.
+        </p>
+      )}
       <VocabularyLibrary items={items} />
     </main>
   );

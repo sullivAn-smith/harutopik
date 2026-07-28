@@ -36,7 +36,7 @@ import { generateLessonPractice } from "@/lib/learning-core/practice-generator";
 
 type Tab = "vocabulary" | "grammar";
 
-function LessonContent({ lesson }: { lesson: Lesson }) {
+function LessonContent({ lesson, previewMode = false }: { lesson: Lesson; previewMode?: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const speechTimerRef = useRef<number | null>(null);
@@ -244,6 +244,7 @@ function LessonContent({ lesson }: { lesson: Lesson }) {
   const { syncState, completePractice, rateContent } = useLearningSync({
     lessonId: lesson.id,
     lessonVersion: lesson.version,
+    enabled: !previewMode,
   });
   const {
     syncState: sessionSyncState,
@@ -255,6 +256,7 @@ function LessonContent({ lesson }: { lesson: Lesson }) {
     lessonVersion: lesson.version,
     state: sessionSnapshot,
     onRestore: restoreStudySession,
+    enabled: !previewMode,
   });
 
   const activeWord = vocabulary[current];
@@ -1025,10 +1027,10 @@ function addUniqueIndex(
   setter((items) => (items.includes(index) ? items : [...items, index]));
 }
 
-export function LessonExperience({ lesson }: { lesson: Lesson }) {
+export function LessonExperience({ lesson, previewMode = false }: { lesson: Lesson; previewMode?: boolean }) {
   return (
     <Suspense fallback={<main className="elegant-blue min-h-screen" />}>
-      <LessonContent lesson={lesson} />
+      <LessonContent lesson={lesson} previewMode={previewMode} />
     </Suspense>
   );
 }

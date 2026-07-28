@@ -17,6 +17,21 @@ const domainErrors: Array<{
   message: string;
 }> = [
   {
+    match: "cannot_remove_last_admin",
+    code: "LAST_ADMIN",
+    message: "Không thể bỏ quyền của admin cuối cùng trong hệ thống.",
+  },
+  {
+    match: "role_change_reason_required",
+    code: "ROLE_REASON_REQUIRED",
+    message: "Hãy nhập lý do thay đổi role ít nhất 3 ký tự.",
+  },
+  {
+    match: "unsupported_primary_role",
+    code: "UNSUPPORTED_ROLE",
+    message: "Role này chưa được hỗ trợ trong màn hình quản lý hiện tại.",
+  },
+  {
     match: "invalid_credentials",
     code: "INVALID_CREDENTIALS",
     message: "Email hoặc mật khẩu chưa đúng.",
@@ -106,6 +121,34 @@ const domainErrors: Array<{
     match: "vocabulary_not_editable",
     code: "VOCABULARY_NOT_EDITABLE",
     message: "Từ vựng đã được phát hành hoặc đang được xử lý nên không thể sửa trực tiếp.",
+  },
+  {
+    match: "published_vocabulary_cannot_delete",
+    code: "PUBLISHED_VOCABULARY_CANNOT_DELETE",
+    message:
+      "Từ đã được phát hành nên không thể xóa. Hãy tạo phiên bản nội dung mới nếu cần thay thế.",
+  },
+  {
+    match: "vocabulary_used_by_lessons",
+    code: "VOCABULARY_USED_BY_LESSONS",
+    message:
+      "Từ đang được dùng trong một hoặc nhiều bài học. Hãy gỡ từ khỏi các bài đó trước khi xóa.",
+  },
+  {
+    match: "active_revision_cannot_delete",
+    code: "ACTIVE_REVISION_CANNOT_DELETE",
+    message:
+      "Bài đang chờ duyệt, đã duyệt hoặc đang phát hành nên không thể xóa. Hãy tạm gỡ hoặc đưa bài về trạng thái có thể chỉnh sửa trước.",
+  },
+  {
+    match: "revision_not_deletable",
+    code: "REVISION_NOT_DELETABLE",
+    message: "Không thể xóa bài ở trạng thái hiện tại.",
+  },
+  {
+    match: "invalid_content_type",
+    code: "INVALID_CONTENT_TYPE",
+    message: "Loại nội dung này không hỗ trợ thao tác vừa chọn.",
   },
   {
     match: "invalid_vocabulary_selection",
@@ -214,6 +257,21 @@ export function toUserFacingError(
 ): UserFacingError {
   const backend = asBackendError(error);
   const text = searchable(backend);
+  const vocabularyDependencyMarker = "vocabulary_used_by_lessons:";
+  const dependencyIndex =
+    backend.message?.toLowerCase().indexOf(vocabularyDependencyMarker) ?? -1;
+  if (dependencyIndex >= 0 && backend.message) {
+    const lessonNames = backend.message
+      .slice(dependencyIndex + vocabularyDependencyMarker.length)
+      .trim()
+      .slice(0, 240);
+    return {
+      code: "VOCABULARY_USED_BY_LESSONS",
+      message: lessonNames
+        ? `Từ đang được dùng trong bài: ${lessonNames}. Hãy gỡ từ khỏi bài trước khi xóa.`
+        : "Từ đang được dùng trong một hoặc nhiều bài học. Hãy gỡ từ khỏi các bài đó trước khi xóa.",
+    };
+  }
   const domain = domainErrors.find(({ match }) => text.includes(match));
   if (domain) return { code: domain.code, message: domain.message };
 

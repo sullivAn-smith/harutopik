@@ -1,7 +1,7 @@
 import { CatalogStructureManager } from "@/features/admin/catalog-structure-manager";
 import { getCatalogStructureOptions } from "@/lib/data/admin";
 
-export default async function CatalogStructurePage({
+export default async function EditorCatalogStructurePage({
   searchParams,
 }: {
   searchParams: Promise<{ created?: string; error?: string }>;
@@ -14,7 +14,7 @@ export default async function CatalogStructurePage({
     <CatalogStructureManager
       entries={entries}
       query={query}
-      returnTo="/quan-tri/cau-truc"
+      returnTo="/bien-tap/cau-truc"
     />
   );
 }

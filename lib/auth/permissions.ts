@@ -15,6 +15,8 @@ export const permissions = [
   "content:read-draft",
   "content:create",
   "content:edit",
+  "content:delete-own",
+  "catalog:create",
   "content:submit-review",
   "content:approve",
   "content:publish",
@@ -34,6 +36,8 @@ const rolePermissions: Record<AppRole, readonly Permission[]> = {
     "content:read-draft",
     "content:create",
     "content:edit",
+    "content:delete-own",
+    "catalog:create",
     "content:submit-review",
   ],
   content_reviewer: [

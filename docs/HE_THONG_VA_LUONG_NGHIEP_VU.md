@@ -77,16 +77,18 @@ Trang mặc định sau onboarding:
 - sửa bài do chính mình tạo khi còn `draft` hoặc `changes_requested`;
 - tạo và sửa từ vựng bản nháp của chính mình;
 - import CSV/XLSX;
+- tạo khóa học và chương/học phần;
 - chọn từ vào bài;
 - nhập ngữ pháp và câu ví dụ;
 - xem Eligibility Report;
 - gửi bài sang `in_review`.
+- xóa từ bản nháp do chính mình tạo nếu chưa được bài học sử dụng;
+- xóa bài nháp của chính mình hoặc lưu trữ bài đã từng phát hành.
 
 Không được phép:
 
 - phê duyệt;
 - publish hoặc unpublish;
-- tạo course/module;
 - quản lý role;
 - xem nội dung quản trị hệ thống.
 
@@ -105,6 +107,8 @@ Trang mặc định sau onboarding:
 - duyệt hoặc yêu cầu sửa;
 - phát hành và tạm gỡ;
 - tạo course/module;
+- chỉnh sửa nhanh bài đang duyệt hoặc đã duyệt;
+- tự tạo revision mới khi cần chỉnh bài đang phát hành;
 - xem audit log ở tầng dữ liệu;
 - quản lý role ở tầng database.
 
@@ -386,7 +390,7 @@ content_import_rows
 ## 15. Luồng tạo bài học
 
 ```text
-Admin tạo course/module
+Content editor tạo course/module
 → Content editor tạo lesson draft
 → chọn course/module
 → nhập metadata và mục tiêu
@@ -397,6 +401,41 @@ Admin tạo course/module
 ```
 
 Content editor không nhập lại cùng một từ cho từng dạng bài tập.
+
+## 15.1. Luồng xóa nội dung an toàn
+
+```text
+Từ bản nháp do editor tạo
+├── chưa dùng trong bài → xóa vĩnh viễn
+├── đang dùng trong bài → chặn và yêu cầu gỡ khỏi bài trước
+└── đã phát hành → không cho xóa
+
+Bài học do editor tạo
+├── draft / changes_requested, chưa từng phát hành → xóa vĩnh viễn
+├── unpublished / từng phát hành → lưu trữ và ẩn khỏi “Bài của tôi”
+└── in_review / approved / published → chặn xóa
+```
+
+Admin có quyền xử lý nội dung của mọi editor, nhưng vẫn tuân theo quy tắc bảo
+toàn dữ liệu đã phát hành và tiến độ học.
+
+## 15.2. Luồng admin chỉnh sửa nhanh
+
+```text
+in_review / approved
+→ admin chọn “Chỉnh sửa nhanh”
+→ revision được đưa về draft và ghi audit
+→ admin sửa, gửi duyệt, phê duyệt và phát hành
+
+published / unpublished / archived
+→ admin chọn “Chỉnh sửa nhanh”
+→ hệ thống tạo revision mới
+→ bản đang phát hành tiếp tục phục vụ learner
+→ admin hoàn thiện và phát hành revision mới
+```
+
+Admin dùng chỉnh sửa nhanh cho thay đổi nhỏ. Với thay đổi lớn, admin chọn “Yêu
+cầu chỉnh sửa” để trả bài về content editor.
 
 ## 16. Eligibility Engine
 
@@ -576,9 +615,31 @@ npm run dev
 
 ## 25. Giới hạn hiện tại
 
-- Chưa có giao diện admin quản lý role; hiện dùng Supabase SQL Editor.
+- Giao diện admin hiện quản lý ba role vận hành chính; các role mở rộng chưa
+  được đưa vào màn hình thay đổi quyền.
 - Các role `content_reviewer`, `support_agent`, `billing_admin` tồn tại trong
   enum để mở rộng, nhưng giai đoạn này chỉ kiểm thử `learner`,
   `content_editor`, `admin`.
 - Google Cloud TTS và thanh toán chưa kích hoạt.
 - Chưa triển khai cron production, monitoring và staging environment.
+
+## 26. Quản lý tài khoản, preview và thông báo
+
+Admin vào `Tài khoản & phân quyền` để tìm theo tên/email, xem trạng thái,
+tiến độ, gói học và nội dung đã tạo. Mỗi tài khoản chỉ giữ một role vận hành
+chính trong ba role `learner`, `content_editor`, `admin`.
+
+Mọi lần đổi role phải có lý do và được xác nhận. Database khóa giao dịch thay
+đổi role và không cho hạ quyền admin cuối cùng. Khóa tài khoản sẽ chặn đăng
+nhập ở Supabase Auth; mở khóa cho phép đăng nhập lại.
+
+Content editor và admin có thể chọn `Xem như người học` trên chi tiết bài.
+Preview dùng đúng giao diện và bài tập của learner nhưng không đọc, lưu hoặc
+đồng bộ phiên học/tiến độ.
+
+- Content editor gửi duyệt: mọi admin nhận thông báo.
+- Admin duyệt: người tạo bài nhận thông báo bài đang chờ phát hành.
+- Admin yêu cầu chỉnh sửa: người tạo nhận thông báo và đường dẫn về bài.
+
+`Chỉnh sửa nhanh` chỉ xuất hiện trong chi tiết hàng chờ duyệt. Khu vực phát
+hành chỉ phụ trách phát hành hoặc tạm gỡ nội dung đã duyệt.

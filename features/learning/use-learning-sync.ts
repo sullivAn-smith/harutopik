@@ -11,11 +11,13 @@ const maxQueuedEvents = 50;
 type LearningSyncOptions = {
   lessonId: string;
   lessonVersion: number;
+  enabled?: boolean;
 };
 
 export function useLearningSync({
   lessonId,
   lessonVersion,
+  enabled = true,
 }: LearningSyncOptions) {
   const startedAt = useRef(0);
   const [syncState, setSyncState] = useState<
@@ -27,6 +29,7 @@ export function useLearningSync({
   }, []);
 
   const send = useCallback(async (event: LearningEventInput) => {
+    if (!enabled) return;
     setSyncState("syncing");
     try {
       const response = await fetch("/api/v1/learning/events", {
@@ -54,9 +57,10 @@ export function useLearningSync({
       queueEvent(event);
       setSyncState("offline");
     }
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
+    if (!enabled) return;
     async function flushQueue() {
       for (const event of readQueue()) {
         await send(event);
@@ -65,7 +69,7 @@ export function useLearningSync({
     window.addEventListener("online", flushQueue);
     void flushQueue();
     return () => window.removeEventListener("online", flushQueue);
-  }, [send]);
+  }, [enabled, send]);
 
   const completePractice = useCallback(
     (mode: StudyMode, score: number, total: number) =>

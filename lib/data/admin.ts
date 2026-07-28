@@ -53,7 +53,9 @@ export async function getContentRevisions(): Promise<ContentRevisionDTO[]> {
     .select("id,content_id,content_type,version,status,updated_at,created_by,payload")
     .order("updated_at", { ascending: false })
     .limit(50);
-  if (!actor.roles.includes("admin")) query = query.eq("created_by", actor.id);
+  if (!actor.roles.includes("admin")) {
+    query = query.eq("created_by", actor.id).is("deleted_at", null);
+  }
   const { data, error } = await query;
   if (error) throw new Error("Không thể tải danh sách phiên bản nội dung.");
 

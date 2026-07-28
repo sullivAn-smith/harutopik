@@ -142,3 +142,23 @@ export async function setLessonVocabulary(formData: FormData) {
   revalidatePath(`/bien-tap/noi-dung/${revisionId}`);
   redirect(`/bien-tap/noi-dung/${revisionId}?vocabulary=updated`);
 }
+
+export async function deleteVocabularyDraft(formData: FormData) {
+  await requirePermission("content:delete-own");
+  const vocabularyId = formData.get("vocabularyId");
+  if (typeof vocabularyId !== "string" || !vocabularyId) {
+    redirect("/bien-tap/tu-vung?delete=invalid");
+  }
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("delete_vocabulary_draft", {
+    p_vocabulary_id: vocabularyId,
+  });
+  if (error) {
+    const friendly = toUserFacingError(error, "Chưa thể xóa từ vựng.");
+    redirect(
+      `/bien-tap/tu-vung/${vocabularyId}?delete=error&errorMessage=${encodeURIComponent(friendly.message)}`,
+    );
+  }
+  revalidatePath("/bien-tap/tu-vung");
+  redirect("/bien-tap/tu-vung?delete=done");
+}
