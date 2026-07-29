@@ -5,7 +5,7 @@ import { getReleaseQueue } from "@/lib/data/admin";
 export default async function ReleasePage({
   searchParams,
 }: {
-  searchParams: Promise<{ release?: string; workflow?: string; errorMessage?: string }>;
+  searchParams: Promise<{ release?: string; workflow?: string; review?: string; errorMessage?: string }>;
 }) {
   const items = await getReleaseQueue();
   const notice = await searchParams;
@@ -26,6 +26,11 @@ export default async function ReleasePage({
           {notice.release === "error" || notice.workflow === "error"
             ? (notice.errorMessage ?? "Không thể cập nhật trạng thái phát hành.")
             : "Đã cập nhật trạng thái phát hành thành công."}
+        </p>
+      )}
+      {notice.review === "approved" && (
+        <p role="status" className="mt-6 rounded-2xl bg-emerald-50 px-5 py-4 font-bold text-emerald-800">
+          Đã phê duyệt nội dung. Bài hiện đã sẵn sàng để admin phát hành.
         </p>
       )}
       <section className="surface-card mt-8 overflow-hidden bg-white">

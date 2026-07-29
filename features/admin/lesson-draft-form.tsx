@@ -54,11 +54,13 @@ export function LessonDraftForm({
   revisionId,
   defaults,
   returnTo,
+  reviewEdit = false,
   catalogOptions = [],
 }: {
   revisionId?: string;
   defaults?: LessonDraftDefaults;
   returnTo?: "/bien-tap/noi-dung" | "/quan-tri/noi-dung";
+  reviewEdit?: boolean;
   catalogOptions?: CatalogStructureOption[];
 }) {
   const editing = Boolean(revisionId);
@@ -74,6 +76,7 @@ export function LessonDraftForm({
     <form action={formAction} className="space-y-8">
       {revisionId && <input type="hidden" name="revisionId" value={revisionId} />}
       {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
+      {reviewEdit && <input type="hidden" name="reviewEdit" value="1" />}
       {defaults && <input type="hidden" name="version" value={defaults.version} />}
       <input type="hidden" name="grammarJson" value={JSON.stringify(grammar)} />
       {state.message && (

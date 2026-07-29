@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { enqueueAudioJob } from "@/lib/audio/jobs";
+import { isAzureTtsConfigured } from "@/lib/audio/config";
+import { getAudioUrl } from "@/lib/audio/storage";
 import { requirePermission } from "@/lib/auth/authorize";
 import { toUserFacingError } from "@/lib/errors/user-facing";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -10,7 +12,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function enqueueMissingVocabularyAudio() {
   const actor = await requirePermission("content:edit");
-  if (!process.env.GOOGLE_CLOUD_TTS_API_KEY)
+  if (!isAzureTtsConfigured())
     redirect("/bien-tap/audio?error=not-configured");
   const supabase = await createClient();
   let query = supabase
@@ -34,7 +36,16 @@ export async function enqueueMissingVocabularyAudio() {
       text: item.hangul,
       createdBy: actor.id,
     });
-    if (!job.reused) queued += 1;
+    if (job.reused && job.storage_path) {
+      await admin
+        .from("vocabulary_items")
+        .update({
+          audio_url: getAudioUrl(admin, job.storage_path),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.id);
+    }
+    if (!job.reused && !job.inProgress) queued += 1;
   }
   await admin.from("audit_logs").insert({
     actor_id: actor.id,

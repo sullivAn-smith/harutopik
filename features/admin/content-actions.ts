@@ -187,7 +187,8 @@ export async function updateLessonDraft(
   _state: ContentFormState,
   formData: FormData,
 ): Promise<ContentFormState> {
-  await requirePermission("content:edit");
+  const reviewEdit = formData.get("reviewEdit") === "1";
+  await requirePermission(reviewEdit ? "content:approve" : "content:edit");
   const revisionId = formData.get("revisionId");
   const parsed = lessonDraftFormSchema.safeParse(
     Object.fromEntries(formData.entries()),
@@ -244,7 +245,9 @@ export async function updateLessonDraft(
     return { status: "error", message: "Bài học chưa vượt qua kiểm tra cấu trúc nội dung." };
   }
 
-  const { error } = await supabase.rpc("update_lesson_draft", {
+  const { error } = await supabase.rpc(
+    reviewEdit ? "update_lesson_in_review" : "update_lesson_draft",
+    {
     p_revision_id: revisionId,
     p_slug: lesson.data.slug,
     p_course_id: lesson.data.courseId,
@@ -253,12 +256,19 @@ export async function updateLessonDraft(
     p_sort_order: lesson.data.order,
     p_payload: lesson.data,
     p_change_summary: parsed.data.changeSummary,
-  });
+    },
+  );
   if (error) {
     return {
       status: "error",
       message: toUserFacingError(error, "Không thể cập nhật bản nháp.").message,
     };
+  }
+
+  if (reviewEdit) {
+    revalidatePath(`/quan-tri/duyet/${revisionId}`);
+    revalidatePath(`/xem-truoc/${revisionId}`);
+    redirect(`/quan-tri/duyet/${revisionId}?quickEdit=saved`);
   }
 
   const destination =
@@ -367,7 +377,11 @@ export async function reviewRevision(formData: FormData) {
   revalidatePath("/quan-tri/duyet");
   revalidatePath("/quan-tri/noi-dung");
   revalidatePath("/thong-bao");
-  redirect(`/quan-tri/duyet?review=${decision}`);
+  redirect(
+    decision === "approved"
+      ? "/quan-tri/phat-hanh?review=approved"
+      : "/quan-tri/duyet?review=changes_requested",
+  );
 }
 
 export async function unpublishRevision(formData: FormData) {
@@ -453,26 +467,21 @@ export async function deleteOrArchiveLesson(formData: FormData) {
 }
 
 export async function prepareAdminRevisionEdit(formData: FormData) {
-  await requirePermission("content:publish");
+  await requirePermission("content:approve");
   const revisionId = formData.get("revisionId");
   if (typeof revisionId !== "string" || !revisionId) {
-    redirect("/quan-tri/noi-dung?quickEdit=invalid");
+    redirect("/quan-tri/duyet?quickEdit=invalid");
   }
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("prepare_admin_revision_edit", {
-    p_revision_id: revisionId,
-  });
-  if (error || typeof data !== "string") {
-    const friendly = toUserFacingError(
-      error ?? new Error("prepare_admin_revision_edit returned no id"),
-      "Chưa thể mở bản chỉnh sửa cho admin.",
-    );
-    redirect(
-      `/quan-tri/noi-dung?quickEdit=error&errorMessage=${encodeURIComponent(friendly.message)}`,
-    );
+  const { data, error } = await supabase
+    .from("content_revisions")
+    .select("id")
+    .eq("id", revisionId)
+    .eq("content_type", "lesson")
+    .eq("status", "in_review")
+    .maybeSingle();
+  if (error || !data) {
+    redirect("/quan-tri/duyet?quickEdit=unavailable");
   }
-  revalidatePath("/quan-tri/noi-dung");
-  revalidatePath("/quan-tri/duyet");
-  revalidatePath("/quan-tri/phat-hanh");
-  redirect(`/quan-tri/noi-dung/${data}?quickEdit=ready`);
+  redirect(`/quan-tri/duyet/${revisionId}/chinh-sua`);
 }

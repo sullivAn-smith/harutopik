@@ -1,18 +1,21 @@
 "use client";
 
+import Link from "next/link";
+import { createPortal } from "react-dom";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { VocabularyListSummary } from "@/lib/vocabulary-lists/schema";
 
 type ApiResponse<T> = { data?: T; error?: { message: string } };
 
-export function VocabularyListsManager() {
+export function VocabularyListsManager({ backHref }: { backHref: string }) {
   const [lists, setLists] = useState<VocabularyListSummary[]>([]);
   const [activeId, setActiveId] = useState("");
   const [newName, setNewName] = useState("");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
-  const [studyIndex, setStudyIndex] = useState<number | null>(null);
-  const [flipped, setFlipped] = useState(false);
+  const [deleteCandidate, setDeleteCandidate] =
+    useState<VocabularyListSummary | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function reload(preferredId?: string) {
     setLoading(true);
@@ -66,9 +69,6 @@ export function VocabularyListsManager() {
     () => lists.find((list) => list.id === activeId) ?? null,
     [activeId, lists],
   );
-  const studyItem =
-    studyIndex === null ? null : active?.items?.[studyIndex] ?? null;
-
   async function createList(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const response = await fetch("/api/v1/vocabulary-lists", {
@@ -90,17 +90,17 @@ export function VocabularyListsManager() {
 
   async function deleteList(list: VocabularyListSummary) {
     if (list.kind !== "custom") return;
-    if (!window.confirm(`Xoá bộ “${list.name}” và toàn bộ từ bên trong?`)) {
-      return;
-    }
+    setDeleting(true);
     const response = await fetch(`/api/v1/vocabulary-lists/${list.id}`, {
       method: "DELETE",
     });
     if (!response.ok) {
       setMessage("Chưa thể xoá bộ từ.");
+      setDeleting(false);
       return;
     }
-    setStudyIndex(null);
+    setDeleteCandidate(null);
+    setDeleting(false);
     setMessage("Đã xoá bộ từ.");
     await reload();
   }
@@ -115,17 +115,8 @@ export function VocabularyListsManager() {
       setMessage("Chưa thể bỏ từ khỏi danh sách.");
       return;
     }
-    setStudyIndex(null);
     setMessage("Đã bỏ từ khỏi danh sách.");
     await reload(active.id);
-  }
-
-  function speak(text: string) {
-    if (!("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "ko-KR";
-    window.speechSynthesis.speak(utterance);
   }
 
   return (
@@ -168,10 +159,7 @@ export function VocabularyListsManager() {
               <button
                 key={list.id}
                 type="button"
-                onClick={() => {
-                  setActiveId(list.id);
-                  setStudyIndex(null);
-                }}
+                onClick={() => setActiveId(list.id)}
                 className={`flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left font-black ${
                   activeId === list.id
                     ? "bg-brand-600 text-white"
@@ -201,86 +189,24 @@ export function VocabularyListsManager() {
                   </div>
                   <div className="flex gap-2">
                     {!!active.itemCount && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setStudyIndex(0);
-                          setFlipped(false);
-                        }}
-                        className="rounded-xl bg-emerald-600 px-4 py-2.5 font-black text-white"
+                      <Link
+                        href={`/tu-cua-toi/${active.id}/hoc?back=${encodeURIComponent(backHref)}`}
+                        className="rounded-xl bg-emerald-600 px-4 py-2.5 font-black text-white transition hover:-translate-y-0.5 hover:bg-emerald-700"
                       >
                         Học bộ này
-                      </button>
+                      </Link>
                     )}
                     {active.kind === "custom" && (
                       <button
                         type="button"
-                        onClick={() => void deleteList(active)}
-                        className="rounded-xl border border-red-200 px-4 py-2.5 font-bold text-red-600"
+                        onClick={() => setDeleteCandidate(active)}
+                        className="rounded-xl border border-red-200 bg-white px-4 py-2.5 font-bold text-red-600 transition hover:border-red-300 hover:bg-red-50"
                       >
-                        Xoá bộ
+                        Xoá bộ từ
                       </button>
                     )}
                   </div>
                 </div>
-
-                {studyItem && studyIndex !== null && (
-                  <div className="mt-6 rounded-3xl bg-gradient-to-br from-sky-100 to-blue-50 p-6 text-center">
-                    <p className="text-sm font-bold text-ink-600">
-                      {studyIndex + 1}/{active.items?.length}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setFlipped((value) => !value)}
-                      className="mt-4 min-h-52 w-full rounded-3xl bg-white p-8 shadow-sm"
-                    >
-                      <span
-                        lang={flipped ? "vi" : "ko"}
-                        className="block text-4xl font-black text-ink-900"
-                      >
-                        {flipped
-                          ? studyItem.item.vietnamese
-                          : studyItem.item.korean}
-                      </span>
-                      <span className="mt-4 block text-sm font-semibold text-ink-600">
-                        {flipped
-                          ? studyItem.item.romanization
-                          : "Chạm để xem nghĩa"}
-                      </span>
-                    </button>
-                    <div className="mt-4 flex flex-wrap justify-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => speak(studyItem.item.korean)}
-                        className="rounded-xl bg-white px-4 py-2 font-black"
-                      >
-                        🔊 Nghe
-                      </button>
-                      <button
-                        type="button"
-                        disabled={studyIndex === 0}
-                        onClick={() => {
-                          setStudyIndex(Math.max(0, studyIndex - 1));
-                          setFlipped(false);
-                        }}
-                        className="rounded-xl bg-white px-4 py-2 font-black disabled:opacity-40"
-                      >
-                        ← Trước
-                      </button>
-                      <button
-                        type="button"
-                        disabled={studyIndex === (active.items?.length ?? 1) - 1}
-                        onClick={() => {
-                          setStudyIndex(studyIndex + 1);
-                          setFlipped(false);
-                        }}
-                        className="rounded-xl bg-brand-600 px-4 py-2 font-black text-white disabled:opacity-40"
-                      >
-                        Tiếp →
-                      </button>
-                    </div>
-                  </div>
-                )}
 
                 {!active.itemCount ? (
                   <div className="mt-6 rounded-3xl border-2 border-dashed border-slate-200 p-10 text-center">
@@ -331,6 +257,64 @@ export function VocabularyListsManager() {
           </section>
         </div>
       )}
+      {deleteCandidate &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[90] flex items-center justify-center p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-list-title"
+          >
+            <button
+              type="button"
+              aria-label="Đóng xác nhận xoá"
+              onClick={() => !deleting && setDeleteCandidate(null)}
+              className="absolute inset-0 bg-[#071224]/55 backdrop-blur-sm"
+            />
+            <div className="relative z-10 w-full max-w-md overflow-hidden rounded-[2rem] border border-red-100 bg-white shadow-2xl">
+              <div className="bg-gradient-to-br from-red-50 to-orange-50 px-6 py-6">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-100 text-2xl">
+                  🗑
+                </div>
+                <h2
+                  id="delete-list-title"
+                  className="mt-4 text-2xl font-black text-ink-900"
+                >
+                  Xoá bộ từ “{deleteCandidate.name}”?
+                </h2>
+                <p className="mt-3 leading-7 text-ink-600">
+                  Toàn bộ <strong>{deleteCandidate.itemCount} từ đã lưu</strong>{" "}
+                  sẽ bị xoá khỏi bộ này. Từ gốc trong bài học không bị ảnh hưởng.
+                </p>
+              </div>
+              <div className="px-6 py-5">
+                <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+                  Thao tác này không thể hoàn tác.
+                </p>
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    disabled={deleting}
+                    onClick={() => setDeleteCandidate(null)}
+                    className="rounded-xl border border-slate-200 px-4 py-3 font-black text-ink-700 hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    Giữ lại bộ từ
+                  </button>
+                  <button
+                    type="button"
+                    disabled={deleting}
+                    onClick={() => void deleteList(deleteCandidate)}
+                    className="rounded-xl bg-red-600 px-4 py-3 font-black text-white hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {deleting ? "Đang xoá..." : "Xác nhận xoá"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

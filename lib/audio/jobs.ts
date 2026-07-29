@@ -2,18 +2,35 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { synthesizeGoogleTts } from "./google-tts";
+import { generateSpeech } from "./azure-speech";
+import { getAzureTtsConfig } from "./config";
+import {
+  audioBucket,
+  fileExists,
+  getAudioUrl,
+  uploadAudio,
+} from "./storage";
 
-export const audioBucket = "vocabulary-audio";
-export const audioProvider = "google_cloud_tts";
+export { audioBucket };
 
-export function getAudioVoice() {
-  return process.env.GOOGLE_CLOUD_TTS_VOICE || "ko-KR-Neural2-A";
+export function normalizeTtsText(text: string) {
+  return text.normalize("NFC").trim();
 }
 
-export function audioSourceHash(text: string, voice = getAudioVoice()) {
+export function audioSourceHash(
+  text: string,
+  config = getAzureTtsConfig(),
+) {
   return createHash("sha256")
-    .update([audioProvider, voice, text].join("|"))
+    .update(
+      [
+        config.provider,
+        config.voice,
+        config.rate,
+        config.outputFormat,
+        normalizeTtsText(text),
+      ].join("|"),
+    )
     .digest("hex");
 }
 
@@ -21,58 +38,127 @@ export async function enqueueAudioJob(
   admin: SupabaseClient,
   input: { vocabularyId: string; text: string; createdBy: string },
 ) {
-  const voice = getAudioVoice();
-  const sourceHash = audioSourceHash(input.text, voice);
+  const config = getAzureTtsConfig();
+  const sourceText = normalizeTtsText(input.text);
+  const sourceHash = audioSourceHash(sourceText, config);
   const { data: existing } = await admin
     .from("audio_generation_jobs")
-    .select("id,status,storage_path")
-    .eq("vocabulary_id", input.vocabularyId)
-    .eq("provider", audioProvider)
-    .eq("voice", voice)
+    .select("id,status,storage_path,vocabulary_id")
+    .eq("provider", config.provider)
+    .eq("voice", config.voice)
     .eq("source_hash", sourceHash)
     .maybeSingle();
-  if (existing?.status === "completed")
-    return { ...existing, reused: true, sourceHash, voice };
+
+  if (existing?.status === "completed") {
+    return {
+      ...existing,
+      reused: true,
+      inProgress: false,
+      sourceHash,
+      config,
+    };
+  }
+  if (
+    existing?.status === "processing" ||
+    existing?.status === "queued"
+  ) {
+    return {
+      ...existing,
+      reused: false,
+      inProgress: true,
+      sourceHash,
+      config,
+    };
+  }
   if (existing) {
     const { error } = await admin
       .from("audio_generation_jobs")
       .update({
+        vocabulary_id: input.vocabularyId,
+        source_text: sourceText,
+        speaking_rate: config.rate,
+        output_format: config.outputFormat,
         status: "queued",
         attempts: 0,
         error_message: null,
+        storage_path: null,
         started_at: null,
         completed_at: null,
+        created_by: input.createdBy,
       })
       .eq("id", existing.id);
     if (error) throw error;
-    return { ...existing, status: "queued", reused: false, sourceHash, voice };
+    return {
+      ...existing,
+      vocabulary_id: input.vocabularyId,
+      status: "queued",
+      storage_path: null,
+      reused: false,
+      inProgress: false,
+      sourceHash,
+      config,
+    };
   }
+
   const { data, error } = await admin
     .from("audio_generation_jobs")
     .insert({
       vocabulary_id: input.vocabularyId,
-      source_text: input.text,
+      source_text: sourceText,
       source_hash: sourceHash,
-      provider: audioProvider,
-      voice,
+      provider: config.provider,
+      voice: config.voice,
+      speaking_rate: config.rate,
+      output_format: config.outputFormat,
       status: "queued",
       created_by: input.createdBy,
     })
-    .select("id,status,storage_path")
+    .select("id,status,storage_path,vocabulary_id")
     .single();
-  if (error || !data) throw error ?? new Error("Không thể tạo audio job.");
-  return { ...data, reused: false, sourceHash, voice };
+  if (error || !data) {
+    const { data: concurrent } = await admin
+      .from("audio_generation_jobs")
+      .select("id,status,storage_path,vocabulary_id")
+      .eq("provider", config.provider)
+      .eq("voice", config.voice)
+      .eq("source_hash", sourceHash)
+      .maybeSingle();
+    if (concurrent) {
+      return {
+        ...concurrent,
+        reused: concurrent.status === "completed",
+        inProgress: concurrent.status === "processing",
+        sourceHash,
+        config,
+      };
+    }
+    throw error ?? new Error("Không thể tạo audio job.");
+  }
+  return {
+    ...data,
+    reused: false,
+    inProgress: false,
+    sourceHash,
+    config,
+  };
 }
 
-export async function processAudioJob(admin: SupabaseClient, jobId: string) {
-  const apiKey = process.env.GOOGLE_CLOUD_TTS_API_KEY;
-  if (!apiKey) throw new Error("Thiếu GOOGLE_CLOUD_TTS_API_KEY.");
+export async function processAudioJob(
+  admin: SupabaseClient,
+  jobId: string,
+) {
+  const config = getAzureTtsConfig();
   const { data: job, error } = await admin
     .from("audio_generation_jobs")
-    .select("id,vocabulary_id,source_text,source_hash,voice,status")
+    .select(
+      "id,vocabulary_id,source_text,source_hash,voice,provider,status",
+    )
     .eq("id", jobId)
     .single();
   if (error || !job) throw error ?? new Error("Không tìm thấy audio job.");
+  if (job.provider !== config.provider || job.voice !== config.voice) {
+    throw new Error("Cấu hình TTS của job không còn khớp với hệ thống.");
+  }
 
   const { data: vocabulary } = await admin
     .from("vocabulary_items")
@@ -81,30 +167,19 @@ export async function processAudioJob(admin: SupabaseClient, jobId: string) {
     .maybeSingle();
   if (
     !vocabulary ||
-    audioSourceHash(vocabulary.hangul, job.voice) !== job.source_hash
+    audioSourceHash(vocabulary.hangul, config) !== job.source_hash
   ) {
     throw new Error("Nội dung từ đã thay đổi; audio job cũ không còn hợp lệ.");
   }
 
-  const storagePath = `words/${job.vocabulary_id}/${job.source_hash}.mp3`;
-  const audio = await synthesizeGoogleTts({
-    apiKey,
-    text: job.source_text,
-    voice: job.voice,
-  });
-  const { error: uploadError } = await admin.storage
-    .from(audioBucket)
-    .upload(storagePath, audio, {
-      contentType: "audio/mpeg",
-      cacheControl: "31536000",
-      upsert: false,
-    });
-  if (uploadError && !/already exists|duplicate/i.test(uploadError.message))
-    throw uploadError;
-
-  const { data: asset } = admin.storage
-    .from(audioBucket)
-    .getPublicUrl(storagePath);
+  const storagePath = `${config.provider}/${config.voice}/${job.source_hash}.mp3`;
+  let cached = await fileExists(admin, storagePath);
+  if (!cached) {
+    const audio = await generateSpeech(job.source_text, config);
+    await uploadAudio(admin, storagePath, audio);
+    cached = false;
+  }
+  const publicUrl = getAudioUrl(admin, storagePath);
   const now = new Date().toISOString();
   const [{ error: jobError }, { error: vocabularyError }] = await Promise.all([
     admin
@@ -118,12 +193,19 @@ export async function processAudioJob(admin: SupabaseClient, jobId: string) {
       .eq("id", job.id),
     admin
       .from("vocabulary_items")
-      .update({ audio_url: asset.publicUrl, updated_at: now })
+      .update({ audio_url: publicUrl, updated_at: now })
       .eq("id", job.vocabulary_id),
   ]);
-  if (jobError || vocabularyError)
+  if (jobError || vocabularyError) {
     throw jobError ?? vocabularyError ?? new Error("Không thể lưu URL audio.");
-  return { vocabularyId: job.vocabulary_id, publicUrl: asset.publicUrl };
+  }
+  return {
+    vocabularyId: job.vocabulary_id,
+    publicUrl,
+    cached,
+    provider: config.provider,
+    voice: config.voice,
+  };
 }
 
 export async function failAudioJob(

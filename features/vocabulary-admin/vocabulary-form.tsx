@@ -9,6 +9,7 @@ import {
   initialVocabularyFormState,
   type VocabularyFormState,
 } from "./schema";
+import { VocabularyImageUpload } from "./vocabulary-image-upload";
 
 export type VocabularyFormDefaults = {
   id: string;
@@ -128,18 +129,24 @@ export function VocabularyForm({
       </section>
 
       <section className="rounded-3xl bg-blue-50 p-5">
-        <h2 className="text-xl font-black">Audio và hình ảnh</h2>
-        <p className="mt-1 text-sm text-ink-600">Audio URL giúp từ tự động dùng được cho chép chính tả. TTS/Storage sẽ được tự động hóa ở bước sau.</p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <h2 className="text-xl font-black">Audio phát âm</h2>
+        <p className="mt-1 text-sm text-ink-600">Audio URL giúp từ tự động dùng được cho chép chính tả. Có thể để trống và bổ sung audio sau.</p>
+        <div className="mt-4">
           <label className="font-bold">Audio URL
             <input name="audioUrl" type="url" defaultValue={defaults?.audioUrl ?? ""} placeholder="https://.../audio.mp3" className={inputClass} />
             <ErrorText state={state} name="audioUrl" />
           </label>
-          <label className="font-bold">Image URL
-            <input name="imageUrl" type="url" defaultValue={defaults?.imageUrl ?? ""} placeholder="https://.../image.webp" className={inputClass} />
-            <ErrorText state={state} name="imageUrl" />
-          </label>
         </div>
+      </section>
+
+      <section className="rounded-3xl bg-gradient-to-br from-sky-50 to-cyan-50 p-5">
+        <h2 className="text-xl font-black">Ảnh minh họa</h2>
+        <p className="mt-1 max-w-3xl text-sm leading-6 text-ink-600">
+          Chọn ảnh từ máy. Hệ thống sẽ tải trực tiếp lên Supabase Storage và
+          người học xem ảnh qua CDN; bạn không cần tự tạo hoặc dán URL.
+        </p>
+        <VocabularyImageUpload defaultValue={defaults?.imageUrl} />
+        <ErrorText state={state} name="imageUrl" />
       </section>
 
       <button disabled={pending} className="w-full rounded-2xl bg-brand-600 px-6 py-4 text-lg font-black text-white disabled:opacity-60">

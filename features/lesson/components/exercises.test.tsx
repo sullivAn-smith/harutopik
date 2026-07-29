@@ -29,6 +29,7 @@ describe("FlashcardExercise", () => {
     const onMarkLearned = vi.fn();
     render(
       <FlashcardExercise
+        lessonId="lesson-test"
         word={word}
         position={0}
         total={55}

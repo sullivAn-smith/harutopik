@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { failAudioJob, processAudioJob } from "@/lib/audio/jobs";
+import { isAzureTtsConfigured } from "@/lib/audio/config";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const maxDuration = 60;
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
   if (!authorized(request))
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   if (
-    !process.env.GOOGLE_CLOUD_TTS_API_KEY ||
+    !isAzureTtsConfigured() ||
     !process.env.SUPABASE_SERVICE_ROLE_KEY
   )
     return NextResponse.json({ error: "NOT_CONFIGURED" }, { status: 503 });

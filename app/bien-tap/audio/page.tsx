@@ -48,7 +48,8 @@ export default async function AudioDashboardPage({
       )}
       {query.error === "not-configured" && (
         <p className="mt-6 rounded-2xl bg-amber-50 p-4 font-bold text-amber-900">
-          Chưa có GOOGLE_CLOUD_TTS_API_KEY trong môi trường server.
+          Chưa có AZURE_SPEECH_KEY hoặc AZURE_SPEECH_ENDPOINT trong môi trường
+          server.
         </p>
       )}
       {query.error && query.error !== "not-configured" && (

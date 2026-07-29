@@ -36,7 +36,27 @@ import { generateLessonPractice } from "@/lib/learning-core/practice-generator";
 
 type Tab = "vocabulary" | "grammar";
 
-function LessonContent({ lesson, previewMode = false }: { lesson: Lesson; previewMode?: boolean }) {
+type LessonExperienceOptions = {
+  lesson: Lesson;
+  previewMode?: boolean;
+  allowedModes?: readonly StudyMode[];
+  backHref?: string;
+  backLabel?: string;
+  vocabularyOnly?: boolean;
+  contextLabel?: string;
+  statusLabel?: string;
+};
+
+function LessonContent({
+  lesson,
+  previewMode = false,
+  allowedModes,
+  backHref = "/courses/topik-1",
+  backLabel = "Danh sách bài",
+  vocabularyOnly = false,
+  contextLabel,
+  statusLabel,
+}: LessonExperienceOptions) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const speechTimerRef = useRef<number | null>(null);
@@ -58,8 +78,8 @@ function LessonContent({ lesson, previewMode = false }: { lesson: Lesson; previe
     if (practiceBundle.matching.length > 0) result.push("matching");
     if (dictationExercises.length > 0) result.push("dictation");
     if (translationExercises.length > 0) result.push("translation");
-    return result;
-  }, [dictationExercises.length, practiceBundle, translationExercises.length]);
+    return allowedModes ? result.filter((mode) => allowedModes.includes(mode)) : result;
+  }, [allowedModes, dictationExercises.length, practiceBundle, translationExercises.length]);
 
   const activeTab: Tab =
     searchParams.get("tab") === "grammar" ? "grammar" : "vocabulary";
@@ -701,17 +721,17 @@ function LessonContent({ lesson, previewMode = false }: { lesson: Lesson; previe
               ? "ĐÃ LƯU TIẾN ĐỘ"
               : syncState === "offline"
                 ? "SẼ ĐỒNG BỘ KHI CÓ MẠNG"
-                : "SƠ CẤP 1";
+                : (statusLabel ?? "SƠ CẤP 1");
 
   return (
     <main className="elegant-blue min-h-screen text-[#10243e]">
       <header className="border-b border-white/70 bg-white/55 shadow-[0_8px_28px_rgba(16,36,62,0.08)] backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-8">
           <Link
-            href="/courses/topik-1"
+            href={backHref}
             className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/65 px-4 py-2.5 text-sm font-black shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:bg-white"
           >
-            ← Danh sách bài
+            ← {backLabel}
           </Link>
           <span className="rounded-full bg-[#10243e] px-4 py-2 text-xs font-black tracking-wider text-white shadow-sm">
             {saveLabel}
@@ -724,7 +744,7 @@ function LessonContent({ lesson, previewMode = false }: { lesson: Lesson; previe
           <div>
             <div className="flex flex-wrap items-center gap-3">
               <span className="rounded-full bg-[#087eba] px-5 py-2.5 text-xl font-black text-white shadow-[0_8px_18px_rgba(8,126,186,0.28)]">
-                Bài {lesson.order}
+                {contextLabel ?? `Bài ${lesson.order}`}
               </span>
               <span className="rounded-full bg-white/70 px-4 py-2 text-lg font-black text-[#52637a]">
                 {vocabulary.length} từ vựng
@@ -740,30 +760,32 @@ function LessonContent({ lesson, previewMode = false }: { lesson: Lesson; previe
               {lesson.title.vi}
             </p>
           </div>
-          <div className="lesson-tab-switcher inline-flex self-start rounded-2xl border border-white/80 bg-white/70 p-1.5 shadow-[0_10px_24px_rgba(16,36,62,0.12)]">
-            <button
-              type="button"
-              onClick={() => changeTab("vocabulary")}
-              className={`rounded-xl px-5 py-3 text-sm font-black transition ${
-                activeTab === "vocabulary"
-                  ? "bg-[#087eba] text-white shadow-sm"
-                  : "text-[#52637a] hover:bg-white"
-              }`}
-            >
-              Từ vựng
-            </button>
-            <button
-              type="button"
-              onClick={() => changeTab("grammar")}
-              className={`rounded-xl px-5 py-3 text-sm font-black transition ${
-                activeTab === "grammar"
-                  ? "bg-[#087eba] text-white shadow-sm"
-                  : "text-[#52637a] hover:bg-white"
-              }`}
-            >
-              Ngữ pháp
-            </button>
-          </div>
+          {!vocabularyOnly && (
+            <div className="lesson-tab-switcher inline-flex self-start rounded-2xl border border-white/80 bg-white/70 p-1.5 shadow-[0_10px_24px_rgba(16,36,62,0.12)]">
+              <button
+                type="button"
+                onClick={() => changeTab("vocabulary")}
+                className={`rounded-xl px-5 py-3 text-sm font-black transition ${
+                  activeTab === "vocabulary"
+                    ? "bg-[#087eba] text-white shadow-sm"
+                    : "text-[#52637a] hover:bg-white"
+                }`}
+              >
+                Từ vựng
+              </button>
+              <button
+                type="button"
+                onClick={() => changeTab("grammar")}
+                className={`rounded-xl px-5 py-3 text-sm font-black transition ${
+                  activeTab === "grammar"
+                    ? "bg-[#087eba] text-white shadow-sm"
+                    : "text-[#52637a] hover:bg-white"
+                }`}
+              >
+                Ngữ pháp
+              </button>
+            </div>
+          )}
         </section>
 
         {restored && (
@@ -807,6 +829,7 @@ function LessonContent({ lesson, previewMode = false }: { lesson: Lesson; previe
             {mode === "flashcard" && (
               <FlashcardExercise
                 word={activeWord}
+                lessonId={lesson.id}
                 position={current}
                 total={vocabulary.length}
                 learnedCount={learnedIndices.length}
@@ -1027,10 +1050,10 @@ function addUniqueIndex(
   setter((items) => (items.includes(index) ? items : [...items, index]));
 }
 
-export function LessonExperience({ lesson, previewMode = false }: { lesson: Lesson; previewMode?: boolean }) {
+export function LessonExperience(options: LessonExperienceOptions) {
   return (
     <Suspense fallback={<main className="elegant-blue min-h-screen" />}>
-      <LessonContent lesson={lesson} previewMode={previewMode} />
+      <LessonContent {...options} />
     </Suspense>
   );
 }

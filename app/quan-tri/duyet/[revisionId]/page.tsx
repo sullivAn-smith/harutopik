@@ -9,12 +9,12 @@ export default async function ReviewDetailPage({
   searchParams,
 }: {
   params: Promise<{ revisionId: string }>;
-  searchParams: Promise<{ review?: string; errorMessage?: string }>;
+  searchParams: Promise<{ review?: string; quickEdit?: string; errorMessage?: string }>;
 }) {
   const { revisionId } = await params;
   const revision = await getLessonRevision(revisionId);
   if (!revision || revision.status !== "in_review") notFound();
-  const { review, errorMessage } = await searchParams;
+  const { review, quickEdit, errorMessage } = await searchParams;
   const lesson = revision.lesson;
   return (
     <main className="mx-auto max-w-7xl px-5 py-10 lg:px-8">
@@ -23,15 +23,10 @@ export default async function ReviewDetailPage({
         <div><p className="text-sm font-black uppercase tracking-widest text-blue-600">Bản xem trước · v{lesson.version}</p><h1 className="mt-2 text-4xl font-black">{lesson.title.vi}</h1><p lang="ko" className="mt-2 text-xl font-bold text-ink-600">{lesson.title.ko}</p></div>
         <span className="rounded-full bg-blue-100 px-4 py-2 text-sm font-black text-blue-800">Đang chờ quyết định</span>
       </div>
-      <form action={prepareAdminRevisionEdit} className="mt-5">
-        <input type="hidden" name="revisionId" value={revision.id} />
-        <button className="rounded-xl border-2 border-amber-400 bg-amber-50 px-5 py-3 font-black text-amber-900">
-          Chỉnh sửa nhanh thay cho gửi về biên tập
-        </button>
-      </form>
       <Link href={`/xem-truoc/${revision.id}`} className="mt-3 inline-flex rounded-xl border-2 border-brand-500 px-5 py-3 font-black text-brand-700">
         ▶ Xem như người học
       </Link>
+      {quickEdit === "saved" && <p role="status" className="mt-6 rounded-2xl bg-emerald-50 p-4 font-bold text-emerald-800">Đã lưu chỉnh sửa nhanh. Bài vẫn ở hàng chờ duyệt và có thể được phê duyệt ngay.</p>}
       {review && <p className="mt-6 rounded-2xl bg-red-50 p-4 font-bold text-red-700">{review === "validation" ? "Bài chưa đạt kiểm tra dữ liệu bắt buộc nên chưa thể phê duyệt." : review === "error" ? (errorMessage ?? "Không thể lưu quyết định duyệt.") : "Vui lòng nhập nhận xét ít nhất 3 ký tự."}</p>}
       <div className="mt-8 grid gap-6 xl:grid-cols-[1fr_23rem]">
         <div className="space-y-6">
@@ -41,6 +36,13 @@ export default async function ReviewDetailPage({
           <section className="surface-card bg-white p-6"><div className="flex items-center justify-between"><h2 className="text-xl font-black">Ngữ pháp</h2><span className="text-sm font-bold text-ink-600">{lesson.grammar.length} điểm</span></div>{lesson.grammar.length === 0 ? <p className="mt-4 rounded-2xl bg-amber-50 p-4 font-semibold text-amber-900">Bài chưa có nội dung ngữ pháp.</p> : <div className="mt-4 space-y-4">{lesson.grammar.map((point) => <article key={point.id} className="rounded-2xl border bg-slate-50 p-5"><div className="flex flex-wrap items-center gap-3"><p lang="ko" className="text-2xl font-black text-violet-800">{point.form}</p><h3 className="font-black">{point.title}</h3></div><p className="mt-3 leading-7 text-ink-600">{point.explanation}</p><p className="mt-3 rounded-xl bg-white px-4 py-3 font-bold">{point.formula}</p><div className="mt-3 space-y-2">{point.examples.map((example) => <div key={example.id}><p lang="ko" className="font-black">{example.korean}</p><p className="text-sm text-ink-600">{example.vietnamese}</p></div>)}</div></article>)}</div>}</section>
         </div>
         <aside className="h-fit rounded-3xl border border-slate-200 bg-white p-6 shadow-lg xl:sticky xl:top-6">
+          <form action={prepareAdminRevisionEdit} className="mb-5 border-b border-slate-200 pb-5">
+            <input type="hidden" name="revisionId" value={revision.id} />
+            <button className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-amber-300 bg-amber-50 px-5 py-3 font-black text-amber-900 transition hover:bg-amber-100">
+              ✎ Chỉnh sửa nhanh
+            </button>
+            <p className="mt-2 text-center text-xs font-semibold leading-5 text-ink-600">Sửa lỗi nhỏ rồi quay lại quyết định duyệt.</p>
+          </form>
           <h2 className="text-xl font-black">Quyết định duyệt</h2>
           <p className="mt-2 text-sm leading-6 text-ink-600">Nhận xét sẽ được lưu vào lịch sử và gửi cho người biên tập.</p>
           <form action={reviewRevision} className="mt-5">

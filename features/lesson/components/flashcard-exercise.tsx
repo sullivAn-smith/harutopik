@@ -1,7 +1,9 @@
 import type { VocabularyItem } from "@/content/schema";
+import { SaveToListButton } from "@/features/vocabulary-lists/save-to-list-button";
 
 type FlashcardExerciseProps = {
   word: VocabularyItem;
+  lessonId: string;
   position: number;
   total: number;
   learnedCount: number;
@@ -24,6 +26,7 @@ function capitalizeFirst(value: string) {
 
 export function FlashcardExercise({
   word,
+  lessonId,
   position,
   total,
   learnedCount,
@@ -71,6 +74,7 @@ export function FlashcardExercise({
             {position + 1} / {total}
           </span>
           <div className="flex gap-2">
+            <SaveToListButton lessonId={lessonId} item={word} />
             <button
               type="button"
               onClick={onSpeak}
@@ -145,6 +149,7 @@ export function FlashcardExercise({
         </button>
 
         <div className="flex flex-wrap items-center justify-center gap-3 px-5 py-5">
+          <SaveToListButton lessonId={lessonId} item={word} variant="button" />
           <button
             type="button"
             onClick={onPrevious}
