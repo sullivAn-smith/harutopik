@@ -157,13 +157,21 @@ export async function createLessonDraft(
   });
 
   if (error) {
-    const friendly = toUserFacingError(error, "Chưa thể tạo bản nháp.");
+    const duplicate = error.code === "23505";
+    const invalidCatalog = error.message.includes("invalid_course_module");
+    console.error("create_lesson_draft failed", {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
     return {
       status: "error",
-      message:
-        friendly.code === "DUPLICATE"
-          ? "ID bài học hoặc slug đã tồn tại. Hãy đổi ID/slug rồi thử lại."
-          : friendly.message,
+      message: duplicate
+        ? "ID hoặc slug này đã tồn tại."
+        : invalidCatalog
+          ? "Khóa học hoặc học phần chưa được khởi tạo. Admin cần cập nhật cấu trúc khóa học."
+        : "Chưa thể tạo bản nháp. Vui lòng thử lại.",
     };
   }
 
