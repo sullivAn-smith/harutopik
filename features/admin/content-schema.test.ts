@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   lessonDraftFormSchema,
+  parseDictationExercisesJson,
   parseGrammarExercisesJson,
   parseGrammarJson,
+  parseTranslationExercisesJson,
   parseVocabularyLines,
 } from "./content-schema";
 
@@ -19,6 +21,8 @@ describe("lessonDraftFormSchema", () => {
       summary: "Học cách giới thiệu quốc tịch và nghề nghiệp.",
       objectives: "Nhận biết quốc gia",
       vocabulary: "",
+      dictationsJson: "[]",
+      translationsJson: "[]",
       grammarJson: "[]",
       exercisesJson: "[]",
       changeSummary: "",
@@ -40,12 +44,100 @@ describe("lessonDraftFormSchema", () => {
       summary: "Mô tả bài học mới có đủ độ dài.",
       objectives: "Mục tiêu",
       vocabulary: "",
+      dictationsJson: "[]",
+      translationsJson: "[]",
       grammarJson: "[]",
       exercisesJson: "[]",
       changeSummary: "",
     });
 
     expect(result.success).toBe(false);
+  });
+});
+
+describe("parseDictationExercisesJson", () => {
+  it("tạo câu chính tả có ID ổn định và giữ URL audio Azure", () => {
+    const [exercise] = parseDictationExercisesJson(
+      JSON.stringify([
+        {
+          sentence: "저는 매일 한국어를 공부해요.",
+          audioUrl: "https://cdn.example/dictation.mp3",
+          acceptedAnswers: ["저는 매일 한국어 공부를 해요."],
+        },
+      ]),
+      "lesson-topik-1-02",
+    );
+
+    expect(exercise).toMatchObject({
+      id: "lesson-topik-1-02-dictation-001",
+      type: "dictation",
+      sentence: "저는 매일 한국어를 공부해요.",
+      audioUrl: "https://cdn.example/dictation.mp3",
+      acceptedAnswers: ["저는 매일 한국어 공부를 해요."],
+      points: 1,
+    });
+  });
+
+  it("từ chối câu chính tả đang để trống", () => {
+    expect(() =>
+      parseDictationExercisesJson(
+        JSON.stringify([{ sentence: "" }]),
+        "lesson-test",
+      ),
+    ).toThrow();
+  });
+
+  it("giới hạn tối đa 15 câu chính tả", () => {
+    expect(() =>
+      parseDictationExercisesJson(
+        JSON.stringify(
+          Array.from({ length: 16 }, (_, index) => ({
+            sentence: `받아쓰기 문장 ${index + 1}`,
+            acceptedAnswers: [],
+          })),
+        ),
+        "lesson-test",
+      ),
+    ).toThrow();
+  });
+});
+
+describe("parseTranslationExercisesJson", () => {
+  it("tạo câu dịch hai chiều cùng các đáp án chấp nhận", () => {
+    const [exercise] = parseTranslationExercisesJson(
+      JSON.stringify([
+        {
+          vietnamese: "Tôi học tiếng Hàn mỗi ngày.",
+          korean: "저는 매일 한국어를 공부해요.",
+          acceptedVietnameseAnswers: ["Mỗi ngày tôi học tiếng Hàn."],
+          acceptedKoreanAnswers: ["저는 매일 한국어 공부를 해요."],
+        },
+      ]),
+      "lesson-topik-1-02",
+    );
+
+    expect(exercise).toMatchObject({
+      id: "lesson-topik-1-02-translation-001",
+      type: "translation",
+      acceptedVietnameseAnswers: ["Mỗi ngày tôi học tiếng Hàn."],
+      acceptedKoreanAnswers: ["저는 매일 한국어 공부를 해요."],
+    });
+  });
+
+  it("giới hạn tối đa 15 câu dịch", () => {
+    expect(() =>
+      parseTranslationExercisesJson(
+        JSON.stringify(
+          Array.from({ length: 16 }, (_, index) => ({
+            vietnamese: `Câu ${index + 1}`,
+            korean: `문장 ${index + 1}`,
+            acceptedVietnameseAnswers: [],
+            acceptedKoreanAnswers: [],
+          })),
+        ),
+        "lesson-test",
+      ),
+    ).toThrow();
   });
 });
 

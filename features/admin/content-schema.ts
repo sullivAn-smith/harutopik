@@ -21,6 +21,8 @@ export const lessonDraftFormSchema = z.object({
   summary: z.string().trim().min(10).max(1_000),
   objectives: z.string().trim().min(2),
   vocabulary: z.string().trim(),
+  dictationsJson: z.string(),
+  translationsJson: z.string(),
   grammarJson: z.string(),
   exercisesJson: z.string(),
   changeSummary: z.string().trim().max(500),
@@ -109,6 +111,63 @@ export function parseGrammarExercisesJson(input: string, lessonId: string) {
     prompt: exercise.prompt,
     translation: exercise.translation,
     acceptedAnswers: exercise.acceptedAnswers,
+    points: 1,
+  }));
+}
+
+const dictationExerciseDraftSchema = z
+  .array(
+    z.object({
+      sentence: z.string().trim().min(1).max(500),
+      audioUrl: z.string().url().optional(),
+      acceptedAnswers: z.array(z.string().trim().min(1).max(500)).default([]),
+    }),
+  )
+  .max(15, "Mỗi bài chỉ được có tối đa 15 câu chính tả.");
+
+export function parseDictationExercisesJson(input: string, lessonId: string) {
+  const exercises = dictationExerciseDraftSchema.parse(
+    JSON.parse(input || "[]"),
+  );
+  return exercises.map((exercise, index) => ({
+    id: `${lessonId}-dictation-${String(index + 1).padStart(3, "0")}`,
+    type: "dictation" as const,
+    sentence: exercise.sentence,
+    ...(exercise.audioUrl ? { audioUrl: exercise.audioUrl } : {}),
+    acceptedAnswers: exercise.acceptedAnswers,
+    points: 1,
+  }));
+}
+
+const translationExerciseDraftSchema = z
+  .array(
+    z.object({
+      vietnamese: z.string().trim().min(1).max(500),
+      korean: z.string().trim().min(1).max(500),
+      acceptedVietnameseAnswers: z
+        .array(z.string().trim().min(1).max(500))
+        .default([]),
+      acceptedKoreanAnswers: z
+        .array(z.string().trim().min(1).max(500))
+        .default([]),
+    }),
+  )
+  .max(15, "Mỗi bài chỉ được có tối đa 15 câu dịch.");
+
+export function parseTranslationExercisesJson(
+  input: string,
+  lessonId: string,
+) {
+  const exercises = translationExerciseDraftSchema.parse(
+    JSON.parse(input || "[]"),
+  );
+  return exercises.map((exercise, index) => ({
+    id: `${lessonId}-translation-${String(index + 1).padStart(3, "0")}`,
+    type: "translation" as const,
+    vietnamese: exercise.vietnamese,
+    korean: exercise.korean,
+    acceptedVietnameseAnswers: exercise.acceptedVietnameseAnswers,
+    acceptedKoreanAnswers: exercise.acceptedKoreanAnswers,
     points: 1,
   }));
 }

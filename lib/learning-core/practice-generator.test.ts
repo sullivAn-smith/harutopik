@@ -96,6 +96,7 @@ describe("practice generator", () => {
         id: "dictation-sentence-1",
         type: "dictation",
         sentence: "오늘 학교에서 친구를 만났어요.",
+        acceptedAnswers: ["오늘 학교에서 친구 만났어요."],
         points: 1,
       },
     ];
@@ -106,6 +107,9 @@ describe("practice generator", () => {
     expect(bundle.translations[0].source).toBe("authored");
     expect(bundle.dictations).toHaveLength(1);
     expect(bundle.dictations[0].source).toBe("authored");
+    expect(bundle.dictations[0].acceptedAnswers).toContain(
+      "오늘 학교에서 친구 만났어요.",
+    );
   });
 
   it("không tạo cặp nối mơ hồ khi hai từ trùng nghĩa", () => {

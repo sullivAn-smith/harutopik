@@ -24,6 +24,7 @@ export function PublishedLessonHotfixForm({ lesson }: { lesson: Lesson }) {
         id: exercise.id,
         sentence: exercise.sentence,
         audioUrl: exercise.audioUrl,
+        acceptedAnswers: exercise.acceptedAnswers ?? [],
         points: exercise.points,
       })),
   );
@@ -101,6 +102,30 @@ export function PublishedLessonHotfixForm({ lesson }: { lesson: Lesson }) {
                 }
                 className={fieldClass}
               />
+              <label className="mt-3 block text-sm font-black">
+                Đáp án chấp nhận thêm — mỗi dòng một đáp án
+                <textarea
+                  lang="ko"
+                  rows={2}
+                  value={exercise.acceptedAnswers.join("\n")}
+                  onChange={(event) =>
+                    setDictations((items) =>
+                      items.map((item, itemIndex) =>
+                        itemIndex === index
+                          ? {
+                              ...item,
+                              acceptedAnswers: event.target.value
+                                .split("\n")
+                                .map((answer) => answer.trim())
+                                .filter(Boolean),
+                            }
+                          : item,
+                      ),
+                    )
+                  }
+                  className={fieldClass}
+                />
+              </label>
               <div className="mt-3">
                 <SentenceAudioButton
                   text={exercise.sentence}

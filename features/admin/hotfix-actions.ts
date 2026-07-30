@@ -21,6 +21,7 @@ const dictationsSchema = z.array(
     id: z.string().min(1),
     sentence: z.string().trim().min(1).max(500),
     audioUrl: z.string().url().optional(),
+    acceptedAnswers: z.array(z.string().trim().min(1).max(500)).default([]),
     points: z.number().positive().default(1),
   }),
 );

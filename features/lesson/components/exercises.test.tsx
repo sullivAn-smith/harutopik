@@ -254,9 +254,8 @@ describe("MatchingExercise", () => {
 });
 
 describe("DictationExercise", () => {
-  it("hỗ trợ nghe, gợi ý và kiểm tra", () => {
+  it("chỉ cho nghe audio và nhập đáp án trước khi kiểm tra", () => {
     const onListen = vi.fn();
-    const onHint = vi.fn();
     const onCheck = vi.fn();
     render(
       <DictationExercise
@@ -266,22 +265,20 @@ describe("DictationExercise", () => {
         value=""
         checked={false}
         correct={false}
-        visibleHintWords={0}
         onChange={vi.fn()}
         onListen={onListen}
-        onHint={onHint}
         onCheck={onCheck}
         onNext={vi.fn()}
       />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "🔊 Nghe câu" }));
-    fireEvent.click(screen.getByRole("button", { name: /Gợi ý/ }));
     fireEvent.click(screen.getByRole("button", { name: "Kiểm tra" }));
 
     expect(onListen).toHaveBeenCalledOnce();
-    expect(onHint).toHaveBeenCalledOnce();
     expect(onCheck).toHaveBeenCalledOnce();
+    expect(screen.queryByText(/Gợi ý/)).toBeNull();
+    expect(screen.queryByText("저는 베트남 사람입니다.")).toBeNull();
   });
 });
 

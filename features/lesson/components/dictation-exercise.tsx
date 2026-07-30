@@ -5,10 +5,8 @@ type DictationExerciseProps = {
   value: string;
   checked: boolean;
   correct: boolean;
-  visibleHintWords: number;
   onChange: (value: string) => void;
   onListen: () => void;
-  onHint: () => void;
   onCheck: () => void;
   onNext: () => void;
 };
@@ -20,14 +18,11 @@ export function DictationExercise({
   value,
   checked,
   correct,
-  visibleHintWords,
   onChange,
   onListen,
-  onHint,
   onCheck,
   onNext,
 }: DictationExerciseProps) {
-  const words = sentence.split(" ");
   const isLastQuestion = position === total - 1;
 
   return (
@@ -55,25 +50,12 @@ export function DictationExercise({
       <div className="mt-4 flex flex-wrap gap-3">
         <button
           type="button"
-          onClick={onHint}
-          className="rounded-xl border-2 border-[#10243e] bg-yellow-100 px-5 py-2.5 font-black"
-        >
-          Gợi ý ({visibleHintWords}/{words.length})
-        </button>
-        <button
-          type="button"
           onClick={onCheck}
           className="rounded-xl bg-gradient-to-r from-[#087eba] to-sky-500 px-5 py-2.5 font-black text-white shadow-md transition hover:-translate-y-0.5"
         >
           Kiểm tra
         </button>
       </div>
-      {visibleHintWords > 0 && (
-        <p className="mt-4 rounded-xl bg-yellow-50 p-4 font-bold text-yellow-900">
-          Gợi ý:{" "}
-          <span lang="ko">{words.slice(0, visibleHintWords).join(" ")}</span>
-        </p>
-      )}
       {checked && (
         <div
           aria-live="polite"

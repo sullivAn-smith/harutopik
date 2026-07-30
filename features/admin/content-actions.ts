@@ -5,8 +5,10 @@ import { redirect } from "next/navigation";
 import { lessonSchema } from "@/content/schema";
 import {
   lessonDraftFormSchema,
+  parseDictationExercisesJson,
   parseGrammarExercisesJson,
   parseGrammarJson,
+  parseTranslationExercisesJson,
   parseVocabularyLines,
   type ContentFormState,
 } from "@/features/admin/content-schema";
@@ -110,17 +112,32 @@ export async function createLessonDraft(
 
   let grammar;
   let exercises;
+  let dictations;
+  let translations;
   try {
     grammar = parseGrammarJson(parsed.data.grammarJson, parsed.data.id);
     exercises = parseGrammarExercisesJson(
       parsed.data.exercisesJson,
       parsed.data.id,
     );
+    dictations = parseDictationExercisesJson(
+      parsed.data.dictationsJson,
+      parsed.data.id,
+    );
+    translations = parseTranslationExercisesJson(
+      parsed.data.translationsJson,
+      parsed.data.id,
+    );
   } catch {
     return {
       status: "error",
-      message: "Điểm ngữ pháp cần đủ cấu trúc và ít nhất một câu ví dụ.",
-      fields: { grammarJson: ["Hãy hoàn thiện hoặc xóa mục ngữ pháp còn trống."] },
+      message:
+        "Câu chính tả, câu dịch, điểm ngữ pháp hoặc bài luyện tập chưa hoàn chỉnh.",
+      fields: {
+        dictationsJson: ["Hãy hoàn thiện hoặc xóa câu chính tả còn trống."],
+        translationsJson: ["Hãy hoàn thiện hoặc xóa câu dịch còn trống."],
+        grammarJson: ["Hãy hoàn thiện hoặc xóa mục ngữ pháp còn trống."],
+      },
     };
   }
 
@@ -140,7 +157,7 @@ export async function createLessonDraft(
       .filter(Boolean),
     vocabulary,
     grammar,
-    exercises,
+    exercises: [...dictations, ...translations, ...exercises],
   });
   if (!lesson.success) {
     return {
@@ -233,17 +250,32 @@ export async function updateLessonDraft(
 
   let grammar;
   let grammarExercises;
+  let dictations;
+  let translations;
   try {
     grammar = parseGrammarJson(parsed.data.grammarJson, parsed.data.id);
     grammarExercises = parseGrammarExercisesJson(
       parsed.data.exercisesJson,
       parsed.data.id,
     );
+    dictations = parseDictationExercisesJson(
+      parsed.data.dictationsJson,
+      parsed.data.id,
+    );
+    translations = parseTranslationExercisesJson(
+      parsed.data.translationsJson,
+      parsed.data.id,
+    );
   } catch {
     return {
       status: "error",
-      message: "Điểm ngữ pháp cần đủ cấu trúc và ít nhất một câu ví dụ.",
-      fields: { grammarJson: ["Hãy hoàn thiện hoặc xóa mục ngữ pháp còn trống."] },
+      message:
+        "Câu chính tả, câu dịch, điểm ngữ pháp hoặc bài luyện tập chưa hoàn chỉnh.",
+      fields: {
+        dictationsJson: ["Hãy hoàn thiện hoặc xóa câu chính tả còn trống."],
+        translationsJson: ["Hãy hoàn thiện hoặc xóa câu dịch còn trống."],
+        grammarJson: ["Hãy hoàn thiện hoặc xóa mục ngữ pháp còn trống."],
+      },
     };
   }
 
@@ -262,8 +294,13 @@ export async function updateLessonDraft(
     grammar,
     exercises: [
       ...currentLesson.data.exercises.filter(
-        (exercise) => exercise.type !== "fill-blank",
+        (exercise) =>
+          exercise.type !== "fill-blank" &&
+          exercise.type !== "dictation" &&
+          exercise.type !== "translation",
       ),
+      ...dictations,
+      ...translations,
       ...grammarExercises,
     ],
   });

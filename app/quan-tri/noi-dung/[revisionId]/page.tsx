@@ -45,6 +45,21 @@ export default async function LessonRevisionPage({
         ].join(" | "),
       )
       .join("\n"),
+    dictations: lesson.exercises
+      .filter((exercise) => exercise.type === "dictation")
+      .map((exercise) => ({
+        sentence: exercise.sentence,
+        audioUrl: exercise.audioUrl,
+        acceptedAnswers: exercise.acceptedAnswers ?? [],
+      })),
+    translations: lesson.exercises
+      .filter((exercise) => exercise.type === "translation")
+      .map((exercise) => ({
+        vietnamese: exercise.vietnamese,
+        korean: exercise.korean,
+        acceptedVietnameseAnswers: exercise.acceptedVietnameseAnswers,
+        acceptedKoreanAnswers: exercise.acceptedKoreanAnswers,
+      })),
     grammar: lesson.grammar.map((point) => ({
       title: point.title,
       form: point.form,

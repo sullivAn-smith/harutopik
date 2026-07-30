@@ -228,7 +228,10 @@ export function generateLessonPractice(lesson: Lesson): PracticeBundle {
       id: exercise.id,
       sentence: exercise.sentence,
       audioUrl: exercise.audioUrl,
-      acceptedAnswers: [exercise.sentence],
+      acceptedAnswers: [
+        exercise.sentence,
+        ...(exercise.acceptedAnswers ?? []),
+      ],
       source: "authored" as const,
     }));
 

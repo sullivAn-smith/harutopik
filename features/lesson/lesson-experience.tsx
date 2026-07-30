@@ -907,7 +907,6 @@ function LessonContent({
                 value={dictationInput}
                 checked={dictationChecked}
                 correct={dictationCorrect}
-                visibleHintWords={dictationHint}
                 onChange={(value) => {
                   setDictationInput(value);
                   setDictationChecked(false);
@@ -916,11 +915,6 @@ function LessonContent({
                   playAudioOrSpeak(
                     dictationExercises[dictationIndex]?.audioUrl,
                     dictationSentence,
-                  )
-                }
-                onHint={() =>
-                  setDictationHint((value) =>
-                    Math.min(value + 1, dictationSentence.split(" ").length),
                   )
                 }
                 onCheck={checkDictation}

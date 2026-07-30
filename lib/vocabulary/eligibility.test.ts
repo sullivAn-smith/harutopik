@@ -55,6 +55,7 @@ describe("vocabulary eligibility", () => {
         id: "dictation-1",
         type: "dictation",
         sentence: "안녕하세요",
+        acceptedAnswers: [],
         points: 1,
       },
     ]);

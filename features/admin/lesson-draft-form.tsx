@@ -15,6 +15,14 @@ import {
   GrammarExerciseImport,
   type GrammarExerciseDraft,
 } from "@/features/admin/grammar-exercise-import";
+import {
+  DictationExerciseEditor,
+  type DictationExerciseDraft,
+} from "@/features/admin/dictation-exercise-editor";
+import {
+  TranslationExerciseEditor,
+  type TranslationExerciseDraft,
+} from "@/features/admin/translation-exercise-editor";
 
 function FieldError({
   state,
@@ -44,6 +52,8 @@ export type LessonDraftDefaults = {
   summary: string;
   objectives: string;
   vocabulary: string;
+  dictations: DictationExerciseDraft[];
+  translations: TranslationExerciseDraft[];
   grammar: Array<{
     title: string;
     form: string;
@@ -77,6 +87,10 @@ export function LessonDraftForm({
   const modules = catalogOptions.filter((item) => item.type === "module");
   const [grammar, setGrammar] = useState(defaults?.grammar ?? []);
   const [exercises, setExercises] = useState(defaults?.exercises ?? []);
+  const [dictations, setDictations] = useState(defaults?.dictations ?? []);
+  const [translations, setTranslations] = useState(
+    defaults?.translations ?? [],
+  );
 
   return (
     <form action={formAction} className="space-y-8">
@@ -84,6 +98,16 @@ export function LessonDraftForm({
       {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
       {reviewEdit && <input type="hidden" name="reviewEdit" value="1" />}
       {defaults && <input type="hidden" name="version" value={defaults.version} />}
+      <input
+        type="hidden"
+        name="dictationsJson"
+        value={JSON.stringify(dictations)}
+      />
+      <input
+        type="hidden"
+        name="translationsJson"
+        value={JSON.stringify(translations)}
+      />
       <input type="hidden" name="grammarJson" value={JSON.stringify(grammar)} />
       <input
         type="hidden"
@@ -252,6 +276,18 @@ export function LessonDraftForm({
         </div>
         <FieldError state={state} name="vocabulary" />
       </section>
+
+      <DictationExerciseEditor
+        exercises={dictations}
+        onChange={setDictations}
+      />
+      <FieldError state={state} name="dictationsJson" />
+
+      <TranslationExerciseEditor
+        exercises={translations}
+        onChange={setTranslations}
+      />
+      <FieldError state={state} name="translationsJson" />
 
       <section className="rounded-3xl border border-violet-200 bg-violet-50 p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">

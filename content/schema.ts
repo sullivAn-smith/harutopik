@@ -52,6 +52,7 @@ const dictationExerciseSchema = baseExerciseSchema.extend({
   type: z.literal("dictation"),
   sentence: z.string().min(1),
   audioUrl: z.string().min(1).optional(),
+  acceptedAnswers: z.array(z.string().min(1)).optional(),
 });
 
 const translationExerciseSchema = baseExerciseSchema.extend({
