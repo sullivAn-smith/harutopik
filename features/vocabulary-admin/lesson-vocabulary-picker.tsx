@@ -32,9 +32,24 @@ export function LessonVocabularyPicker({
         item.romanization.toLowerCase().includes(value)),
   );
   const visible = filtered.slice(0, visibleCount);
+  const filteredIds = filtered.map((item) => item.id);
+  const allFilteredSelected =
+    filteredIds.length > 0 && filteredIds.every((id) => selected.has(id));
   const hasMore = visibleCount < filtered.length;
   const remaining = Math.max(filtered.length - visibleCount, 0);
   const nextCount = Math.min(PAGE_SIZE, remaining);
+
+  function toggleAllFiltered() {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (allFilteredSelected) {
+        filteredIds.forEach((id) => next.delete(id));
+      } else {
+        filteredIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  }
 
   return (
     <form action={setLessonVocabulary}>
@@ -73,10 +88,36 @@ export function LessonVocabularyPicker({
             Lưu bộ từ cho bài
           </button>
         </div>
-        <p className="mt-3 text-sm font-bold text-ink-500">
-          {filtered.length} từ phù hợp · Việc đổi tìm kiếm hoặc chủ đề không làm
-          mất các từ đã chọn.
-        </p>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm font-bold text-ink-500">
+            {filtered.length} từ phù hợp · Việc đổi tìm kiếm hoặc chủ đề không
+            làm mất các từ đã chọn.
+          </p>
+          <button
+            type="button"
+            onClick={toggleAllFiltered}
+            disabled={filteredIds.length === 0}
+            className={`inline-flex min-h-11 items-center gap-2 rounded-xl border-2 px-4 py-2 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${
+              allFilteredSelected
+                ? "border-slate-200 bg-slate-50 text-ink-600 hover:border-slate-300"
+                : "border-brand-200 bg-blue-50 text-brand-700 hover:border-brand-400 hover:bg-blue-100"
+            }`}
+          >
+            <span
+              aria-hidden="true"
+              className={`grid h-6 w-6 place-items-center rounded-md ${
+                allFilteredSelected
+                  ? "bg-slate-200 text-ink-600"
+                  : "bg-brand-600 text-white"
+              }`}
+            >
+              {allFilteredSelected ? "−" : "✓"}
+            </span>
+            {allFilteredSelected
+              ? `Bỏ chọn ${filteredIds.length} từ đang lọc`
+              : `Chọn tất cả ${filteredIds.length} từ`}
+          </button>
+        </div>
       </div>
       {visible.length === 0 ? (
         <div className="mt-5 rounded-2xl border border-dashed bg-white p-10 text-center">
