@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { enqueueAudioPlayback } from "@/lib/audio/playback-queue";
 
 type AudioApiResponse = {
   data?: {
@@ -57,8 +58,7 @@ export function useVocabularyTts(vocabularyId: string) {
 
   function play(url = audioUrl) {
     if (!url) return;
-    const audio = new Audio(url);
-    void audio.play().catch(() => {
+    void enqueueAudioPlayback({ audioUrl: url }).catch(() => {
       setStatus("error");
       setMessage("Trình duyệt chưa thể phát audio này.");
     });

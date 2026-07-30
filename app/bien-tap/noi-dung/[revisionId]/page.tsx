@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import { LessonDraftForm, type LessonDraftDefaults } from "@/features/admin/lesson-draft-form";
 import { StatusBadge } from "@/features/admin/workflow-ui";
 import { EligibilityReport } from "@/features/admin/eligibility-report";
@@ -11,7 +11,7 @@ export default async function EditorRevisionPage({ params }: { params: Promise<{
     getLessonRevision(revisionId),
     getCatalogStructureOptions(),
   ]);
-  if (!revision) notFound();
+  if (!revision) redirect("/bien-tap/noi-dung?open=not-found");
   const lesson = revision.lesson;
   const defaults: LessonDraftDefaults = {
     id: lesson.id, slug: lesson.slug, courseId: lesson.courseId,

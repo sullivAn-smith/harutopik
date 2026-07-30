@@ -33,6 +33,7 @@ import {
   modeMistakes,
 } from "@/lib/learning-core/session";
 import { generateLessonPractice } from "@/lib/learning-core/practice-generator";
+import { enqueueAudioPlayback } from "@/lib/audio/playback-queue";
 
 type Tab = "vocabulary" | "grammar";
 
@@ -59,7 +60,6 @@ function LessonContent({
 }: LessonExperienceOptions) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const speechTimerRef = useRef<number | null>(null);
   const vocabulary = lesson.vocabulary;
   const practiceBundle = useMemo(
     () => generateLessonPractice(lesson),
@@ -438,50 +438,12 @@ function LessonContent({
     setTranslationWrongIndices([]);
   }
 
-  function speak(text: string) {
-    if (!("speechSynthesis" in window)) return;
-
-    const synth = window.speechSynthesis;
-    if (speechTimerRef.current !== null) {
-      window.clearTimeout(speechTimerRef.current);
-    }
-    synth.cancel();
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "ko-KR";
-    utterance.rate = text.trim().includes(" ") ? 0.7 : 0.64;
-    utterance.volume = 1;
-    utterance.pitch = 0.98;
-    utterance.onstart = () => {
-      speechTimerRef.current = null;
-    };
-
-    const koreanVoices = synth
-      .getVoices()
-      .filter((voice) => voice.lang.toLowerCase().startsWith("ko"));
-    const preferredNames = [
-      "injoon",
-      "in joon",
-      "david",
-      "male",
-      "nam",
-      "korean",
-    ];
-    utterance.voice =
-      koreanVoices.sort(
-        (a, b) => voiceScore(b, preferredNames) - voiceScore(a, preferredNames),
-      )[0] ?? null;
-
-    speechTimerRef.current = window.setTimeout(() => synth.speak(utterance), 80);
+  function playAudioOrSpeak(audioUrl: string | undefined, text: string) {
+    void enqueueAudioPlayback({ audioUrl, fallbackText: text });
   }
 
-  function playAudioOrSpeak(audioUrl: string | undefined, text: string) {
-    if (!audioUrl) {
-      speak(text);
-      return;
-    }
-    const audio = new Audio(audioUrl);
-    void audio.play().catch(() => speak(text));
+  function speak(text: string) {
+    void enqueueAudioPlayback({ fallbackText: text });
   }
 
   function playFeedback(correct: boolean) {
@@ -1045,17 +1007,6 @@ function shuffle<T>(items: readonly T[], seed: number) {
         .reduce((sum, character) => sum + character.charCodeAt(0), 0);
     return Math.sin(seed + hash(a)) - Math.sin(seed + hash(b));
   });
-}
-
-function voiceScore(
-  voice: SpeechSynthesisVoice,
-  preferredNames: readonly string[],
-) {
-  const name = voice.name.toLowerCase();
-  const preference = preferredNames.findIndex((item) => name.includes(item));
-  return (
-    (voice.localService ? 10 : 0) + (preference === -1 ? 0 : 20 - preference)
-  );
 }
 
 function addUniqueIndex(

@@ -151,7 +151,7 @@ export async function createLessonDraft(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.rpc("create_lesson_draft", {
+  const { data: revisionId, error } = await supabase.rpc("create_lesson_draft", {
     p_content_id: lesson.data.id,
     p_slug: lesson.data.slug,
     p_course_id: lesson.data.courseId,
@@ -181,11 +181,21 @@ export async function createLessonDraft(
     };
   }
 
+  if (typeof revisionId !== "string" || !revisionId) {
+    return {
+      status: "error",
+      message: "Đã tạo bài nhưng chưa thể mở bước chọn từ. Hãy tải lại danh sách bài.",
+    };
+  }
+
   const destination =
     formData.get("returnTo") === "/bien-tap/noi-dung"
       ? "/bien-tap/noi-dung"
       : "/quan-tri/noi-dung";
   revalidatePath(destination);
+  if (destination === "/bien-tap/noi-dung") {
+    redirect(`/bien-tap/noi-dung/${revisionId}/tu-vung?created=1`);
+  }
   redirect(`${destination}?created=1`);
 }
 

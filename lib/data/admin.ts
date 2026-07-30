@@ -51,6 +51,7 @@ export async function getContentRevisions(): Promise<ContentRevisionDTO[]> {
   let query = supabase
     .from("content_revisions")
     .select("id,content_id,content_type,version,status,updated_at,created_by,payload")
+    .eq("content_type", "lesson")
     .order("updated_at", { ascending: false })
     .is("deleted_at", null)
     .limit(50);

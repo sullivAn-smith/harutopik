@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { enqueueAudioPlayback } from "@/lib/audio/playback-queue";
 
 export function SentenceAudioButton({
   text,
@@ -42,7 +43,12 @@ export function SentenceAudioButton({
       {currentAudioUrl && (
         <button
           type="button"
-          onClick={() => void new Audio(currentAudioUrl).play()}
+          onClick={() =>
+            void enqueueAudioPlayback({
+              audioUrl: currentAudioUrl,
+              fallbackText: text,
+            })
+          }
           className="rounded-xl border-2 border-sky-200 bg-white px-3 py-2 text-sm font-black text-[#087eba] transition hover:border-sky-400 hover:bg-sky-50"
         >
           ▶ Nghe thử

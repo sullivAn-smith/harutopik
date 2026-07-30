@@ -24,10 +24,8 @@ const groups = [
 
 export function EditorSidebar({
   email,
-  unread,
 }: {
   email: string;
-  unread: number;
 }) {
   const pathname = usePathname();
   const isActive = (href: string) =>
@@ -68,13 +66,6 @@ export function EditorSidebar({
             </div>
           </section>
         ))}
-        <section>
-          <p className="mb-2 px-3 text-[11px] font-black uppercase tracking-[0.18em] text-cyan-200/80">Cập nhật</p>
-          <Link href="/thong-bao" className="flex items-center justify-between rounded-xl px-3 py-3 text-sm font-bold text-slate-100 transition hover:bg-white/10">
-            <span className="flex items-center gap-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-cyan-200">●</span>Thông báo</span>
-            {unread > 0 && <span className="min-w-6 rounded-full bg-amber-300 px-2 py-1 text-center text-xs font-black text-amber-950">{unread}</span>}
-          </Link>
-        </section>
       </nav>
 
       <div className="mt-8 border-t border-white/15 pt-5 lg:absolute lg:bottom-6 lg:left-5 lg:right-5">

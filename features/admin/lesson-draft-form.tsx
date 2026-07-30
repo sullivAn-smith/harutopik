@@ -471,7 +471,7 @@ export function LessonDraftForm({
           ? "Đang lưu bản nháp..."
           : editing
             ? "Lưu thay đổi"
-            : "Tạo bản nháp bài học"}
+            : "Tạo bản nháp và chọn từ"}
       </button>
     </form>
   );

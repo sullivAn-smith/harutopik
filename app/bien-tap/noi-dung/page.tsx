@@ -13,6 +13,7 @@ export default async function EditorContentPage({
     workflow?: string;
     version?: string;
     delete?: string;
+    open?: string;
     errorMessage?: string;
   }>;
 }) {
@@ -52,6 +53,12 @@ export default async function EditorContentPage({
       {notice.delete === "error" && (
         <p role="alert" className="mt-6 rounded-2xl bg-red-50 px-5 py-4 font-bold text-red-800">
           {notice.errorMessage ?? "Chưa thể xóa bài học."}
+        </p>
+      )}
+      {notice.open === "not-found" && (
+        <p role="alert" className="mt-6 rounded-2xl bg-red-50 px-5 py-4 font-bold text-red-800">
+          Không thể mở bản nháp này. Nội dung có thể đã bị xóa, không phải bài
+          học hoặc không còn thuộc quyền chỉnh sửa của bạn.
         </p>
       )}
       <section className="surface-card mt-8 overflow-hidden bg-white">
