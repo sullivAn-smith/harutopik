@@ -172,6 +172,7 @@ export async function applyPublishedLessonHotfix(
   });
 
   revalidatePath("/quan-tri/hotfix");
+  revalidatePath("/quan-tri/noi-dung");
   revalidatePath(`/quan-tri/hotfix/${parsed.data.contentId}`);
   revalidatePath("/courses", "layout");
   redirect(`/quan-tri/hotfix/${parsed.data.contentId}?saved=1`);

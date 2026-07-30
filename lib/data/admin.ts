@@ -52,9 +52,10 @@ export async function getContentRevisions(): Promise<ContentRevisionDTO[]> {
     .from("content_revisions")
     .select("id,content_id,content_type,version,status,updated_at,created_by,payload")
     .order("updated_at", { ascending: false })
+    .is("deleted_at", null)
     .limit(50);
   if (!actor.roles.includes("admin")) {
-    query = query.eq("created_by", actor.id).is("deleted_at", null);
+    query = query.eq("created_by", actor.id);
   }
   const { data, error } = await query;
   if (error) throw new Error("Không thể tải danh sách phiên bản nội dung.");
@@ -153,7 +154,7 @@ export async function getReleaseQueue() {
   const { data, error } = await supabase
     .from("content_revisions")
     .select("id,content_id,version,status,payload,updated_at,published_at")
-    .in("status", ["approved", "published", "unpublished"])
+    .in("status", ["approved", "published"])
     .order("updated_at", { ascending: false });
   if (error) throw new Error("Không thể tải danh sách phát hành.");
   return (data ?? []).map((revision) => ({

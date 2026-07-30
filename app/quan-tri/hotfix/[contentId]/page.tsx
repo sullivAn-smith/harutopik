@@ -18,8 +18,8 @@ export default async function AdminLessonHotfixPage({
   if (!published) notFound();
   return (
     <main className="mx-auto max-w-5xl px-5 py-10 lg:px-8">
-      <Link href="/quan-tri/hotfix" className="font-black text-violet-700">
-        ← Bài đang phát hành
+      <Link href="/quan-tri/noi-dung" className="font-black text-violet-700">
+        ← Nội dung đang phát hành
       </Link>
       <div className="mt-5 rounded-3xl bg-[linear-gradient(120deg,#10243e,#49338b)] p-7 text-white">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-200">

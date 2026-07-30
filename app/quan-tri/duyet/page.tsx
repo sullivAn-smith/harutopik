@@ -5,10 +5,10 @@ import { getReviewQueue } from "@/lib/data/admin";
 export default async function ReviewQueuePage({
   searchParams,
 }: {
-  searchParams: Promise<{ review?: string }>;
+  searchParams: Promise<{ review?: string; approval?: string }>;
 }) {
   const queue = await getReviewQueue();
-  const { review } = await searchParams;
+  const { review, approval } = await searchParams;
   return (
     <main className="mx-auto max-w-7xl px-5 py-10 lg:px-8">
       <p className="text-sm font-black uppercase tracking-widest text-blue-600">Kiểm duyệt nội dung</p>
@@ -17,6 +17,14 @@ export default async function ReviewQueuePage({
       {review && (
         <p className="mt-6 rounded-2xl bg-emerald-50 px-5 py-4 font-bold text-emerald-800">
           {review === "approved" ? "Đã phê duyệt. Bài đang chờ phát hành." : "Đã gửi yêu cầu chỉnh sửa cho người biên tập."}
+        </p>
+      )}
+      {approval === "revoked" && (
+        <p
+          role="status"
+          className="mt-6 rounded-2xl bg-amber-50 px-5 py-4 font-bold text-amber-800"
+        >
+          Đã hủy phê duyệt. Nội dung đã quay lại hàng chờ để admin xem xét lại.
         </p>
       )}
       <section className="surface-card mt-8 bg-white p-5 sm:p-6">

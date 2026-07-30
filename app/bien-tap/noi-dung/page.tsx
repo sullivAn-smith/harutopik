@@ -43,11 +43,10 @@ export default async function EditorContentPage({
           {notice.errorMessage ?? "Không thể hoàn tất thao tác. Hãy tải lại và thử lại."}
         </p>
       )}
-      {["done", "archived"].includes(notice.delete ?? "") && (
+      {notice.delete === "archived" && (
         <p role="status" className="mt-6 rounded-2xl bg-emerald-50 px-5 py-4 font-bold text-emerald-800">
-          {notice.delete === "archived"
-            ? "Bài từng phát hành đã được lưu trữ và ẩn khỏi danh sách của bạn."
-            : "Đã xóa bài học bản nháp."}
+          Đã đưa phiên bản vào kho lưu trữ và ẩn khỏi danh sách. Nội dung đang
+          phát hành, nếu có, vẫn được giữ nguyên cho người học.
         </p>
       )}
       {notice.delete === "error" && (
@@ -90,13 +89,12 @@ export default async function EditorContentPage({
                     <input type="hidden" name="returnTo" value="/bien-tap/noi-dung" />
                     <ConfirmSubmitButton
                       confirmation={
-                        ["unpublished", "archived"].includes(revision.status)
-                          ? `Lưu trữ và ẩn bài “${revision.title}” khỏi danh sách?`
-                          : `Xóa vĩnh viễn bản nháp “${revision.title}”?`
+                        `Ẩn phiên bản “${revision.title}” khỏi danh sách? ` +
+                        "Thao tác này không xóa nội dung đang phát hành."
                       }
                       className="rounded-xl border border-red-300 px-4 py-2 text-sm font-black text-red-700"
                     >
-                      Xóa
+                      Ẩn khỏi danh sách
                     </ConfirmSubmitButton>
                   </form>
                 )}

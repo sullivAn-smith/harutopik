@@ -23,6 +23,10 @@ export default async function AdminVocabularyHotfixPage({
     !item ||
     !published.lesson.vocabulary.some((word) => word.id === vocabularyId)
   ) notFound();
+  const currentIndex = published.lesson.vocabulary.findIndex(
+    (word) => word.id === vocabularyId,
+  );
+  const nextWord = published.lesson.vocabulary[currentIndex + 1];
   return (
     <main className="mx-auto max-w-5xl px-5 py-10 lg:px-8">
       <Link href={`/quan-tri/hotfix/${contentId}`} className="font-black text-violet-700">
@@ -37,9 +41,24 @@ export default async function AdminVocabularyHotfixPage({
         <GenerateAudioButton vocabularyId={item.id} currentAudioUrl={item.audioUrl} />
       </div>
       {notice.saved === "1" && (
-        <p role="status" className="mt-6 rounded-2xl bg-emerald-50 p-4 font-bold text-emerald-800">
-          Đã cập nhật từ vựng. Nếu đổi tiếng Hàn, hãy tạo lại audio Azure phía trên.
-        </p>
+        <div
+          role="status"
+          className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4"
+        >
+          <p className="font-bold text-emerald-800">
+            Đã cập nhật từ. Nếu đổi tiếng Hàn, hãy tạo lại audio phía trên.
+          </p>
+          <Link
+            href={
+              nextWord
+                ? `/quan-tri/hotfix/${contentId}/tu-vung/${nextWord.id}`
+                : `/quan-tri/hotfix/${contentId}`
+            }
+            className="inline-flex min-h-11 shrink-0 items-center rounded-xl bg-gradient-to-r from-violet-700 to-blue-600 px-5 py-2.5 font-black text-white shadow-[0_8px_18px_rgba(109,40,217,0.22)] transition hover:-translate-y-0.5 hover:shadow-lg"
+          >
+            {nextWord ? "Từ tiếp theo →" : "Xong · Về danh sách"}
+          </Link>
+        </div>
       )}
       <section className="mt-7">
         <PublishedVocabularyHotfixForm contentId={contentId} item={item} />

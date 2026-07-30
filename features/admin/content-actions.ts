@@ -354,6 +354,34 @@ export async function publishRevision(formData: FormData) {
   await transitionRevision(formData, "published");
 }
 
+export async function revokeApproval(formData: FormData) {
+  await requirePermission("content:approve");
+  const revisionId = formData.get("revisionId");
+  if (typeof revisionId !== "string" || !revisionId) {
+    redirect("/quan-tri/phat-hanh?approval=invalid");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("revoke_content_approval", {
+    p_revision_id: revisionId,
+  });
+  if (error) {
+    const friendly = toUserFacingError(
+      error,
+      "Không thể hủy phê duyệt nội dung.",
+    );
+    redirect(
+      `/quan-tri/phat-hanh?approval=error&errorMessage=${encodeURIComponent(friendly.message)}`,
+    );
+  }
+
+  revalidatePath("/quan-tri");
+  revalidatePath("/quan-tri/duyet");
+  revalidatePath("/quan-tri/phat-hanh");
+  revalidatePath("/quan-tri/noi-dung");
+  redirect("/quan-tri/duyet?approval=revoked");
+}
+
 export async function reviewRevision(formData: FormData) {
   await requirePermission("content:approve");
   const revisionId = formData.get("revisionId");
@@ -404,13 +432,21 @@ export async function unpublishRevision(formData: FormData) {
   await requirePermission("content:unpublish");
   const revisionId = formData.get("revisionId");
   const note = formData.get("note");
-  if (typeof revisionId !== "string" || !revisionId) {
-    redirect("/quan-tri/phat-hanh?release=invalid");
+  if (
+    typeof revisionId !== "string" ||
+    !revisionId ||
+    typeof note !== "string" ||
+    note.trim().length < 3
+  ) {
+    redirect(
+      "/quan-tri/phat-hanh?release=error&errorMessage=" +
+        encodeURIComponent("Hãy nhập lý do tạm gỡ từ 3 ký tự trở lên."),
+    );
   }
   const supabase = await createClient();
   const { error } = await supabase.rpc("unpublish_content", {
     p_revision_id: revisionId,
-    p_note: typeof note === "string" ? note.trim() : "",
+    p_note: note.trim(),
   });
   if (error) {
     const friendly = toUserFacingError(error, "Không thể tạm gỡ bài.");
@@ -479,7 +515,7 @@ export async function deleteOrArchiveLesson(formData: FormData) {
   }
   revalidatePath("/bien-tap/noi-dung");
   revalidatePath("/quan-tri/noi-dung");
-  redirect(`${returnTo}?delete=${data === "archived" ? "archived" : "done"}`);
+  redirect(`${returnTo}?delete=${data === "archived" ? "archived" : "error"}`);
 }
 
 export async function prepareAdminRevisionEdit(formData: FormData) {

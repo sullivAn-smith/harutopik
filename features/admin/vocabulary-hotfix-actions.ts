@@ -305,6 +305,7 @@ export async function applyVocabularyHotfix(
     },
   });
   revalidatePath(`/quan-tri/hotfix/${parsed.data.contentId}`);
+  revalidatePath("/quan-tri/noi-dung");
   revalidatePath("/courses", "layout");
   redirect(
     `/quan-tri/hotfix/${parsed.data.contentId}/tu-vung/${parsed.data.vocabularyId}?saved=1`,
