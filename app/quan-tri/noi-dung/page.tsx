@@ -91,7 +91,7 @@ export default async function AdminContentPage({
                         <Link href="/quan-tri/phat-hanh" className="rounded-xl bg-violet-600 px-3 py-2 text-sm font-black text-white">Đến phát hành</Link>
                       )}
                       {revision.status === "published" && (
-                        <Link href="/quan-tri/phat-hanh" className="text-sm font-bold text-emerald-700">Đang hoạt động</Link>
+                        <Link href={`/quan-tri/hotfix/${revision.contentId}`} className="rounded-xl bg-violet-50 px-3 py-2 text-sm font-black text-violet-700">Chỉnh sửa nhanh</Link>
                       )}
                       {["published", "unpublished", "archived"].includes(revision.status) && (
                         <form action={createNewRevision} className="mt-2">

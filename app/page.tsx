@@ -7,6 +7,14 @@ import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 
 const levels = [1, 2, 3, 4, 5, 6];
+const bookThemes = [
+  "from-[#15a7d8] via-[#087eba] to-[#123f72]",
+  "from-[#7c83f3] via-[#5964cf] to-[#303b91]",
+  "from-[#42b9b0] via-[#168f9f] to-[#14576f]",
+  "from-[#558bd8] via-[#3468b5] to-[#253f82]",
+  "from-[#4ca8d8] via-[#287ba9] to-[#205377]",
+  "from-[#7086b8] via-[#526b9d] to-[#34466f]",
+];
 
 function viewerName(user: User) {
   const metadata = user.user_metadata;
@@ -69,15 +77,16 @@ function AccountLink({
 }
 
 function BookCover({ level }: { level: number }) {
+  const theme = bookThemes[level - 1] ?? bookThemes[0];
   return (
-    <div className="relative aspect-[3/4] w-full overflow-hidden rounded-2xl border-2 border-[#0b3658]/80 bg-gradient-to-br from-[#0b91c9] via-[#066d9f] to-[#064a75] shadow-[0_14px_28px_rgba(16,36,62,0.34)] ring-2 ring-white/35 transition duration-300 group-hover:-translate-y-2 group-hover:rotate-[-1deg] group-hover:shadow-[0_22px_38px_rgba(16,36,62,0.42)]">
+    <div className={`relative aspect-[3/4] w-full overflow-hidden rounded-2xl border-2 border-white/55 bg-gradient-to-br ${theme} shadow-[0_14px_28px_rgba(16,36,62,0.28)] ring-1 ring-[#10243e]/25 transition duration-300 group-hover:-translate-y-2 group-hover:rotate-[-1deg] group-hover:shadow-[0_22px_38px_rgba(16,36,62,0.38)]`}>
       <div className="absolute inset-y-0 left-0 w-[8%] bg-gradient-to-r from-[#10243e]/25 to-transparent" />
       <div className="absolute -right-[25%] -top-[10%] aspect-square w-[85%] rounded-full bg-white/10 blur-sm" />
-      <div className="absolute left-1/2 top-[13%] aspect-square w-[74%] -translate-x-1/2 rounded-full border border-white/70 bg-white/15 p-2 shadow-inner backdrop-blur-sm" />
-      <div className="absolute left-1/2 top-[18%] flex aspect-square w-[64%] -translate-x-1/2 flex-col items-center justify-center rounded-full bg-white/95 px-1 text-center text-[#10243e] shadow-[0_8px_20px_rgba(16,36,62,0.16)]">
+      <div className="absolute left-1/2 top-[13%] aspect-square w-[74%] -translate-x-1/2 rounded-full border border-white/65 bg-white/15 p-2 shadow-inner backdrop-blur-sm" />
+      <div className="absolute left-1/2 top-[18%] flex aspect-square w-[64%] -translate-x-1/2 flex-col items-center justify-center rounded-full bg-[#f7fbff]/95 px-2 text-center text-[#10243e] shadow-[0_8px_20px_rgba(16,36,62,0.16)]">
         <span className="max-w-full text-[clamp(.72rem,1.8vw,2rem)] font-black leading-none tracking-[-0.08em]">TOPIK</span>
-        <span className="mt-2 text-[clamp(.42rem,.68vw,.72rem)] font-semibold leading-tight italic">Dành cho người</span>
-        <span className="text-[clamp(.42rem,.68vw,.72rem)] font-semibold leading-tight italic">Việt</span>
+        <span className="mt-2 text-[clamp(.4rem,.64vw,.68rem)] font-bold leading-tight text-[#245d93]">Nền tảng cho</span>
+        <span className="text-[clamp(.4rem,.64vw,.68rem)] font-bold leading-tight text-[#245d93]">người Việt</span>
       </div>
       <span className="absolute bottom-[6%] right-[10%] -rotate-6 text-[clamp(2rem,3.6vw,3.6rem)] font-black italic leading-none text-white drop-shadow-lg">
         {level}
@@ -129,7 +138,7 @@ export default function Home() {
         <p className="mt-8 inline-flex w-fit items-center gap-2 rounded-full border border-white/70 bg-gradient-to-r from-[#10243e] to-[#245d93] px-4 py-2 text-sm font-black uppercase tracking-[0.14em] text-white shadow-[0_8px_18px_rgba(16,36,62,0.2)]"><span className="h-2 w-2 rounded-full bg-cyan-300" />Học tập</p>
         <nav className="mt-3 space-y-2">
           <Link href="/" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-gradient-to-r from-[#168fd0] to-[#087eba] px-4 py-3.5 font-bold text-white shadow-[0_10px_22px_rgba(8,126,186,0.24)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_26px_rgba(8,126,186,0.3)]"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/18">⌂</span><span>Trang chủ</span></Link>
-          <button onClick={() => setShowBooks((value) => !value)} aria-expanded={showBooks} className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 text-left font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-[#087eba]">▣</span><span>Tiếng Hàn TH</span></span><span className="text-sm text-[#087eba]">{showBooks ? "⌃" : "⌄"}</span></button>
+          <button onClick={() => setShowBooks((value) => !value)} aria-expanded={showBooks} className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 text-left font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="flex items-center gap-3"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-blue-100 text-[#087eba]"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-none stroke-current" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11a2 2 0 0 1 2 2v15a2 2 0 0 0-2-2H6.5A2.5 2.5 0 0 0 4 20.5z" /><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v17a2 2 0 0 1 2-2h2.5a2.5 2.5 0 0 1 2.5 2.5z" /></svg></span><span>Thư viện học</span></span><span className="text-sm text-[#087eba]">{showBooks ? "⌃" : "⌄"}</span></button>
           {showBooks && <div className="ml-4 space-y-1 border-l-2 border-[#087eba]/25 pl-3">{[1, 2, 3, 4, 5, 6].map((level) => <Link key={level} href={level === 1 ? "/courses/topik-1" : `/tieng-han-th/${level}`} onClick={(event) => { if (level > 1) { event.preventDefault(); setComingSoon(true); } }} className="block rounded-lg px-3 py-2 text-sm font-bold text-[#10243e]/70 transition hover:bg-[#e7f4ff] hover:text-[#087eba]">TOPIK {level}</Link>)}</div>}
           <Link href="/luyen-de" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-[#087eba]">✎</span><span>Luyện đề</span></Link>
           <Link href="/tro-ly" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-[#087eba]">✦</span><span>Trợ lý Haru AI</span></Link>
@@ -205,12 +214,18 @@ export default function Home() {
           ))}
         </div>
 
-        <div className="mt-9 flex items-end justify-between gap-4">
+        <div className="mt-9 flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-white/70 bg-white/65 px-5 py-4 shadow-[0_12px_28px_rgba(16,36,62,0.1)] backdrop-blur">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#087eba]">Thư viện giáo trình</p>
-            <h2 className="mt-1 text-2xl font-black">Tiếng Hàn TH</h2>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#087eba]">
+              Kho học liệu
+            </p>
+            <h2 className="text-2xl font-black text-[#10243e]">
+              Thư viện học
+            </h2>
           </div>
-          <p className="text-sm font-semibold text-[#10243e]/55">TH1 đang mở · TH2–TH6 đang biên soạn</p>
+          <p className="rounded-full bg-[#e7f4ff] px-4 py-2 text-sm font-bold text-[#245d93]">
+            TOPIK 1 đang mở · TOPIK 2–6 đang biên soạn
+          </p>
         </div>
 
         <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6 lg:gap-5">

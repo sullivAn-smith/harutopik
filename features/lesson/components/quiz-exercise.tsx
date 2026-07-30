@@ -73,7 +73,7 @@ export function QuizExercise({
             <button
               type="button"
               onClick={onNext}
-              className="rounded-xl bg-[#10243e] px-5 py-2.5 font-black text-white"
+              className="rounded-xl bg-gradient-to-r from-[#087eba] to-sky-500 px-5 py-2.5 font-black text-white shadow-md transition hover:-translate-y-0.5"
             >
               Câu tiếp theo →
             </button>

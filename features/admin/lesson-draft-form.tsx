@@ -11,6 +11,10 @@ import {
   type ContentFormState,
 } from "@/features/admin/content-schema";
 import type { CatalogStructureOption } from "@/lib/data/admin";
+import {
+  GrammarExerciseImport,
+  type GrammarExerciseDraft,
+} from "@/features/admin/grammar-exercise-import";
 
 function FieldError({
   state,
@@ -47,6 +51,7 @@ export type LessonDraftDefaults = {
     formula: string;
     examples: Array<{ korean: string; vietnamese: string }>;
   }>;
+  exercises: GrammarExerciseDraft[];
   changeSummary: string;
 };
 
@@ -71,6 +76,7 @@ export function LessonDraftForm({
   const courses = catalogOptions.filter((item) => item.type === "course");
   const modules = catalogOptions.filter((item) => item.type === "module");
   const [grammar, setGrammar] = useState(defaults?.grammar ?? []);
+  const [exercises, setExercises] = useState(defaults?.exercises ?? []);
 
   return (
     <form action={formAction} className="space-y-8">
@@ -79,6 +85,11 @@ export function LessonDraftForm({
       {reviewEdit && <input type="hidden" name="reviewEdit" value="1" />}
       {defaults && <input type="hidden" name="version" value={defaults.version} />}
       <input type="hidden" name="grammarJson" value={JSON.stringify(grammar)} />
+      <input
+        type="hidden"
+        name="exercisesJson"
+        value={JSON.stringify(exercises)}
+      />
       {state.message && (
         <p
           role="alert"
@@ -432,6 +443,9 @@ export function LessonDraftForm({
         </div>
         <FieldError state={state} name="grammarJson" />
       </section>
+
+      <GrammarExerciseImport exercises={exercises} onChange={setExercises} />
+      <FieldError state={state} name="exercisesJson" />
 
       <label className="block font-bold">
         Ghi chú thay đổi

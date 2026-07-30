@@ -37,6 +37,13 @@ export default async function ReviewQuickEditPage({
       formula: point.formula,
       examples: point.examples.map(({ korean, vietnamese }) => ({ korean, vietnamese })),
     })),
+    exercises: lesson.exercises
+      .filter((exercise) => exercise.type === "fill-blank")
+      .map((exercise) => ({
+        prompt: exercise.prompt,
+        translation: exercise.translation,
+        acceptedAnswers: exercise.acceptedAnswers,
+      })),
     changeSummary: "",
   };
   return (

@@ -80,6 +80,34 @@ describe("practice generator", () => {
     expect(bundle.dictations.map((item) => item.vocabularyId)).toContain("word-2");
   });
 
+  it("ưu tiên câu do biên tập soạn cho phần dịch và chính tả", () => {
+    const input = lesson([word(1), word(2)]);
+    input.exercises = [
+      {
+        id: "translation-sentence-1",
+        type: "translation",
+        vietnamese: "Tôi đang học tiếng Hàn.",
+        korean: "저는 한국어를 공부하고 있어요.",
+        acceptedVietnameseAnswers: [],
+        acceptedKoreanAnswers: [],
+        points: 1,
+      },
+      {
+        id: "dictation-sentence-1",
+        type: "dictation",
+        sentence: "오늘 학교에서 친구를 만났어요.",
+        points: 1,
+      },
+    ];
+
+    const bundle = generateLessonPractice(input);
+
+    expect(bundle.translations).toHaveLength(1);
+    expect(bundle.translations[0].source).toBe("authored");
+    expect(bundle.dictations).toHaveLength(1);
+    expect(bundle.dictations[0].source).toBe("authored");
+  });
+
   it("không tạo cặp nối mơ hồ khi hai từ trùng nghĩa", () => {
     const bundle = generateLessonPractice(
       lesson([

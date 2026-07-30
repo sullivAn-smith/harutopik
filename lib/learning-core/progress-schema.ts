@@ -12,6 +12,7 @@ export const learningEventSchema = z.object({
     "matching",
     "dictation",
     "translation",
+    "grammar",
   ]),
   score: z.number().int().min(0).optional(),
   total: z.number().int().positive().optional(),

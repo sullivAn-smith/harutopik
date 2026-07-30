@@ -15,6 +15,15 @@ export type VocabularyAdminItem = {
   imageUrl: string | null;
   status: string;
   createdBy: string;
+  acceptedVi?: string[];
+  acceptedKo?: string[];
+  examples?: Array<{
+    id: string;
+    korean: string;
+    vietnamese: string;
+    audioUrl: string | null;
+    position: number;
+  }>;
 };
 
 export async function getVocabularyLibrary() {
@@ -63,7 +72,7 @@ export async function getVocabularyAdminItem(id: string) {
       .order("answer"),
     supabase
       .from("vocabulary_examples")
-      .select("korean,vietnamese,position")
+      .select("id,korean,vietnamese,audio_url,position")
       .eq("vocabulary_id", id)
       .order("position"),
   ]);
@@ -81,6 +90,12 @@ export async function getVocabularyAdminItem(id: string) {
     createdBy: data.created_by,
     acceptedVi: (answers ?? []).filter((item) => item.direction === "ko_vi").map((item) => item.answer),
     acceptedKo: (answers ?? []).filter((item) => item.direction === "vi_ko").map((item) => item.answer),
-    examples: examples ?? [],
+    examples: (examples ?? []).map((example) => ({
+      id: example.id,
+      korean: example.korean,
+      vietnamese: example.vietnamese,
+      audioUrl: example.audio_url,
+      position: example.position,
+    })),
   };
 }

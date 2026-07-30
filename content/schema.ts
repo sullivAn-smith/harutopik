@@ -9,6 +9,7 @@ const exampleSchema = z.object({
   id: z.string().min(1),
   korean: z.string().min(1),
   vietnamese: z.string().min(1),
+  audioUrl: z.string().url().optional(),
 });
 
 export const vocabularyItemSchema = z.object({
@@ -50,6 +51,7 @@ const fillBlankExerciseSchema = baseExerciseSchema.extend({
 const dictationExerciseSchema = baseExerciseSchema.extend({
   type: z.literal("dictation"),
   sentence: z.string().min(1),
+  audioUrl: z.string().url().optional(),
 });
 
 const translationExerciseSchema = baseExerciseSchema.extend({

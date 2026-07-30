@@ -725,17 +725,18 @@ function LessonContent({
 
   return (
     <main className="elegant-blue min-h-screen text-[#10243e]">
-      <header className="border-b border-white/70 bg-white/55 shadow-[0_8px_28px_rgba(16,36,62,0.08)] backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-8">
+      <header className="bg-transparent">
+        <div className="mx-auto grid max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-3 px-5 py-4 md:px-8">
           <Link
             href={backHref}
-            className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/65 px-4 py-2.5 text-sm font-black shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:bg-white"
+            className="inline-flex w-fit items-center gap-2 rounded-full border border-white/80 bg-white/80 px-4 py-2.5 text-sm font-black text-[#245d93] shadow-[0_8px_20px_rgba(16,36,62,0.12)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white"
           >
             ← {backLabel}
           </Link>
-          <span className="rounded-full bg-[#10243e] px-4 py-2 text-xs font-black tracking-wider text-white shadow-sm">
+          <span className="justify-self-center rounded-full border border-white/70 bg-[#087eba] px-5 py-2 text-center text-xs font-black tracking-wider text-white shadow-[0_8px_18px_rgba(8,126,186,0.25)]">
             {saveLabel}
           </span>
+          <span aria-hidden="true" />
         </div>
       </header>
 
@@ -747,7 +748,9 @@ function LessonContent({
                 {contextLabel ?? `Bài ${lesson.order}`}
               </span>
               <span className="rounded-full bg-white/70 px-4 py-2 text-lg font-black text-[#52637a]">
-                {vocabulary.length} từ vựng
+                {activeTab === "grammar"
+                  ? `Ngữ pháp bài ${lesson.order}`
+                  : `${vocabulary.length} từ vựng`}
               </span>
             </div>
             <h1
@@ -759,6 +762,11 @@ function LessonContent({
             <p className="mt-2 text-xl font-black text-[#344b67]">
               {lesson.title.vi}
             </p>
+            {activeTab === "grammar" && (
+              <p className="mt-3 max-w-3xl text-base font-semibold leading-7 text-[#52637a]">
+                {lesson.summary}
+              </p>
+            )}
           </div>
           {!vocabularyOnly && (
             <div className="lesson-tab-switcher inline-flex self-start rounded-2xl border border-white/80 bg-white/70 p-1.5 shadow-[0_10px_24px_rgba(16,36,62,0.12)]">
@@ -837,7 +845,9 @@ function LessonContent({
                 flipped={flipped}
                 skipFlipAnimation={skipFlipAnimation}
                 onFlip={() => setFlipped((value) => !value)}
-                onSpeak={() => speak(activeWord.korean)}
+                onSpeak={() =>
+                  playAudioOrSpeak(activeWord.audioUrl, activeWord.korean)
+                }
                 onToggleLearned={() => {
                   const learned = learnedIndices.includes(current);
                   setLearnedIndices((items) =>
@@ -1006,7 +1016,9 @@ function LessonContent({
               items={vocabulary}
               query={query}
               onQueryChange={setQuery}
-              onSpeak={speak}
+              onSpeak={(text, audioUrl) =>
+                playAudioOrSpeak(audioUrl, text)
+              }
             />
           </>
         ) : (
@@ -1015,6 +1027,9 @@ function LessonContent({
             exercises={fillBlankExercises}
             onSpeak={speak}
             onFeedback={playFeedback}
+            onComplete={(score, total) =>
+              void completePractice("grammar", score, total)
+            }
           />
         )}
       </div>

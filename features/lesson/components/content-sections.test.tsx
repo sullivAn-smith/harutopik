@@ -9,6 +9,76 @@ import { VocabularyList } from "./vocabulary-list";
 afterEach(cleanup);
 
 describe("VocabularyList", () => {
+  it("gửi URL audio CDN khi phát âm từ vựng", () => {
+    const onSpeak = vi.fn();
+    const item = {
+      ...lessonOne.vocabulary[0],
+      audioUrl: "https://cdn.example/azure-word.mp3",
+    };
+    render(
+      <VocabularyList
+        lessonId={lessonOne.id}
+        items={[item]}
+        query=""
+        onQueryChange={vi.fn()}
+        onSpeak={onSpeak}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: `Phát âm ${item.korean}` }),
+    );
+    expect(onSpeak).toHaveBeenCalledWith(item.korean, item.audioUrl);
+  });
+
+  it("gửi URL audio CDN khi phát câu ví dụ", () => {
+    const onSpeak = vi.fn();
+    const item = {
+      ...lessonOne.vocabulary[0],
+      examples: [
+        {
+          ...lessonOne.vocabulary[0].examples[0],
+          audioUrl: "https://cdn.example/azure-example.mp3",
+        },
+      ],
+    };
+    render(
+      <VocabularyList
+        lessonId={lessonOne.id}
+        items={[item]}
+        query=""
+        onQueryChange={vi.fn()}
+        onSpeak={onSpeak}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: `Phát âm ví dụ ${item.korean}` }),
+    );
+    expect(onSpeak).toHaveBeenCalledWith(
+      item.examples[0].korean,
+      item.examples[0].audioUrl,
+    );
+  });
+
+  it("chỉ hiện 10 từ đầu và cho xem thêm từng 10 từ", () => {
+    render(
+      <VocabularyList
+        lessonId={lessonOne.id}
+        items={lessonOne.vocabulary}
+        query=""
+        onQueryChange={vi.fn()}
+        onSpeak={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("10/55 từ", { exact: false })).toBeTruthy();
+    expect(screen.queryByText("필리핀")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Xem thêm 10 từ ↓" }));
+    expect(screen.getByText("필리핀")).toBeTruthy();
+    expect(screen.getByText("20/55 từ", { exact: false })).toBeTruthy();
+  });
+
   it("tìm kiếm theo tiếng Việt mà vẫn giữ số thứ tự nguồn", () => {
     render(
       <VocabularyList

@@ -184,3 +184,53 @@ export async function getAdminContentStats() {
     return counts;
   }, {});
 }
+
+export async function getPublishedLessonsForHotfix() {
+  await requirePermission("content:publish");
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("published_catalog")
+    .select("content_id,slug,version,payload,published_at")
+    .eq("content_type", "lesson")
+    .order("published_at", { ascending: false });
+  if (error) throw new Error("Không thể tải các bài đang phát hành.");
+  return (data ?? []).flatMap((row) => {
+    const lesson = lessonSchema.safeParse(row.payload);
+    return lesson.success
+      ? [{
+          contentId: row.content_id,
+          slug: row.slug,
+          version: row.version,
+          title: lesson.data.title.vi,
+          summary: lesson.data.summary,
+          vocabularyCount: lesson.data.vocabulary.length,
+          dictationCount: lesson.data.exercises.filter(
+            (exercise) => exercise.type === "dictation",
+          ).length,
+          publishedAt: row.published_at,
+        }]
+      : [];
+  });
+}
+
+export async function getPublishedLessonForHotfix(contentId: string) {
+  await requirePermission("content:publish");
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("published_catalog")
+    .select("content_id,slug,version,payload,published_at")
+    .eq("content_id", contentId)
+    .eq("content_type", "lesson")
+    .maybeSingle();
+  if (error) throw new Error("Không thể tải bài đang phát hành.");
+  if (!data) return null;
+  const lesson = lessonSchema.safeParse(data.payload);
+  if (!lesson.success) throw new Error("Dữ liệu bài phát hành không hợp lệ.");
+  return {
+    contentId: data.content_id,
+    slug: data.slug,
+    version: data.version,
+    publishedAt: data.published_at,
+    lesson: lesson.data,
+  };
+}

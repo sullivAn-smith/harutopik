@@ -47,7 +47,7 @@ export function TypingExercise({
         <button
           type="button"
           onClick={onCheck}
-          className="rounded-xl bg-[#10243e] px-5 py-3 font-black text-white"
+          className="rounded-xl bg-gradient-to-r from-[#087eba] to-sky-500 px-5 py-3 font-black text-white shadow-md transition hover:-translate-y-0.5"
         >
           Kiểm tra
         </button>
@@ -55,7 +55,7 @@ export function TypingExercise({
           <button
             type="button"
             onClick={onNext}
-            className="rounded-xl border-2 border-[#10243e] bg-white px-5 py-3 font-black"
+            className="rounded-xl border-2 border-sky-300 bg-white px-5 py-3 font-black text-[#087eba] transition hover:bg-sky-50"
           >
             Từ tiếp theo →
           </button>

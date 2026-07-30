@@ -9,6 +9,7 @@ import {
   initialVocabularyFormState,
   type VocabularyFormState,
 } from "./schema";
+import { SentenceAudioButton } from "@/features/admin/sentence-audio-button";
 import { VocabularyImageUpload } from "./vocabulary-image-upload";
 
 export type VocabularyFormDefaults = {
@@ -51,6 +52,8 @@ export function VocabularyForm({
       ? defaults.examples
       : [{ korean: "", vietnamese: "" }],
   );
+  const [hangul, setHangul] = useState(defaults?.hangul ?? "");
+  const [audioUrl, setAudioUrl] = useState(defaults?.audioUrl ?? "");
   const [state, action, pending] = useActionState(
     editing ? updateVocabularyDraft : createVocabularyDraft,
     initialVocabularyFormState,
@@ -59,6 +62,11 @@ export function VocabularyForm({
     <form action={action} className="space-y-7">
       {defaults && <input type="hidden" name="vocabularyId" value={defaults.id} />}
       <input type="hidden" name="examplesJson" value={JSON.stringify(examples)} />
+      <input
+        type="hidden"
+        name="audioUrl"
+        value={audioUrl}
+      />
       {state.message && <p role="alert" className="rounded-2xl bg-red-50 p-4 font-bold text-red-700">{state.message}</p>}
 
       <section>
@@ -66,7 +74,18 @@ export function VocabularyForm({
         <p className="mt-1 text-sm text-ink-600">Đây là thông tin được sử dụng trong mọi dạng luyện tập.</p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <label className="font-bold">Từ tiếng Hàn *
-            <input name="hangul" lang="ko" required defaultValue={defaults?.hangul} placeholder="안녕하세요" className={inputClass} />
+            <input
+              name="hangul"
+              lang="ko"
+              required
+              value={hangul}
+              onChange={(event) => {
+                setHangul(event.target.value);
+                setAudioUrl("");
+              }}
+              placeholder="안녕하세요"
+              className={inputClass}
+            />
             <ErrorText state={state} name="hangul" />
           </label>
           <label className="font-bold">Nghĩa tiếng Việt *
@@ -129,13 +148,42 @@ export function VocabularyForm({
       </section>
 
       <section className="rounded-3xl bg-blue-50 p-5">
-        <h2 className="text-xl font-black">Audio phát âm</h2>
-        <p className="mt-1 text-sm text-ink-600">Audio URL giúp từ tự động dùng được cho chép chính tả. Có thể để trống và bổ sung audio sau.</p>
-        <div className="mt-4">
-          <label className="font-bold">Audio URL
-            <input name="audioUrl" type="url" defaultValue={defaults?.audioUrl ?? ""} placeholder="https://.../audio.mp3" className={inputClass} />
+        <div className="flex flex-wrap items-start gap-4">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-violet-100 text-2xl">
+            ♬
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-xl font-black">Audio phát âm tự động</h2>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-ink-600">
+              Nhập từ tiếng Hàn rồi tạo audio ngay tại đây. Hệ thống kiểm tra
+              cache trước, chỉ gọi Azure khi chưa có MP3 và lưu file trên
+              Supabase CDN.
+            </p>
+            <div className="mt-4 grid gap-2 text-sm font-bold text-ink-700 sm:grid-cols-3">
+              <span className="rounded-xl bg-white/80 px-3 py-2">
+                1. Nhập từ tiếng Hàn
+              </span>
+              <span className="rounded-xl bg-white/80 px-3 py-2">
+                2. Tạo audio Azure
+              </span>
+              <span className="rounded-xl bg-white/80 px-3 py-2">
+                3. Nghe thử
+              </span>
+            </div>
+            <div className="mt-4">
+              <SentenceAudioButton
+                text={hangul}
+                currentAudioUrl={audioUrl || undefined}
+                onGenerated={setAudioUrl}
+              />
+            </div>
+            {audioUrl && (
+              <p className="mt-4 inline-flex rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-black text-emerald-800">
+                ✓ Từ này đã có audio trên CDN
+              </p>
+            )}
             <ErrorText state={state} name="audioUrl" />
-          </label>
+          </div>
         </div>
       </section>
 

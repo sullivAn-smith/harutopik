@@ -22,6 +22,7 @@ export const lessonDraftFormSchema = z.object({
   objectives: z.string().trim().min(2),
   vocabulary: z.string().trim(),
   grammarJson: z.string(),
+  exercisesJson: z.string(),
   changeSummary: z.string().trim().max(500),
 });
 
@@ -89,5 +90,25 @@ export function parseGrammarJson(input: string, lessonId: string) {
       id: `${lessonId}-grammar-${String(pointIndex + 1).padStart(3, "0")}-example-${String(exampleIndex + 1).padStart(3, "0")}`,
       ...example,
     })),
+  }));
+}
+
+const grammarExerciseDraftSchema = z.array(
+  z.object({
+    prompt: z.string().trim().min(1),
+    translation: z.string().trim().min(1),
+    acceptedAnswers: z.array(z.string().trim().min(1)).min(1),
+  }),
+);
+
+export function parseGrammarExercisesJson(input: string, lessonId: string) {
+  const exercises = grammarExerciseDraftSchema.parse(JSON.parse(input || "[]"));
+  return exercises.map((exercise, index) => ({
+    id: `${lessonId}-grammar-exercise-${String(index + 1).padStart(3, "0")}`,
+    type: "fill-blank" as const,
+    prompt: exercise.prompt,
+    translation: exercise.translation,
+    acceptedAnswers: exercise.acceptedAnswers,
+    points: 1,
   }));
 }

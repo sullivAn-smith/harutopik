@@ -72,15 +72,31 @@ export async function POST(request: Request) {
       percentage === null
         ? currentProgress?.best_score ?? null
         : Math.max(percentage, currentProgress?.best_score ?? 0);
+    const { data: completedPractices, error: practicesError } = await supabase
+      .from("learning_events")
+      .select("mode")
+      .eq("user_id", user.id)
+      .eq("lesson_id", event.lessonId)
+      .eq("lesson_version", event.lessonVersion)
+      .eq("event_type", "practice_completed");
+    if (practicesError) return databaseError();
+    const completedModes = new Set(
+      (completedPractices ?? []).map((practice) => practice.mode),
+    );
+    const grammarCompleted = completedModes.has("grammar");
+    const vocabularyCompleted = [...completedModes].some(
+      (mode) => mode !== "grammar",
+    );
+    const lessonCompleted = grammarCompleted && vocabularyCompleted;
     const { error } = await supabase.from("lesson_progress").upsert(
       {
         user_id: user.id,
         lesson_id: event.lessonId,
         lesson_version: event.lessonVersion,
-        status: "completed",
+        status: lessonCompleted ? "completed" : "in_progress",
         best_score: bestScore,
         last_studied_at: event.completedAt,
-        completed_at: event.completedAt,
+        completed_at: lessonCompleted ? event.completedAt : null,
       },
       { onConflict: "user_id,lesson_id" },
     );

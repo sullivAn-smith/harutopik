@@ -227,6 +227,7 @@ export function generateLessonPractice(lesson: Lesson): PracticeBundle {
     .map((exercise) => ({
       id: exercise.id,
       sentence: exercise.sentence,
+      audioUrl: exercise.audioUrl,
       acceptedAnswers: [exercise.sentence],
       source: "authored" as const,
     }));
@@ -236,7 +237,11 @@ export function generateLessonPractice(lesson: Lesson): PracticeBundle {
     typing: [...vocabulary],
     quiz,
     matching,
-    translations: [...vocabularyTranslations, ...authoredTranslations],
-    dictations: [...vocabularyDictations, ...authoredDictations],
+    translations:
+      authoredTranslations.length > 0
+        ? authoredTranslations
+        : vocabularyTranslations,
+    dictations:
+      authoredDictations.length > 0 ? authoredDictations : vocabularyDictations,
   };
 }

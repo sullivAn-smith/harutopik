@@ -96,6 +96,21 @@ body {
   }
 }
 
+.admin-sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(103, 232, 249, 0.55) transparent;
+  overscroll-behavior: contain;
+}
+
+.admin-sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.admin-sidebar-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(103, 232, 249, 0.5);
+}
+
 button,
 input,
 textarea,

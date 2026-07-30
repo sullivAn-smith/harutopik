@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   lessonDraftFormSchema,
+  parseGrammarExercisesJson,
   parseGrammarJson,
   parseVocabularyLines,
 } from "./content-schema";
@@ -19,6 +20,7 @@ describe("lessonDraftFormSchema", () => {
       objectives: "Nhận biết quốc gia",
       vocabulary: "",
       grammarJson: "[]",
+      exercisesJson: "[]",
       changeSummary: "",
     });
 
@@ -39,6 +41,7 @@ describe("lessonDraftFormSchema", () => {
       objectives: "Mục tiêu",
       vocabulary: "",
       grammarJson: "[]",
+      exercisesJson: "[]",
       changeSummary: "",
     });
 
@@ -81,6 +84,27 @@ describe("parseGrammarJson", () => {
         "lesson-test",
       ),
     ).toThrow();
+  });
+});
+
+describe("parseGrammarExercisesJson", () => {
+  it("tạo bài điền ngữ pháp với ID ổn định", () => {
+    const [exercise] = parseGrammarExercisesJson(
+      JSON.stringify([
+        {
+          prompt: "저는 학생___.",
+          translation: "Tôi là học sinh.",
+          acceptedAnswers: ["이에요", "입니다"],
+        },
+      ]),
+      "lesson-topik-1-02",
+    );
+
+    expect(exercise).toMatchObject({
+      id: "lesson-topik-1-02-grammar-exercise-001",
+      type: "fill-blank",
+      acceptedAnswers: ["이에요", "입니다"],
+    });
   });
 });
 

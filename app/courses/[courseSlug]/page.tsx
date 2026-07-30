@@ -6,6 +6,7 @@ import {
   lessonPath,
 } from "@/content/catalog";
 import { getPublishedCourses } from "@/lib/data/published-catalog";
+import { createClient } from "@/lib/supabase/server";
 
 type CoursePageProps = {
   params: Promise<{ courseSlug: string }>;
@@ -37,6 +38,38 @@ export default async function CoursePage({ params }: CoursePageProps) {
   const courses = await getPublishedCourses();
   const course = courses.find((item) => item.slug === courseSlug);
   if (!course) notFound();
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const lessonIds = course.lessons.map((lesson) => lesson.id);
+  const { data: practiceEvents } =
+    user && lessonIds.length > 0
+      ? await supabase
+          .from("learning_events")
+          .select("lesson_id,lesson_version,mode")
+          .eq("event_type", "practice_completed")
+          .in("lesson_id", lessonIds)
+      : { data: [] };
+  const completedLessons = new Set(
+    course.lessons
+      .filter((lesson) => {
+        const modes = new Set(
+          (practiceEvents ?? [])
+            .filter(
+              (event) =>
+                event.lesson_id === lesson.id &&
+                event.lesson_version === lesson.version,
+            )
+            .map((event) => event.mode),
+        );
+        return (
+          modes.has("grammar") &&
+          [...modes].some((mode) => mode !== "grammar")
+        );
+      })
+      .map((lesson) => lesson.id),
+  );
 
   return (
     <main className="elegant-blue min-h-screen text-[#10243e]">
@@ -64,7 +97,9 @@ export default async function CoursePage({ params }: CoursePageProps) {
           >
             {course.title.ko}
           </p>
-          <p className="body-lead mt-4 max-w-3xl">{course.summary}</p>
+          <p className="body-lead mt-4 max-w-none lg:whitespace-nowrap">
+            {course.summary}
+          </p>
         </section>
 
         <section className="mt-8 pb-14">
@@ -81,31 +116,59 @@ export default async function CoursePage({ params }: CoursePageProps) {
           </div>
 
           <div className="space-y-3">
-            {course.lessons.map((lesson) => (
-              <Link
-                key={lesson.id}
-                href={lessonPath(course, lesson)}
-                className="flex items-center gap-4 rounded-2xl border border-white/80 bg-white/85 px-5 py-4 shadow-[0_12px_28px_rgba(16,36,62,0.12)] backdrop-blur transition duration-200 hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_18px_34px_rgba(16,36,62,0.16)]"
-              >
-                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-2 border-[#087eba]/30 bg-blue-50 text-xl font-black text-[#087eba]">
-                  {lesson.order}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <strong
-                    lang="ko"
-                    className="font-korean block text-xl font-black"
+            {course.lessons.map((lesson) => {
+              const completed = completedLessons.has(lesson.id);
+              return (
+                <Link
+                  key={lesson.id}
+                  href={lessonPath(course, lesson)}
+                  className={`flex items-center gap-4 rounded-2xl border px-5 py-4 shadow-[0_12px_28px_rgba(16,36,62,0.12)] backdrop-blur transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_34px_rgba(16,36,62,0.16)] ${
+                    completed
+                      ? "border-emerald-200 bg-emerald-50/90 hover:border-emerald-300"
+                      : "border-white/80 bg-white/85 hover:border-blue-200"
+                  }`}
+                >
+                  <span
+                    aria-label={
+                      completed
+                        ? `Bài ${lesson.order} đã hoàn thành`
+                        : `Bài ${lesson.order} chưa hoàn thành`
+                    }
+                    className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-[3px] text-xl font-black shadow-inner transition ${
+                      completed
+                        ? "border-emerald-300 bg-emerald-600 text-white shadow-emerald-900/20"
+                        : "border-[#10243e]/15 bg-[#10243e]/8 text-[#10243e]/55"
+                    }`}
                   >
-                    {lesson.title.ko}
-                  </strong>
-                  <span className="mt-1 block text-base font-semibold text-[#52637a]">
-                    {lesson.title.vi} · {lesson.vocabulary.length} từ
+                    {lesson.order}
                   </span>
-                </span>
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#10243e]/5 text-2xl text-[#52637a]">
-                  ›
-                </span>
-              </Link>
-            ))}
+                  <span className="min-w-0 flex-1">
+                    <span className="flex min-w-0 items-center gap-3">
+                      <strong
+                        lang="ko"
+                        className="font-korean shrink-0 text-xl font-black"
+                      >
+                        {lesson.title.ko}
+                      </strong>
+                      <span className="min-w-0 truncate whitespace-nowrap text-base font-bold text-[#344b67]">
+                        {lesson.title.vi}
+                      </span>
+                    </span>
+                    <span className="mt-1 block text-sm font-semibold text-[#52637a]">
+                      {lesson.vocabulary.length} từ
+                      {completed && (
+                        <span className="ml-2 font-black text-emerald-700">
+                          ✓ Đã hoàn thành
+                        </span>
+                      )}
+                    </span>
+                  </span>
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#10243e]/5 text-2xl text-[#52637a]">
+                    ›
+                  </span>
+                </Link>
+              );
+            })}
 
             {Array.from({
               length: Math.max(0, course.lessonCount - course.lessons.length),

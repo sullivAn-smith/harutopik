@@ -62,13 +62,18 @@ export async function generateVocabularyAudioForActor(input: {
       404,
     );
   }
+  const isAdmin = input.actorRoles.includes("admin");
+  const isOwner = item.created_by === input.actorId;
+  const canReplacePublishedAudio = item.status === "published";
+  const canEditDraftAudio = ["draft", "changes_requested"].includes(
+    item.status,
+  );
   if (
-    !["draft", "changes_requested"].includes(item.status) ||
-    (item.created_by !== input.actorId &&
-      !input.actorRoles.includes("admin"))
+    (!canEditDraftAudio && !canReplacePublishedAudio) ||
+    (!isOwner && !isAdmin)
   ) {
     throw new VocabularyAudioError(
-      "Bạn chỉ có thể tạo audio cho từ đang biên tập và thuộc quyền quản lý.",
+      "Bạn chỉ có thể tạo audio cho từ do mình quản lý. Từ dữ liệu cũ cần admin thực hiện.",
       "FORBIDDEN",
       403,
     );

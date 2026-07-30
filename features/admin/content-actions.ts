@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { lessonSchema } from "@/content/schema";
 import {
   lessonDraftFormSchema,
+  parseGrammarExercisesJson,
   parseGrammarJson,
   parseVocabularyLines,
   type ContentFormState,
@@ -108,8 +109,13 @@ export async function createLessonDraft(
   }
 
   let grammar;
+  let exercises;
   try {
     grammar = parseGrammarJson(parsed.data.grammarJson, parsed.data.id);
+    exercises = parseGrammarExercisesJson(
+      parsed.data.exercisesJson,
+      parsed.data.id,
+    );
   } catch {
     return {
       status: "error",
@@ -134,7 +140,7 @@ export async function createLessonDraft(
       .filter(Boolean),
     vocabulary,
     grammar,
-    exercises: [],
+    exercises,
   });
   if (!lesson.success) {
     return {
@@ -216,8 +222,13 @@ export async function updateLessonDraft(
   }
 
   let grammar;
+  let grammarExercises;
   try {
     grammar = parseGrammarJson(parsed.data.grammarJson, parsed.data.id);
+    grammarExercises = parseGrammarExercisesJson(
+      parsed.data.exercisesJson,
+      parsed.data.id,
+    );
   } catch {
     return {
       status: "error",
@@ -239,7 +250,12 @@ export async function updateLessonDraft(
     objectives: parsed.data.objectives.split("\n").map((item) => item.trim()).filter(Boolean),
     vocabulary: currentLesson.data.vocabulary,
     grammar,
-    exercises: currentLesson.data.exercises,
+    exercises: [
+      ...currentLesson.data.exercises.filter(
+        (exercise) => exercise.type !== "fill-blank",
+      ),
+      ...grammarExercises,
+    ],
   });
   if (!lesson.success) {
     return { status: "error", message: "Bài học chưa vượt qua kiểm tra cấu trúc nội dung." };

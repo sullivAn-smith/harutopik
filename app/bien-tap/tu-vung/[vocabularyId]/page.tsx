@@ -5,6 +5,7 @@ import { deleteVocabularyDraft } from "@/features/vocabulary-admin/actions";
 import { GenerateAudioButton } from "@/features/vocabulary-admin/generate-audio-button";
 import { VocabularyForm } from "@/features/vocabulary-admin/vocabulary-form";
 import { getVocabularyAdminItem } from "@/lib/data/vocabulary-admin";
+import { getCurrentActor } from "@/lib/auth/authorize";
 
 export default async function VocabularyDetailPage({
   params,
@@ -20,10 +21,15 @@ export default async function VocabularyDetailPage({
   }>;
 }) {
   const { vocabularyId } = await params;
-  const item = await getVocabularyAdminItem(vocabularyId);
+  const [item, actor] = await Promise.all([
+    getVocabularyAdminItem(vocabularyId),
+    getCurrentActor(),
+  ]);
   if (!item) notFound();
   const notice = await searchParams;
   const editable = ["draft", "changes_requested"].includes(item.status);
+  const canGenerateAudio =
+    Boolean(actor?.roles.includes("admin")) || item.createdBy === actor?.id;
   return (
     <main className="mx-auto max-w-5xl px-5 py-10">
       <Link href="/bien-tap/tu-vung" className="text-sm font-black text-brand-700">← Thư viện từ vựng</Link>
@@ -37,7 +43,7 @@ export default async function VocabularyDetailPage({
           {notice.errorMessage ?? "Chưa thể xóa từ vựng."}
         </p>
       )}
-      {editable && <section className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-violet-200 bg-violet-50 p-5"><div><h2 className="text-lg font-black">Audio phát âm tự động</h2><p className="mt-1 text-sm text-ink-600">{item.audioUrl ? "Audio hiện tại đã lưu trên CDN. Chỉ tạo lại khi cách đọc hoặc nội dung thay đổi." : "Azure tạo một lần, sau đó web và app phát trực tiếp từ Supabase CDN."}</p></div><GenerateAudioButton vocabularyId={item.id} currentAudioUrl={item.audioUrl} /></section>}
+      {canGenerateAudio && <section className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-violet-200 bg-violet-50 p-5"><div><h2 className="text-lg font-black">Audio phát âm tự động</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-ink-600">{item.audioUrl ? "Bấm “Tạo lại audio” để thay file cũ bằng giọng Azure. URL mới được lưu vào từ vựng và bài học đang dùng từ này sẽ nhận audio mới." : "Azure tạo một lần, sau đó web và app phát trực tiếp từ Supabase CDN."}</p></div><GenerateAudioButton vocabularyId={item.id} currentAudioUrl={item.audioUrl} /></section>}
       <section className="surface-card mt-7 bg-white p-6 sm:p-8">
         {editable ? <VocabularyForm defaults={{ id: item.id, hangul: item.hangul, romanization: item.romanization, meaningVi: item.meaningVi, partOfSpeech: item.partOfSpeech, level: item.level, category: item.category, audioUrl: item.audioUrl, imageUrl: item.imageUrl, acceptedVi: item.acceptedVi, acceptedKo: item.acceptedKo, examples: item.examples }} /> : <div className="py-12 text-center"><h2 className="text-2xl font-black">Từ đã xuất bản được bảo vệ</h2><p className="mt-2 text-ink-600">Từ đang được dùng trong bài học nên không thể chỉnh sửa trực tiếp ở phiên bản hiện tại.</p></div>}
       </section>

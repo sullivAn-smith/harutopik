@@ -152,12 +152,12 @@ export function SaveToListButton({
       <button
         type="button"
         onClick={() => void openMenu()}
-        className={`inline-flex items-center justify-center rounded-xl border font-black shadow-sm ${
-          variant === "icon" ? "h-11 w-11 text-lg" : "h-11 gap-2 px-4 text-sm"
+        className={`inline-flex items-center justify-center border font-black shadow-[0_6px_14px_rgba(16,36,62,0.12)] transition hover:-translate-y-0.5 ${
+          variant === "icon" ? "h-11 w-11 rounded-full text-lg" : "h-11 gap-2 rounded-xl px-4 text-sm"
         } ${
           savedAnywhere
             ? "border-rose-300 bg-rose-50 text-rose-600"
-            : "border-[#087eba]/30 bg-blue-50"
+            : "border-sky-200 bg-white/90 text-[#087eba] hover:border-sky-400 hover:bg-sky-50"
         }`}
         aria-label={`Lưu từ ${item.korean}`}
         aria-expanded={open}

@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import type { VocabularyItem } from "@/content/schema";
 import { SaveToListButton } from "@/features/vocabulary-lists/save-to-list-button";
 
@@ -6,7 +9,7 @@ type VocabularyListProps = {
   items: readonly VocabularyItem[];
   query: string;
   onQueryChange: (query: string) => void;
-  onSpeak: (text: string) => void;
+  onSpeak: (text: string, audioUrl?: string) => void;
 };
 
 function capitalizeFirst(value: string) {
@@ -20,12 +23,17 @@ export function VocabularyList({
   onQueryChange,
   onSpeak,
 }: VocabularyListProps) {
+  const [visibleCount, setVisibleCount] = useState(10);
   const normalizedQuery = query.trim().toLocaleLowerCase("vi-VN");
   const filteredItems = items.filter((item) =>
     `${item.korean} ${item.vietnamese} ${item.romanization}`
       .toLocaleLowerCase("vi-VN")
       .includes(normalizedQuery),
   );
+  const visibleItems = filteredItems.slice(0, visibleCount);
+  const hasMore = visibleCount < filteredItems.length;
+  const remainingCount = Math.max(filteredItems.length - visibleCount, 0);
+  const nextCount = Math.min(10, remainingCount);
 
   return (
     <section className="mt-10 pb-14">
@@ -37,7 +45,10 @@ export function VocabularyList({
           <span className="sr-only">Tìm kiếm từ vựng</span>
           <input
             value={query}
-            onChange={(event) => onQueryChange(event.target.value)}
+            onChange={(event) => {
+              setVisibleCount(10);
+              onQueryChange(event.target.value);
+            }}
             placeholder="Tìm từ tiếng Hàn hoặc tiếng Việt…"
             className="w-full rounded-full border-2 border-[#10243e] bg-white px-5 py-3 text-sm font-semibold shadow-sm outline-none focus:ring-4 focus:ring-white/35"
           />
@@ -52,7 +63,7 @@ export function VocabularyList({
         </div>
       ) : (
         <div className="mt-5 grid gap-5 md:grid-cols-2">
-          {filteredItems.map((item) => {
+          {visibleItems.map((item) => {
             const sourceIndex = items.findIndex(
               (sourceItem) => sourceItem.id === item.id,
             );
@@ -88,8 +99,9 @@ export function VocabularyList({
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      onClick={() => onSpeak(item.korean)}
+                      onClick={() => onSpeak(item.korean, item.audioUrl)}
                       aria-label={`Phát âm ${item.korean}`}
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-sky-200 bg-white/90 text-lg text-[#087eba] shadow-[0_6px_14px_rgba(16,36,62,0.12)] transition hover:-translate-y-0.5 hover:border-sky-400 hover:bg-sky-50"
                     >
                       🔊
                     </button>
@@ -111,8 +123,11 @@ export function VocabularyList({
                     </div>
                     <button
                       type="button"
-                      onClick={() => onSpeak(example.korean)}
+                      onClick={() =>
+                        onSpeak(example.korean, example.audioUrl)
+                      }
                       aria-label={`Phát âm ví dụ ${item.korean}`}
+                      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-sky-200 bg-white/90 text-base text-[#087eba] shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-50"
                     >
                       🔊
                     </button>
@@ -121,6 +136,45 @@ export function VocabularyList({
               </article>
             );
           })}
+        </div>
+      )}
+      {filteredItems.length > 10 && (
+        <div className="mx-auto mt-8 max-w-xl rounded-3xl border border-white/40 bg-white/15 p-5 text-center shadow-[0_16px_38px_rgba(16,36,62,0.16)] backdrop-blur-sm">
+          <p className="text-sm font-black text-white">
+            Đang hiển thị{" "}
+            <span className="rounded-full bg-[#10243e]/75 px-2.5 py-1">
+              {Math.min(visibleCount, filteredItems.length)}/
+              {filteredItems.length} từ
+            </span>
+          </p>
+          {hasMore ? (
+            <button
+              type="button"
+              onClick={() => setVisibleCount((count) => count + 10)}
+              aria-label={`Xem thêm ${nextCount} từ ↓`}
+              className="mt-4 inline-flex min-h-14 items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-[#10243e] via-[#174f7f] to-[#087eba] px-6 py-3.5 font-black text-white shadow-[0_12px_26px_rgba(7,18,36,0.28)] ring-2 ring-white/65 transition hover:-translate-y-1 hover:shadow-[0_17px_32px_rgba(7,18,36,0.34)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
+            >
+              <span className="grid h-8 w-8 place-items-center rounded-full bg-white/15 text-xl">
+                ↓
+              </span>
+              <span>Xem thêm {nextCount} từ</span>
+              <span className="rounded-full bg-white/15 px-2.5 py-1 text-xs">
+                Còn {remainingCount}
+              </span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setVisibleCount(10)}
+              className="mt-4 inline-flex min-h-12 items-center gap-2 rounded-2xl border-2 border-white/80 bg-white px-6 py-3 font-black text-[#10243e] shadow-lg transition hover:-translate-y-0.5 hover:bg-sky-50 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
+            >
+              <span>↑</span>
+              Thu gọn còn 10 từ
+            </button>
+          )}
+          <p className="mt-3 text-sm font-semibold text-white/85">
+            Bạn có thể dùng ô tìm kiếm phía trên để tìm nhanh hơn.
+          </p>
         </div>
       )}
     </section>

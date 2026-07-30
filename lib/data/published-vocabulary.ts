@@ -54,7 +54,7 @@ export async function getPublishedVocabularyByLesson(
         .eq("status", "published"),
       supabase
         .from("vocabulary_examples")
-        .select("id,vocabulary_id,korean,vietnamese,position")
+        .select("id,vocabulary_id,korean,vietnamese,audio_url,position")
         .in("vocabulary_id", vocabularyIds)
         .order("position"),
       supabase
@@ -95,6 +95,7 @@ export async function getPublishedVocabularyByLesson(
         id: example.id,
         korean: example.korean,
         vietnamese: example.vietnamese,
+        ...(example.audio_url ? { audioUrl: example.audio_url } : {}),
       },
     ]);
   }

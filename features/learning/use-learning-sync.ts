@@ -72,7 +72,7 @@ export function useLearningSync({
   }, [enabled, send]);
 
   const completePractice = useCallback(
-    (mode: StudyMode, score: number, total: number) =>
+    (mode: StudyMode | "grammar", score: number, total: number) =>
       send(
         createEvent({
           eventType: "practice_completed",
