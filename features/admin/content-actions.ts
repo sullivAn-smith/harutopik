@@ -2,13 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { lessonSchema } from "@/content/schema";
+import { lessonSchema, type VocabularyItem } from "@/content/schema";
 import {
   lessonDraftFormSchema,
   parseDictationExercisesJson,
   parseGrammarExercisesJson,
   parseGrammarJson,
   parseTranslationExercisesJson,
+  parseVocabularyIdsJson,
   parseVocabularyLines,
   type ContentFormState,
 } from "@/features/admin/content-schema";
@@ -17,6 +18,69 @@ import { toUserFacingError } from "@/lib/errors/user-facing";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { evaluateLessonEligibility } from "@/lib/vocabulary/eligibility";
+
+async function loadVocabularySelection(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  vocabularyIds: string[],
+): Promise<VocabularyItem[]> {
+  if (vocabularyIds.length === 0) return [];
+
+  const [itemsResult, answersResult, examplesResult] = await Promise.all([
+    supabase
+      .from("vocabulary_items")
+      .select("id,hangul,romanization,primary_meaning_vi,part_of_speech,category,audio_url,image_url")
+      .in("id", vocabularyIds),
+    supabase
+      .from("vocabulary_accepted_answers")
+      .select("vocabulary_id,direction,answer")
+      .in("vocabulary_id", vocabularyIds),
+    supabase
+      .from("vocabulary_examples")
+      .select("id,vocabulary_id,korean,vietnamese,audio_url,position")
+      .in("vocabulary_id", vocabularyIds)
+      .order("position"),
+  ]);
+
+  if (itemsResult.error || answersResult.error || examplesResult.error) {
+    throw new Error("Không thể tải đầy đủ dữ liệu của các từ đã chọn.");
+  }
+  if ((itemsResult.data?.length ?? 0) !== vocabularyIds.length) {
+    throw new Error("Một số từ đã chọn không còn tồn tại hoặc bạn không có quyền sử dụng.");
+  }
+
+  const itemsById = new Map((itemsResult.data ?? []).map((item) => [item.id, item]));
+  return vocabularyIds.map((id) => {
+    const item = itemsById.get(id)!;
+    const answers = (answersResult.data ?? []).filter(
+      (answer) => answer.vocabulary_id === id,
+    );
+    const examples = (examplesResult.data ?? [])
+      .filter((example) => example.vocabulary_id === id)
+      .map((example) => ({
+        id: example.id,
+        korean: example.korean,
+        vietnamese: example.vietnamese,
+        ...(example.audio_url ? { audioUrl: example.audio_url } : {}),
+      }));
+    return {
+      id: item.id,
+      korean: item.hangul,
+      vietnamese: item.primary_meaning_vi,
+      romanization: item.romanization,
+      category: item.category,
+      ...(item.part_of_speech ? { partOfSpeech: item.part_of_speech } : {}),
+      ...(item.audio_url ? { audioUrl: item.audio_url } : {}),
+      ...(item.image_url ? { imageUrl: item.image_url } : {}),
+      acceptedVietnameseAnswers: answers
+        .filter((answer) => answer.direction === "ko_vi")
+        .map((answer) => answer.answer),
+      acceptedKoreanAnswers: answers
+        .filter((answer) => answer.direction === "vi_ko")
+        .map((answer) => answer.answer),
+      examples,
+    };
+  });
+}
 
 async function revisionPassesEligibility(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -95,18 +159,25 @@ export async function createLessonDraft(
     };
   }
 
+  const supabase = await createClient();
   let vocabulary;
   try {
-    vocabulary = parseVocabularyLines(
-      parsed.data.vocabulary,
-      parsed.data.id,
-    );
+    const selectedIds = parseVocabularyIdsJson(parsed.data.vocabularyIdsJson);
+    vocabulary = selectedIds.length
+      ? await loadVocabularySelection(supabase, selectedIds)
+      : parseVocabularyLines(parsed.data.vocabulary, parsed.data.id);
   } catch (error) {
     return {
       status: "error",
       message:
         error instanceof Error ? error.message : "Dữ liệu từ vựng chưa hợp lệ.",
-      fields: { vocabulary: ["Kiểm tra lại định dạng từng dòng."] },
+      fields: {
+        vocabularyIdsJson: [
+          error instanceof Error
+            ? error.message
+            : "Hãy chọn lại các từ trong thư viện.",
+        ],
+      },
     };
   }
 
@@ -167,7 +238,6 @@ export async function createLessonDraft(
     };
   }
 
-  const supabase = await createClient();
   const { data: revisionId, error } = await supabase.rpc("create_lesson_draft", {
     p_content_id: lesson.data.id,
     p_slug: lesson.data.slug,
@@ -211,7 +281,7 @@ export async function createLessonDraft(
       : "/quan-tri/noi-dung";
   revalidatePath(destination);
   if (destination === "/bien-tap/noi-dung") {
-    redirect(`/bien-tap/noi-dung/${revisionId}/tu-vung?created=1`);
+    redirect(`/bien-tap/noi-dung/${revisionId}?created=1`);
   }
   redirect(`${destination}?created=1`);
 }

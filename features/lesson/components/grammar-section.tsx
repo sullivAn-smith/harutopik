@@ -9,7 +9,7 @@ type FillBlankExercise = Extract<Exercise, { type: "fill-blank" }>;
 type GrammarSectionProps = {
   grammar: readonly GrammarPoint[];
   exercises: readonly FillBlankExercise[];
-  onSpeak: (text: string) => void;
+  onSpeak: (text: string, audioUrl?: string) => void;
   onFeedback: (correct: boolean) => void;
   onComplete?: (score: number, total: number) => void;
 };
@@ -124,7 +124,7 @@ export function GrammarSection({
                     </p>
                     <button
                       type="button"
-                      onClick={() => onSpeak(example.korean)}
+                      onClick={() => onSpeak(example.korean, example.audioUrl)}
                       aria-label={`Phát âm ${example.korean}`}
                     >
                       🔊

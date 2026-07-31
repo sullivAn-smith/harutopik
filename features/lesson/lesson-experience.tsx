@@ -442,10 +442,6 @@ function LessonContent({
     void enqueueAudioPlayback({ audioUrl, fallbackText: text });
   }
 
-  function speak(text: string) {
-    void enqueueAudioPlayback({ fallbackText: text });
-  }
-
   function playFeedback(correct: boolean) {
     const AudioContextClass = window.AudioContext;
     if (!AudioContextClass) return;
@@ -981,7 +977,7 @@ function LessonContent({
           <GrammarSection
             grammar={lesson.grammar}
             exercises={fillBlankExercises}
-            onSpeak={speak}
+            onSpeak={(text, audioUrl) => playAudioOrSpeak(audioUrl, text)}
             onFeedback={playFeedback}
             onComplete={(score, total) =>
               void completePractice("grammar", score, total)

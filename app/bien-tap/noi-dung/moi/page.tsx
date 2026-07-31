@@ -2,10 +2,14 @@ import Link from "next/link";
 import { LessonDraftForm } from "@/features/admin/lesson-draft-form";
 import { requirePermission } from "@/lib/auth/authorize";
 import { getCatalogStructureOptions } from "@/lib/data/admin";
+import { getVocabularyLibrary } from "@/lib/data/vocabulary-admin";
 
 export default async function NewEditorLessonPage() {
   await requirePermission("content:create");
-  const catalogOptions = await getCatalogStructureOptions();
+  const [catalogOptions, vocabularyItems] = await Promise.all([
+    getCatalogStructureOptions(),
+    getVocabularyLibrary(),
+  ]);
   return (
     <main className="mx-auto max-w-5xl px-5 py-10">
       <Link href="/bien-tap/noi-dung" className="text-sm font-black text-brand-700">← Bài học của tôi</Link>
@@ -15,7 +19,11 @@ export default async function NewEditorLessonPage() {
         <p className="mt-3 max-w-2xl leading-7 text-blue-100">Điền thông tin theo từng nhóm. Bạn có thể lưu bản nháp và quay lại hoàn thiện trước khi gửi duyệt.</p>
       </div>
       <section className="surface-card mt-7 bg-white p-6 sm:p-8">
-        <LessonDraftForm returnTo="/bien-tap/noi-dung" catalogOptions={catalogOptions} />
+        <LessonDraftForm
+          returnTo="/bien-tap/noi-dung"
+          catalogOptions={catalogOptions}
+          vocabularyItems={vocabularyItems}
+        />
       </section>
     </main>
   );

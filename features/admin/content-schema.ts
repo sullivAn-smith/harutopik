@@ -21,12 +21,20 @@ export const lessonDraftFormSchema = z.object({
   summary: z.string().trim().min(10).max(1_000),
   objectives: z.string().trim().min(2),
   vocabulary: z.string().trim(),
+  vocabularyIdsJson: z.string().default("[]"),
   dictationsJson: z.string(),
   translationsJson: z.string(),
   grammarJson: z.string(),
   exercisesJson: z.string(),
   changeSummary: z.string().trim().max(500),
 });
+
+export function parseVocabularyIdsJson(input: string) {
+  const parsed = z.array(z.string().trim().min(1)).max(500).parse(
+    JSON.parse(input || "[]"),
+  );
+  return [...new Set(parsed)];
+}
 
 export type ContentFormState = {
   status: "idle" | "error";
@@ -74,6 +82,9 @@ const grammarDraftSchema = z.array(
         z.object({
           korean: z.string().trim().min(1),
           vietnamese: z.string().trim().min(1),
+          audioUrl: z
+            .union([z.literal(""), z.string().url()])
+            .optional(),
         }),
       )
       .min(1),
@@ -90,7 +101,9 @@ export function parseGrammarJson(input: string, lessonId: string) {
     formula: point.formula,
     examples: point.examples.map((example, exampleIndex) => ({
       id: `${lessonId}-grammar-${String(pointIndex + 1).padStart(3, "0")}-example-${String(exampleIndex + 1).padStart(3, "0")}`,
-      ...example,
+      korean: example.korean,
+      vietnamese: example.vietnamese,
+      ...(example.audioUrl ? { audioUrl: example.audioUrl } : {}),
     })),
   }));
 }

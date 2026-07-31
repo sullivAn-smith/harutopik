@@ -11,6 +11,8 @@ import {
   type ContentFormState,
 } from "@/features/admin/content-schema";
 import type { CatalogStructureOption } from "@/lib/data/admin";
+import type { VocabularyAdminItem } from "@/lib/data/vocabulary-admin";
+import { InlineVocabularyPicker } from "@/features/vocabulary-admin/inline-vocabulary-picker";
 import {
   GrammarExerciseImport,
   type GrammarExerciseDraft,
@@ -23,6 +25,7 @@ import {
   TranslationExerciseEditor,
   type TranslationExerciseDraft,
 } from "@/features/admin/translation-exercise-editor";
+import { SentenceAudioButton } from "@/features/admin/sentence-audio-button";
 
 function FieldError({
   state,
@@ -59,7 +62,11 @@ export type LessonDraftDefaults = {
     form: string;
     explanation: string;
     formula: string;
-    examples: Array<{ korean: string; vietnamese: string }>;
+    examples: Array<{
+      korean: string;
+      vietnamese: string;
+      audioUrl?: string;
+    }>;
   }>;
   exercises: GrammarExerciseDraft[];
   changeSummary: string;
@@ -71,12 +78,14 @@ export function LessonDraftForm({
   returnTo,
   reviewEdit = false,
   catalogOptions = [],
+  vocabularyItems = [],
 }: {
   revisionId?: string;
   defaults?: LessonDraftDefaults;
   returnTo?: "/bien-tap/noi-dung" | "/quan-tri/noi-dung";
   reviewEdit?: boolean;
   catalogOptions?: CatalogStructureOption[];
+  vocabularyItems?: VocabularyAdminItem[];
 }) {
   const editing = Boolean(revisionId);
   const [state, formAction, pending] = useActionState(
@@ -91,6 +100,8 @@ export function LessonDraftForm({
   const [translations, setTranslations] = useState(
     defaults?.translations ?? [],
   );
+  const [selectedVocabularyIds, setSelectedVocabularyIds] = useState<string[]>([]);
+  const [vocabularyPickerOpen, setVocabularyPickerOpen] = useState(false);
 
   return (
     <form action={formAction} className="space-y-8">
@@ -113,6 +124,11 @@ export function LessonDraftForm({
         type="hidden"
         name="exercisesJson"
         value={JSON.stringify(exercises)}
+      />
+      <input
+        type="hidden"
+        name="vocabularyIdsJson"
+        value={JSON.stringify(selectedVocabularyIds)}
       />
       {state.message && (
         <p
@@ -256,11 +272,6 @@ export function LessonDraftForm({
           từ cho bài, không phải nhập lại cho từng dạng luyện tập.
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <span className="rounded-full bg-white px-4 py-2 text-sm font-black text-brand-700">
-            {defaults?.vocabulary
-              ? `${defaults.vocabulary.split("\n").filter(Boolean).length} từ hiện tại`
-              : "Chưa chọn từ"}
-          </span>
           {revisionId ? (
             <Link
               href={`/bien-tap/noi-dung/${revisionId}/tu-vung`}
@@ -269,12 +280,27 @@ export function LessonDraftForm({
               Chọn từ trong thư viện →
             </Link>
           ) : (
-            <span className="text-sm font-semibold text-ink-600">
-              Sau khi tạo bản nháp, bạn sẽ được chọn từ trong thư viện.
-            </span>
+            <button
+              type="button"
+              onClick={() => setVocabularyPickerOpen((open) => !open)}
+              aria-expanded={vocabularyPickerOpen}
+              className="rounded-xl bg-[#10243e] px-5 py-3 font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-brand-800"
+            >
+              {vocabularyPickerOpen
+                ? "Đóng thư viện ↑"
+                : "Chọn từ trong thư viện →"}
+            </button>
           )}
         </div>
+        {!revisionId && vocabularyPickerOpen && (
+          <InlineVocabularyPicker
+            items={vocabularyItems}
+            selectedIds={selectedVocabularyIds}
+            onChange={setSelectedVocabularyIds}
+          />
+        )}
         <FieldError state={state} name="vocabulary" />
+        <FieldError state={state} name="vocabularyIdsJson" />
       </section>
 
       <DictationExerciseEditor
@@ -308,7 +334,7 @@ export function LessonDraftForm({
                   form: "",
                   explanation: "",
                   formula: "",
-                  examples: [{ korean: "", vietnamese: "" }],
+                  examples: [{ korean: "", vietnamese: "", audioUrl: "" }],
                 },
               ])
             }
@@ -389,7 +415,7 @@ export function LessonDraftForm({
                                 ...item,
                                 examples: [
                                   ...item.examples,
-                                  { korean: "", vietnamese: "" },
+                                  { korean: "", vietnamese: "", audioUrl: "" },
                                 ],
                               }
                             : item,
@@ -403,73 +429,97 @@ export function LessonDraftForm({
                 </div>
                 <div className="mt-3 space-y-3">
                   {point.examples.map((example, exampleIndex) => (
-                    <div key={exampleIndex} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-                      <input
-                        lang="ko"
-                        aria-label={`Ví dụ tiếng Hàn ${exampleIndex + 1}`}
-                        value={example.korean}
-                        onChange={(event) =>
-                          setGrammar((items) =>
-                            items.map((item, index) =>
-                              index === pointIndex
-                                ? {
-                                    ...item,
-                                    examples: item.examples.map((entry, entryIndex) =>
-                                      entryIndex === exampleIndex
-                                        ? { ...entry, korean: event.target.value }
-                                        : entry,
-                                    ),
-                                  }
-                                : item,
-                            ),
-                          )
-                        }
-                        placeholder="저는 학생이에요."
-                        className="rounded-xl border-2 border-slate-200 px-4 py-3 font-semibold"
-                      />
-                      <input
-                        aria-label={`Nghĩa ví dụ ${exampleIndex + 1}`}
-                        value={example.vietnamese}
-                        onChange={(event) =>
-                          setGrammar((items) =>
-                            items.map((item, index) =>
-                              index === pointIndex
-                                ? {
-                                    ...item,
-                                    examples: item.examples.map((entry, entryIndex) =>
-                                      entryIndex === exampleIndex
-                                        ? { ...entry, vietnamese: event.target.value }
-                                        : entry,
-                                    ),
-                                  }
-                                : item,
-                            ),
-                          )
-                        }
-                        placeholder="Tôi là học sinh."
-                        className="rounded-xl border-2 border-slate-200 px-4 py-3 font-semibold"
-                      />
-                      <button
-                        type="button"
-                        aria-label={`Xóa ví dụ ${exampleIndex + 1}`}
-                        onClick={() =>
-                          setGrammar((items) =>
-                            items.map((item, index) =>
-                              index === pointIndex
-                                ? {
-                                    ...item,
-                                    examples: item.examples.filter(
-                                      (_, entryIndex) => entryIndex !== exampleIndex,
-                                    ),
-                                  }
-                                : item,
-                            ),
-                          )
-                        }
-                        className="rounded-xl border px-3 font-black text-red-700"
-                      >
-                        ×
-                      </button>
+                    <div key={exampleIndex} className="rounded-2xl border border-violet-100 bg-violet-50/50 p-4">
+                      <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+                        <input
+                          lang="ko"
+                          aria-label={`Ví dụ tiếng Hàn ${exampleIndex + 1}`}
+                          value={example.korean}
+                          onChange={(event) =>
+                            setGrammar((items) =>
+                              items.map((item, index) =>
+                                index === pointIndex
+                                  ? {
+                                      ...item,
+                                      examples: item.examples.map((entry, entryIndex) =>
+                                        entryIndex === exampleIndex
+                                          ? { ...entry, korean: event.target.value, audioUrl: "" }
+                                          : entry,
+                                      ),
+                                    }
+                                  : item,
+                              ),
+                            )
+                          }
+                          placeholder="저는 학생이에요."
+                          className="rounded-xl border-2 border-slate-200 bg-white px-4 py-3 font-semibold"
+                        />
+                        <input
+                          aria-label={`Nghĩa ví dụ ${exampleIndex + 1}`}
+                          value={example.vietnamese}
+                          onChange={(event) =>
+                            setGrammar((items) =>
+                              items.map((item, index) =>
+                                index === pointIndex
+                                  ? {
+                                      ...item,
+                                      examples: item.examples.map((entry, entryIndex) =>
+                                        entryIndex === exampleIndex
+                                          ? { ...entry, vietnamese: event.target.value }
+                                          : entry,
+                                      ),
+                                    }
+                                  : item,
+                              ),
+                            )
+                          }
+                          placeholder="Tôi là học sinh."
+                          className="rounded-xl border-2 border-slate-200 bg-white px-4 py-3 font-semibold"
+                        />
+                        <button
+                          type="button"
+                          aria-label={`Xóa ví dụ ${exampleIndex + 1}`}
+                          onClick={() =>
+                            setGrammar((items) =>
+                              items.map((item, index) =>
+                                index === pointIndex
+                                  ? {
+                                      ...item,
+                                      examples: item.examples.filter(
+                                        (_, entryIndex) => entryIndex !== exampleIndex,
+                                      ),
+                                    }
+                                  : item,
+                              ),
+                            )
+                          }
+                          className="rounded-xl border border-red-200 bg-white px-3 font-black text-red-700"
+                        >
+                          ×
+                        </button>
+                      </div>
+                      <div className="mt-3">
+                        <SentenceAudioButton
+                          text={example.korean}
+                          currentAudioUrl={example.audioUrl || undefined}
+                          onGenerated={(audioUrl) =>
+                            setGrammar((items) =>
+                              items.map((item, index) =>
+                                index === pointIndex
+                                  ? {
+                                      ...item,
+                                      examples: item.examples.map((entry, entryIndex) =>
+                                        entryIndex === exampleIndex
+                                          ? { ...entry, audioUrl }
+                                          : entry,
+                                      ),
+                                    }
+                                  : item,
+                              ),
+                            )
+                          }
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -507,7 +557,7 @@ export function LessonDraftForm({
           ? "Đang lưu bản nháp..."
           : editing
             ? "Lưu thay đổi"
-            : "Tạo bản nháp và chọn từ"}
+            : "Tạo bản nháp"}
       </button>
     </form>
   );

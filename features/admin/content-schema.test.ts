@@ -5,6 +5,7 @@ import {
   parseGrammarExercisesJson,
   parseGrammarJson,
   parseTranslationExercisesJson,
+  parseVocabularyIdsJson,
   parseVocabularyLines,
 } from "./content-schema";
 
@@ -150,7 +151,11 @@ describe("parseGrammarJson", () => {
           form: "은/는",
           explanation: "Dùng để nêu chủ đề của câu.",
           formula: "Danh từ + 은/는",
-          examples: [{ korean: "저는 학생이에요.", vietnamese: "Tôi là học sinh." }],
+          examples: [{
+            korean: "저는 학생이에요.",
+            vietnamese: "Tôi là học sinh.",
+            audioUrl: "https://cdn.example/grammar-example.mp3",
+          }],
         },
       ]),
       "lesson-topik-1-02",
@@ -158,6 +163,9 @@ describe("parseGrammarJson", () => {
     expect(point.id).toBe("lesson-topik-1-02-grammar-001");
     expect(point.examples[0].id).toBe(
       "lesson-topik-1-02-grammar-001-example-001",
+    );
+    expect(point.examples[0].audioUrl).toBe(
+      "https://cdn.example/grammar-example.mp3",
     );
   });
 
@@ -221,5 +229,18 @@ describe("parseVocabularyLines", () => {
     expect(() =>
       parseVocabularyLines("한국 | Hàn Quốc", "lesson-topik-1-02"),
     ).toThrow("Dòng từ vựng 1");
+  });
+});
+
+describe("parseVocabularyIdsJson", () => {
+  it("giữ thứ tự đã chọn và loại bỏ ID trùng", () => {
+    expect(parseVocabularyIdsJson('["word-2","word-1","word-2"]')).toEqual([
+      "word-2",
+      "word-1",
+    ]);
+  });
+
+  it("từ chối dữ liệu không phải danh sách ID", () => {
+    expect(() => parseVocabularyIdsJson('{"id":"word-1"}')).toThrow();
   });
 });

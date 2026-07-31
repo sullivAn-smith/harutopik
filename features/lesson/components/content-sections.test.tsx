@@ -149,6 +149,9 @@ describe("GrammarSection", () => {
       screen.getByRole("button", { name: "Phát âm 저는 민수입니다." }),
     );
 
-    expect(onSpeak).toHaveBeenCalledWith("저는 민수입니다.");
+    expect(onSpeak).toHaveBeenCalledWith(
+      "저는 민수입니다.",
+      lessonOne.grammar[0].examples[0].audioUrl,
+    );
   });
 });

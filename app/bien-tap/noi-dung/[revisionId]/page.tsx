@@ -39,7 +39,11 @@ export default async function EditorRevisionPage({ params }: { params: Promise<{
       form: point.form,
       explanation: point.explanation,
       formula: point.formula,
-      examples: point.examples.map(({ korean, vietnamese }) => ({ korean, vietnamese })),
+      examples: point.examples.map(({ korean, vietnamese, audioUrl }) => ({
+        korean,
+        vietnamese,
+        audioUrl,
+      })),
     })),
     exercises: lesson.exercises
       .filter((exercise) => exercise.type === "fill-blank")

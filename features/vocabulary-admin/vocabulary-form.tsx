@@ -153,7 +153,7 @@ export function VocabularyForm({
             ♬
           </span>
           <div className="min-w-0 flex-1">
-            <h2 className="text-xl font-black">Audio phát âm tự động</h2>
+            <h2 className="text-xl font-black">Audio phát âm tự động <span className="text-sm font-bold text-ink-500">(không bắt buộc)</span></h2>
             <p className="mt-1 max-w-3xl text-sm leading-6 text-ink-600">
               Nhập từ tiếng Hàn rồi tạo audio ngay tại đây. Hệ thống kiểm tra
               cache trước, chỉ gọi Azure khi chưa có MP3 và lưu file trên
@@ -188,7 +188,7 @@ export function VocabularyForm({
       </section>
 
       <section className="rounded-3xl bg-gradient-to-br from-sky-50 to-cyan-50 p-5">
-        <h2 className="text-xl font-black">Ảnh minh họa</h2>
+        <h2 className="text-xl font-black">Ảnh minh họa <span className="text-sm font-bold text-ink-500">(không bắt buộc)</span></h2>
         <p className="mt-1 max-w-3xl text-sm leading-6 text-ink-600">
           Chọn ảnh từ máy. Hệ thống sẽ tải trực tiếp lên Supabase Storage và
           người học xem ảnh qua CDN; bạn không cần tự tạo hoặc dán URL.

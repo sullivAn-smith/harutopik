@@ -40,12 +40,21 @@ export function parseAnswerLines(value: string) {
 
 export function parseExamplesJson(value: string) {
   const parsed = JSON.parse(value || "[]") as unknown;
+  const rows = z
+    .array(
+      z.object({
+        korean: z.string().trim(),
+        vietnamese: z.string().trim(),
+      }),
+    )
+    .parse(parsed)
+    .filter((example) => example.korean || example.vietnamese);
   return z
     .array(
       z.object({
-        korean: z.string().trim().min(1),
-        vietnamese: z.string().trim().min(1),
+        korean: z.string().min(1),
+        vietnamese: z.string().min(1),
       }),
     )
-    .parse(parsed);
+    .parse(rows);
 }
