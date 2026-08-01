@@ -139,7 +139,7 @@ export default function Home() {
         <nav className="mt-3 space-y-2">
           <Link href="/" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-gradient-to-r from-[#168fd0] to-[#087eba] px-4 py-3.5 font-bold text-white shadow-[0_10px_22px_rgba(8,126,186,0.24)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_26px_rgba(8,126,186,0.3)]"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/18">⌂</span><span>Trang chủ</span></Link>
           <button onClick={() => setShowBooks((value) => !value)} aria-expanded={showBooks} className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 text-left font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="flex items-center gap-3"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-blue-100 text-[#087eba]"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-none stroke-current" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11a2 2 0 0 1 2 2v15a2 2 0 0 0-2-2H6.5A2.5 2.5 0 0 0 4 20.5z" /><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v17a2 2 0 0 1 2-2h2.5a2.5 2.5 0 0 1 2.5 2.5z" /></svg></span><span>Thư viện học</span></span><span className="text-sm text-[#087eba]">{showBooks ? "⌃" : "⌄"}</span></button>
-          {showBooks && <div className="ml-4 space-y-1 border-l-2 border-[#087eba]/25 pl-3">{[1, 2, 3, 4, 5, 6].map((level) => <Link key={level} href={level === 1 ? "/courses/topik-1" : `/tieng-han-th/${level}`} onClick={(event) => { if (level > 1) { event.preventDefault(); setComingSoon(true); } }} className="block rounded-lg px-3 py-2 text-sm font-bold text-[#10243e]/70 transition hover:bg-[#e7f4ff] hover:text-[#087eba]">TOPIK {level}</Link>)}</div>}
+          {showBooks && <div className="ml-4 max-h-[min(26rem,55vh)] space-y-1 overflow-y-auto overscroll-contain border-l-2 border-[#087eba]/25 py-1 pl-3 pr-2 [scrollbar-color:rgba(8,126,186,0.45)_transparent] [scrollbar-width:thin]"><p className="px-3 pt-1 text-[.65rem] font-black uppercase tracking-[.14em] text-[#087eba]/70">Giáo trình</p>{[1, 2, 3, 4, 5, 6].map((level) => <Link key={level} href={level === 1 ? "/courses/topik-1" : `/tieng-han-th/${level}`} onClick={(event) => { if (level > 1) { event.preventDefault(); setComingSoon(true); } }} className="block rounded-lg px-3 py-2 text-sm font-bold text-[#10243e]/70 transition hover:bg-[#e7f4ff] hover:text-[#087eba]">TOPIK {level}</Link>)}</div>}
           <Link href="/tu-cua-toi" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-cyan-100 text-[#087eba]"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-none stroke-current" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="3" /><path d="M7 9h10M7 13h6" /><path d="M17.5 12.5v4M15.5 14.5h4" /></svg></span><span>Quản lý bộ từ</span></Link>
           <Link href="/luyen-de" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-[#087eba]">✎</span><span>Luyện đề</span></Link>
           <Link href="/tro-ly" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-[#087eba]">✦</span><span>Trợ lý Haru AI</span></Link>
@@ -197,7 +197,7 @@ export default function Home() {
           </Link>
 
           {[
-            ["한", "Học bảng chữ cái", "Nắm chắc Hangul", "/hangul", "bg-violet-100 text-violet-700"],
+            ["", "Kiến thức nền tảng", "Chữ cái và bảng số", "/kien-thuc", ""],
             ["✎", "Luyện đề", "Ôn tập theo mục tiêu", "/luyen-de", "bg-amber-100 text-amber-700"],
           ].map(([icon, title, description, href, tone]) => (
             <Link
@@ -205,10 +205,12 @@ export default function Home() {
               href={href}
               className="rounded-3xl border border-white/80 bg-white/70 p-5 shadow-[0_12px_28px_rgba(16,36,62,0.1)] backdrop-blur transition hover:-translate-y-1 hover:bg-white hover:shadow-[0_18px_34px_rgba(16,36,62,0.16)]"
             >
-              <span className={`flex h-11 w-11 items-center justify-center rounded-2xl text-xl font-black ${tone}`}>
-                {icon}
-              </span>
-              <h2 className="mt-4 text-lg font-black">{title}</h2>
+              {icon && (
+                <span className={`flex h-11 w-11 items-center justify-center rounded-2xl text-xl font-black ${tone}`}>
+                  {icon}
+                </span>
+              )}
+              <h2 className={`${icon ? "mt-4" : "mt-1"} text-lg font-black`}>{title}</h2>
               <p className="mt-1 text-sm font-semibold text-[#10243e]/60">{description}</p>
               <span className="mt-4 inline-block text-sm font-black text-[#087eba]">Mở ngay →</span>
             </Link>
