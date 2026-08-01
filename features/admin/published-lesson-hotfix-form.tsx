@@ -7,6 +7,10 @@ import {
   applyPublishedLessonHotfix,
 } from "./hotfix-actions";
 import { SentenceAudioButton } from "./sentence-audio-button";
+import {
+  GrammarExerciseImport,
+  type GrammarExerciseDraft,
+} from "./grammar-exercise-import";
 
 const fieldClass =
   "mt-2 w-full rounded-2xl border-2 border-slate-200 bg-white px-4 py-3 font-semibold outline-none focus:border-violet-500";
@@ -25,6 +29,32 @@ export function PublishedLessonHotfixForm({ lesson }: { lesson: Lesson }) {
         sentence: exercise.sentence,
         audioUrl: exercise.audioUrl,
         acceptedAnswers: exercise.acceptedAnswers ?? [],
+        points: exercise.points,
+      })),
+  );
+  const [activeTab, setActiveTab] = useState<"vocabulary" | "grammar">(
+    "vocabulary",
+  );
+  const [grammar, setGrammar] = useState(
+    lesson.grammar.map((point) => ({
+      id: point.id,
+      title: point.title,
+      form: point.form,
+      explanation: point.explanation,
+      formula: point.formula,
+      examples: point.examples.map((example) => ({ ...example })),
+    })),
+  );
+  const [grammarExercises, setGrammarExercises] = useState<
+    Array<GrammarExerciseDraft & { id?: string; points?: number }>
+  >(
+    lesson.exercises
+      .filter((exercise) => exercise.type === "fill-blank")
+      .map((exercise) => ({
+        id: exercise.id,
+        prompt: exercise.prompt,
+        translation: exercise.translation,
+        acceptedAnswers: exercise.acceptedAnswers,
         points: exercise.points,
       })),
   );
@@ -49,11 +79,49 @@ export function PublishedLessonHotfixForm({ lesson }: { lesson: Lesson }) {
         name="dictationsJson"
         value={JSON.stringify(dictations)}
       />
+      <input type="hidden" name="grammarJson" value={JSON.stringify(grammar)} />
+      <input
+        type="hidden"
+        name="grammarExercisesJson"
+        value={JSON.stringify(
+          grammarExercises.map((exercise, index) => ({
+            ...exercise,
+            id:
+              exercise.id ||
+              `${lesson.id}-grammar-exercise-hotfix-${String(index + 1).padStart(3, "0")}`,
+            points: exercise.points ?? 1,
+          })),
+        )}
+      />
       {state.message && (
         <p role="alert" className="rounded-2xl bg-red-50 p-4 font-bold text-red-700">
           {state.message}
         </p>
       )}
+
+      <div className="mx-auto flex w-full max-w-md rounded-3xl border-2 border-sky-200 bg-sky-50 p-2 shadow-sm" role="tablist" aria-label="Khu vực hotfix">
+        {([
+          ["vocabulary", "Từ vựng"],
+          ["grammar", "Ngữ pháp"],
+        ] as const).map(([tab, label]) => (
+          <button
+            key={tab}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab}
+            onClick={() => setActiveTab(tab)}
+            className={`min-h-14 flex-1 rounded-2xl px-5 py-3 text-lg font-black transition ${
+              activeTab === tab
+                ? "bg-gradient-to-r from-sky-600 to-cyan-500 text-white shadow-lg shadow-sky-200"
+                : "text-ink-600 hover:bg-white"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className={activeTab === "vocabulary" ? "space-y-7" : "hidden"}>
 
       <section className="rounded-3xl border bg-white p-6">
         <h2 className="text-2xl font-black">Nội dung hiển thị</h2>
@@ -211,6 +279,197 @@ export function PublishedLessonHotfixForm({ lesson }: { lesson: Lesson }) {
             </div>
           )}
       </section>
+
+      </div>
+
+      <div className={activeTab === "grammar" ? "space-y-7" : "hidden"}>
+        <section className="rounded-3xl border border-violet-200 bg-violet-50 p-5 sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-700">
+                Nội dung ngữ pháp đang phát hành
+              </p>
+              <h2 className="mt-2 text-2xl font-black">Điểm ngữ pháp và audio ví dụ</h2>
+              <p className="mt-2 max-w-3xl leading-7 text-ink-600">
+                Sửa cấu trúc, công thức, giải thích và câu ví dụ. Khi đổi câu
+                tiếng Hàn, hãy tạo lại audio Azure trước khi áp dụng hotfix.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const pointNumber = grammar.length + 1;
+                setGrammar((items) => [
+                  ...items,
+                  {
+                    id: `${lesson.id}-grammar-hotfix-${String(pointNumber).padStart(3, "0")}`,
+                    title: "",
+                    form: "",
+                    explanation: "",
+                    formula: "",
+                    examples: [
+                      {
+                        id: `${lesson.id}-grammar-hotfix-${String(pointNumber).padStart(3, "0")}-example-001`,
+                        korean: "",
+                        vietnamese: "",
+                        audioUrl: undefined,
+                      },
+                    ],
+                  },
+                ]);
+              }}
+              className="rounded-2xl bg-violet-700 px-5 py-3 font-black text-white shadow-sm transition hover:-translate-y-0.5"
+            >
+              + Thêm điểm ngữ pháp
+            </button>
+          </div>
+
+          <div className="mt-6 space-y-5">
+            {grammar.map((point, pointIndex) => (
+              <article key={point.id} className="rounded-3xl border border-violet-100 bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-lg font-black">Điểm ngữ pháp {pointIndex + 1}</h3>
+                  <button
+                    type="button"
+                    onClick={() => setGrammar((items) => items.filter((_, index) => index !== pointIndex))}
+                    className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-black text-red-700"
+                  >
+                    Xóa điểm này
+                  </button>
+                </div>
+
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  {([
+                    ["title", "Tên dễ hiểu"],
+                    ["form", "Cấu trúc tiếng Hàn"],
+                    ["formula", "Công thức"],
+                  ] as const).map(([field, label]) => (
+                    <label key={field} className="font-black">
+                      {label}
+                      <input
+                        lang={field === "form" ? "ko" : undefined}
+                        value={point[field]}
+                        onChange={(event) =>
+                          setGrammar((items) => items.map((item, index) =>
+                            index === pointIndex ? { ...item, [field]: event.target.value } : item,
+                          ))
+                        }
+                        className={fieldClass}
+                      />
+                    </label>
+                  ))}
+                </div>
+                <label className="mt-4 block font-black">
+                  Giải thích bằng tiếng Việt
+                  <textarea
+                    rows={4}
+                    value={point.explanation}
+                    onChange={(event) => setGrammar((items) => items.map((item, index) =>
+                      index === pointIndex ? { ...item, explanation: event.target.value } : item,
+                    ))}
+                    className={fieldClass}
+                  />
+                </label>
+
+                <div className="mt-5 flex items-center justify-between gap-3">
+                  <h4 className="font-black">Câu ví dụ</h4>
+                  <button
+                    type="button"
+                    onClick={() => setGrammar((items) => items.map((item, index) => {
+                      if (index !== pointIndex) return item;
+                      const exampleNumber = item.examples.length + 1;
+                      return {
+                        ...item,
+                        examples: [...item.examples, {
+                          id: `${item.id}-example-hotfix-${String(exampleNumber).padStart(3, "0")}`,
+                          korean: "",
+                          vietnamese: "",
+                          audioUrl: undefined,
+                        }],
+                      };
+                    }))}
+                    className="text-sm font-black text-violet-700"
+                  >
+                    + Thêm câu ví dụ
+                  </button>
+                </div>
+                <div className="mt-3 space-y-3">
+                  {point.examples.map((example, exampleIndex) => (
+                    <div key={example.id} className="rounded-2xl border border-violet-100 bg-violet-50/50 p-4">
+                      <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
+                        <input
+                          lang="ko"
+                          aria-label={`Câu ví dụ tiếng Hàn ${exampleIndex + 1}`}
+                          value={example.korean}
+                          onChange={(event) => setGrammar((items) => items.map((item, index) =>
+                            index === pointIndex ? {
+                              ...item,
+                              examples: item.examples.map((entry, entryIndex) =>
+                                entryIndex === exampleIndex
+                                  ? { ...entry, korean: event.target.value, audioUrl: undefined }
+                                  : entry,
+                              ),
+                            } : item,
+                          ))}
+                          placeholder="저는 학생이에요."
+                          className={fieldClass}
+                        />
+                        <input
+                          aria-label={`Nghĩa câu ví dụ ${exampleIndex + 1}`}
+                          value={example.vietnamese}
+                          onChange={(event) => setGrammar((items) => items.map((item, index) =>
+                            index === pointIndex ? {
+                              ...item,
+                              examples: item.examples.map((entry, entryIndex) =>
+                                entryIndex === exampleIndex
+                                  ? { ...entry, vietnamese: event.target.value }
+                                  : entry,
+                              ),
+                            } : item,
+                          ))}
+                          placeholder="Tôi là học sinh."
+                          className={fieldClass}
+                        />
+                        <button
+                          type="button"
+                          aria-label={`Xóa câu ví dụ ${exampleIndex + 1}`}
+                          onClick={() => setGrammar((items) => items.map((item, index) =>
+                            index === pointIndex
+                              ? { ...item, examples: item.examples.filter((_, entryIndex) => entryIndex !== exampleIndex) }
+                              : item,
+                          ))}
+                          className="mt-2 rounded-xl border border-red-200 bg-white px-4 font-black text-red-700"
+                        >
+                          ×
+                        </button>
+                      </div>
+                      <div className="mt-3">
+                        <SentenceAudioButton
+                          text={example.korean}
+                          currentAudioUrl={example.audioUrl}
+                          onGenerated={(audioUrl) => setGrammar((items) => items.map((item, index) =>
+                            index === pointIndex ? {
+                              ...item,
+                              examples: item.examples.map((entry, entryIndex) =>
+                                entryIndex === exampleIndex ? { ...entry, audioUrl } : entry,
+                              ),
+                            } : item,
+                          ))}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <GrammarExerciseImport
+          exercises={grammarExercises}
+          onChange={(items) => setGrammarExercises(items)}
+        />
+      </div>
 
       <section className="rounded-3xl border border-amber-200 bg-amber-50 p-6">
         <label className="font-black text-amber-950">

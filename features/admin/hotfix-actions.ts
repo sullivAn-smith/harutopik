@@ -14,6 +14,8 @@ const hotfixSchema = z.object({
   summary: z.string().trim().min(10).max(1_000),
   reason: z.string().trim().min(5, "Hãy ghi lý do hotfix.").max(500),
   dictationsJson: z.string(),
+  grammarJson: z.string(),
+  grammarExercisesJson: z.string(),
 });
 
 const dictationsSchema = z.array(
@@ -25,6 +27,34 @@ const dictationsSchema = z.array(
     points: z.number().positive().default(1),
   }),
 );
+
+const grammarSchema = z.array(
+  z.object({
+    id: z.string().min(1),
+    title: z.string().trim().min(1).max(160),
+    form: z.string().trim().min(1).max(300),
+    formula: z.string().trim().min(1).max(500),
+    explanation: z.string().trim().min(1).max(2_000),
+    examples: z.array(
+      z.object({
+        id: z.string().min(1),
+        korean: z.string().trim().min(1).max(500),
+        vietnamese: z.string().trim().min(1).max(500),
+        audioUrl: z.string().url().optional(),
+      }),
+    ).min(1, "Mỗi điểm ngữ pháp cần ít nhất một câu ví dụ."),
+  }),
+);
+
+const grammarExercisesSchema = z.array(
+  z.object({
+    id: z.string().min(1),
+    prompt: z.string().trim().min(1).max(500),
+    translation: z.string().trim().min(1).max(500),
+    acceptedAnswers: z.array(z.string().trim().min(1).max(300)).min(1),
+    points: z.number().positive().default(1),
+  }),
+).max(15, "Mỗi bài chỉ được có tối đa 15 câu luyện tập ngữ pháp.");
 
 export type HotfixState = {
   status: "idle" | "error";
@@ -47,15 +77,25 @@ export async function applyPublishedLessonHotfix(
   }
 
   let dictations;
+  let grammar;
+  let grammarExercises;
   try {
     dictations = dictationsSchema.parse(
       JSON.parse(parsed.data.dictationsJson || "[]"),
     );
+    grammar = grammarSchema.parse(JSON.parse(parsed.data.grammarJson || "[]"));
+    grammarExercises = grammarExercisesSchema.parse(
+      JSON.parse(parsed.data.grammarExercisesJson || "[]"),
+    );
   } catch {
     return {
       status: "error",
-      message: "Danh sách câu chính tả hoặc URL audio chưa hợp lệ.",
-      fields: { dictationsJson: ["Hãy kiểm tra lại từng câu chính tả."] },
+      message: "Nội dung chính tả hoặc ngữ pháp chưa hợp lệ. Hãy kiểm tra các trường còn trống, đáp án và URL audio.",
+      fields: {
+        dictationsJson: ["Hãy kiểm tra lại từng câu chính tả."],
+        grammarJson: ["Mỗi điểm ngữ pháp cần đủ cấu trúc, giải thích và ít nhất một ví dụ."],
+        grammarExercisesJson: ["Mỗi câu luyện tập cần đủ đề bài, gợi ý và đáp án."],
+      },
     };
   }
 
@@ -95,12 +135,13 @@ export async function applyPublishedLessonHotfix(
     ]),
   );
   const nonDictationExercises = current.data.exercises.filter(
-    (exercise) => exercise.type !== "dictation",
+    (exercise) => exercise.type !== "dictation" && exercise.type !== "fill-blank",
   );
   const nextLesson = lessonSchema.safeParse({
     ...current.data,
     title: { vi: parsed.data.titleVi, ko: parsed.data.titleKo },
     summary: parsed.data.summary,
+    grammar,
     vocabulary: current.data.vocabulary.map((item) => {
       const master = assets.get(item.id);
       const content = { ...item };
@@ -124,6 +165,10 @@ export async function applyPublishedLessonHotfix(
     exercises: [
       ...nonDictationExercises,
       ...dictations.map((item) => ({ ...item, type: "dictation" as const })),
+      ...grammarExercises.map((item) => ({
+        ...item,
+        type: "fill-blank" as const,
+      })),
     ],
   });
   if (!nextLesson.success) {
@@ -169,6 +214,13 @@ export async function applyPublishedLessonHotfix(
       previous_title: current.data.title,
       next_title: nextLesson.data.title,
       dictation_audio_count: dictations.filter((item) => item.audioUrl).length,
+      grammar_point_count: grammar.length,
+      grammar_exercise_count: grammarExercises.length,
+      grammar_example_audio_count: grammar.reduce(
+        (count, point) =>
+          count + point.examples.filter((example) => example.audioUrl).length,
+        0,
+      ),
     },
   });
 
