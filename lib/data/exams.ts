@@ -3,6 +3,8 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { ExamSummary } from "@/lib/exams/types";
+import { requirePermission } from "@/lib/auth/authorize";
+import { canManageExam } from "@/lib/exams/access";
 
 type ExamRow = {
   id: string; code: string; title: string; description: string;
@@ -48,14 +50,16 @@ export async function getPublishedExams() {
 }
 
 export async function getExamForEditing(examId: string) {
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const actor = await requirePermission("content:read-draft");
+  const admin = createAdminClient();
+  const { data, error } = await admin
     .from("exam_sets")
-    .select("id,code,title,description,duration_minutes,listening_duration_minutes,reading_duration_minutes,instructions,status,review_note,version,exam_questions(id,position,section,instruction,prompt,audio_url,audio_text,image_url,play_limit,options,correct_option,explanation)")
+    .select("id,code,title,description,duration_minutes,listening_duration_minutes,reading_duration_minutes,instructions,status,review_note,version,created_by,exam_questions(id,position,section,instruction,prompt,audio_url,audio_text,image_url,play_limit,options,correct_option,explanation)")
     .eq("id", examId)
     .order("position", { referencedTable: "exam_questions", ascending: true })
     .maybeSingle();
   if (error) throw error;
+  if (data && !canManageExam({ actorId: actor.id, roles: actor.roles, ownerId: data.created_by })) return null;
   return data;
 }
 
