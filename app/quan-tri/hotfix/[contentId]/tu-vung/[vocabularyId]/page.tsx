@@ -27,6 +27,9 @@ export default async function AdminVocabularyHotfixPage({
     (word) => word.id === vocabularyId,
   );
   const nextWord = published.lesson.vocabulary[currentIndex + 1];
+  const nextHref = nextWord
+    ? `/quan-tri/hotfix/${contentId}/tu-vung/${nextWord.id}`
+    : `/quan-tri/hotfix/${contentId}`;
   return (
     <main className="mx-auto max-w-5xl px-5 py-10 lg:px-8">
       <Link href={`/quan-tri/hotfix/${contentId}`} className="font-black text-violet-700">
@@ -49,11 +52,7 @@ export default async function AdminVocabularyHotfixPage({
             Đã cập nhật từ. Nếu đổi tiếng Hàn, hãy tạo lại audio phía trên.
           </p>
           <Link
-            href={
-              nextWord
-                ? `/quan-tri/hotfix/${contentId}/tu-vung/${nextWord.id}`
-                : `/quan-tri/hotfix/${contentId}`
-            }
+            href={nextHref}
             className="inline-flex min-h-11 shrink-0 items-center rounded-xl bg-gradient-to-r from-violet-700 to-blue-600 px-5 py-2.5 font-black text-white shadow-[0_8px_18px_rgba(109,40,217,0.22)] transition hover:-translate-y-0.5 hover:shadow-lg"
           >
             {nextWord ? "Từ tiếp theo →" : "Xong · Về danh sách"}
@@ -61,7 +60,11 @@ export default async function AdminVocabularyHotfixPage({
         </div>
       )}
       <section className="mt-7">
-        <PublishedVocabularyHotfixForm contentId={contentId} item={item} />
+        <PublishedVocabularyHotfixForm
+          contentId={contentId}
+          item={item}
+          nextHref={nextHref}
+        />
       </section>
     </main>
   );

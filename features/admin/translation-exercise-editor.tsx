@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  ExerciseFileImport,
+  splitImportedAnswers,
+} from "@/features/admin/exercise-file-import";
+
 export type TranslationExerciseDraft = {
   vietnamese: string;
   korean: string;
@@ -65,6 +70,24 @@ export function TranslationExerciseEditor({
       <p className="mt-3 text-sm font-bold text-emerald-800">
         {exercises.length}/15 câu dịch
       </p>
+      <ExerciseFileImport
+        label="Nhập CSV/XLSX"
+        sampleFileName="mau-cau-dich.csv"
+        sampleCsv={'vietnamese,korean,accepted_vi,accepted_ko\n"Tôi học tiếng Hàn mỗi ngày.","저는 매일 한국어를 공부해요.","Mỗi ngày tôi học tiếng Hàn.","저는 한국어를 매일 공부해요."'}
+        requiredHeaders={["vietnamese", "korean", "accepted_vi", "accepted_ko"]}
+        accent="emerald"
+        parseRow={(row, rowNumber) => {
+          if (!row.vietnamese) throw new Error(`Dòng ${rowNumber}: thiếu vietnamese.`);
+          if (!row.korean) throw new Error(`Dòng ${rowNumber}: thiếu korean.`);
+          return {
+            vietnamese: row.vietnamese,
+            korean: row.korean,
+            acceptedVietnameseAnswers: splitImportedAnswers(row.accepted_vi),
+            acceptedKoreanAnswers: splitImportedAnswers(row.accepted_ko),
+          };
+        }}
+        onImport={onChange}
+      />
 
       {exercises.length === 0 ? (
         <div className="mt-5 rounded-2xl border-2 border-dashed border-emerald-200 bg-white/70 p-8 text-center">

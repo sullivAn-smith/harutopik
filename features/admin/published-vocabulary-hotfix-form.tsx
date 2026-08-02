@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 import type { VocabularyAdminItem } from "@/lib/data/vocabulary-admin";
 import { VocabularyImageUpload } from "@/features/vocabulary-admin/vocabulary-image-upload";
@@ -27,17 +28,24 @@ function FieldError({
 export function PublishedVocabularyHotfixForm({
   contentId,
   item,
+  nextHref,
 }: {
   contentId: string;
   item: VocabularyAdminItem;
+  nextHref: string;
 }) {
   const [state, action, pending] = useActionState(
     applyVocabularyHotfix,
     { status: "idle" as const },
   );
   const [examples, setExamples] = useState(item.examples ?? []);
+  const [dirty, setDirty] = useState(false);
   return (
-    <form action={action} className="space-y-6">
+    <form
+      action={action}
+      onChangeCapture={() => setDirty(true)}
+      className="space-y-6"
+    >
       <input type="hidden" name="contentId" value={contentId} />
       <input type="hidden" name="vocabularyId" value={item.id} />
       <input type="hidden" name="examplesJson" value={JSON.stringify(examples)} />
@@ -171,27 +179,42 @@ export function PublishedVocabularyHotfixForm({
                 <SentenceAudioButton
                   text={example.korean}
                   currentAudioUrl={example.audioUrl ?? undefined}
-                  onGenerated={(audioUrl) =>
+                  onGenerated={(audioUrl) => {
+                    setDirty(true);
                     setExamples((items) =>
                       items.map((item, itemIndex) =>
                         itemIndex === index ? { ...item, audioUrl } : item,
                       ),
-                    )
-                  }
+                    );
+                  }}
                 />
               </div>
             </article>
           ))}
         </div>
       </section>
-      <label className="block rounded-3xl border border-amber-200 bg-amber-50 p-6 font-black">
-        Lý do chỉnh sửa
-        <textarea name="reason" required rows={2} placeholder="Ví dụ: Thay ảnh minh họa bị sai." className={fieldClass} />
-        <FieldError state={state} name="reason" />
-      </label>
-      <button disabled={pending} className="w-full rounded-2xl bg-violet-700 px-6 py-4 text-lg font-black text-white disabled:opacity-60">
-        {pending ? "Đang lưu…" : "Áp dụng thay đổi từ vựng"}
-      </button>
+      {dirty ? (
+        <>
+          <label className="block rounded-3xl border border-amber-200 bg-amber-50 p-6 font-black">
+            Lý do chỉnh sửa
+            <textarea name="reason" required rows={2} placeholder="Ví dụ: Thay ảnh minh họa bị sai." className={fieldClass} />
+            <FieldError state={state} name="reason" />
+          </label>
+          <button disabled={pending} className="w-full rounded-2xl bg-violet-700 px-6 py-4 text-lg font-black text-white disabled:opacity-60">
+            {pending ? "Đang lưu…" : "Lưu thay đổi"}
+          </button>
+          <p className="text-center text-sm font-bold text-amber-700">
+            Hãy lưu thay đổi trước khi chuyển sang từ tiếp theo.
+          </p>
+        </>
+      ) : (
+        <Link
+          href={nextHref}
+          className="flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-violet-700 to-blue-600 px-6 py-4 text-lg font-black text-white shadow-lg transition hover:-translate-y-0.5"
+        >
+          Tiếp theo →
+        </Link>
+      )}
     </form>
   );
 }

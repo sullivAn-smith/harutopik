@@ -1,6 +1,10 @@
 "use client";
 
 import { SentenceAudioButton } from "@/features/admin/sentence-audio-button";
+import {
+  ExerciseFileImport,
+  splitImportedAnswers,
+} from "@/features/admin/exercise-file-import";
 
 export type DictationExerciseDraft = {
   sentence: string;
@@ -44,6 +48,25 @@ export function DictationExerciseEditor({
       <p className="mt-3 text-sm font-bold text-sky-800">
         {exercises.length}/15 câu chính tả
       </p>
+      <ExerciseFileImport
+        label="Nhập CSV/XLSX"
+        sampleFileName="mau-cau-chinh-ta.csv"
+        sampleCsv={'sentence,accepted_answers,audio_url\n"저는 매일 한국어를 공부해요.","저는 매일 한국어 공부를 해요.",""'}
+        requiredHeaders={["sentence", "accepted_answers", "audio_url"]}
+        accent="sky"
+        parseRow={(row, rowNumber) => {
+          if (!row.sentence) throw new Error(`Dòng ${rowNumber}: thiếu sentence.`);
+          if (row.audio_url && !/^https?:\/\//i.test(row.audio_url)) {
+            throw new Error(`Dòng ${rowNumber}: audio_url phải là URL http/https.`);
+          }
+          return {
+            sentence: row.sentence,
+            acceptedAnswers: splitImportedAnswers(row.accepted_answers),
+            audioUrl: row.audio_url || undefined,
+          };
+        }}
+        onImport={onChange}
+      />
 
       {exercises.length === 0 ? (
         <div className="mt-5 rounded-2xl border-2 border-dashed border-sky-200 bg-white/70 p-8 text-center">
