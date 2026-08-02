@@ -124,7 +124,10 @@ export function PublishedVocabularyHotfixForm({
       <section className="rounded-3xl border border-sky-200 bg-sky-50 p-6">
         <h2 className="text-2xl font-black">Ảnh minh họa</h2>
         <p className="mt-2 text-sm text-ink-600">Ảnh mới được tải lên Supabase Storage và phục vụ qua CDN.</p>
-        <VocabularyImageUpload defaultValue={item.imageUrl} />
+        <VocabularyImageUpload
+          defaultValue={item.imageUrl}
+          onValueChange={() => setDirty(true)}
+        />
         <FieldError state={state} name="imageUrl" />
       </section>
       <section className="rounded-3xl border border-violet-200 bg-violet-50 p-6">

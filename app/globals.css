@@ -295,32 +295,6 @@ button[aria-label^="Phát âm"]:active {
   gap: .2rem;
 }
 
-/* Word-class chip under each Vietnamese meaning. */
-.mt-5.grid.gap-5 article p.text-base.font-black.text-orange-700::after {
-  content: "Danh từ";
-  display: block;
-  width: fit-content;
-  margin-top: .45rem;
-  padding: .22rem .7rem;
-  border: 1px solid #bfdbfe;
-  border-radius: 999px;
-  background: #eff6ff;
-  color: #2563eb;
-  font-size: .76rem;
-  font-weight: 800;
-  font-style: normal;
-  letter-spacing: .04em;
-  line-height: 1.4;
-}
-
-.mt-5.grid.gap-5 article:nth-child(n+27):nth-child(-n+31) p.text-base.font-black.text-orange-700::after { content: "Cụm từ"; border-color: #ddd6fe; background: #f5f3ff; color: #7c3aed; }
-.mt-5.grid.gap-5 article:nth-child(34) p.text-base.font-black.text-orange-700::after,
-.mt-5.grid.gap-5 article:nth-child(41) p.text-base.font-black.text-orange-700::after { content: "Thán từ"; border-color: #fde68a; background: #fffbeb; color: #b45309; }
-.mt-5.grid.gap-5 article:nth-child(40) p.text-base.font-black.text-orange-700::after { content: "Hậu tố"; border-color: #cbd5e1; background: #f8fafc; color: #475569; }
-.mt-5.grid.gap-5 article:nth-child(43) p.text-base.font-black.text-orange-700::after { content: "Định từ"; border-color: #cbd5e1; background: #f8fafc; color: #475569; }
-.mt-5.grid.gap-5 article:nth-child(46) p.text-base.font-black.text-orange-700::after,
-.mt-5.grid.gap-5 article:nth-child(48) p.text-base.font-black.text-orange-700::after { content: "Đại từ"; border-color: #a7f3d0; background: #ecfdf5; color: #047857; }
-
 @media (max-width: 520px) {
   .mt-5.grid.gap-5 article > div:first-child > div.min-w-0 > div {
     align-items: flex-start;

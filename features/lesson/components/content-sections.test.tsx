@@ -9,6 +9,26 @@ import { VocabularyList } from "./vocabulary-list";
 afterEach(cleanup);
 
 describe("VocabularyList", () => {
+  it("hiển thị từ loại thật từ dữ liệu thay vì nhãn ghi cứng", () => {
+    const item = {
+      ...lessonOne.vocabulary[0],
+      partOfSpeech: "Động từ",
+    };
+
+    render(
+      <VocabularyList
+        lessonId={lessonOne.id}
+        items={[item]}
+        query=""
+        onQueryChange={vi.fn()}
+        onSpeak={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Động từ")).toBeTruthy();
+    expect(screen.queryByText("Danh từ")).toBeNull();
+  });
+
   it("gửi URL audio CDN khi phát âm từ vựng", () => {
     const onSpeak = vi.fn();
     const item = {

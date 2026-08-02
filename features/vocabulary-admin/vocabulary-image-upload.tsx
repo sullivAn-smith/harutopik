@@ -19,8 +19,10 @@ function extensionFor(file: File) {
 
 export function VocabularyImageUpload({
   defaultValue,
+  onValueChange,
 }: {
   defaultValue?: string | null;
+  onValueChange?: (imageUrl: string) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [imageUrl, setImageUrl] = useState(defaultValue ?? "");
@@ -73,6 +75,7 @@ export function VocabularyImageUpload({
       .from(imageBucket)
       .getPublicUrl(storagePath);
     setImageUrl(data.publicUrl);
+    onValueChange?.(data.publicUrl);
     setUploadedPath(storagePath);
     setUploading(false);
     setMessage("Ảnh đã được tải lên CDN. Hãy lưu từ vựng để hoàn tất.");
@@ -84,6 +87,7 @@ export function VocabularyImageUpload({
       await supabase.storage.from(imageBucket).remove([uploadedPath]);
     }
     setImageUrl("");
+    onValueChange?.("");
     setUploadedPath("");
     setMessage("Đã bỏ ảnh khỏi biểu mẫu.");
   }

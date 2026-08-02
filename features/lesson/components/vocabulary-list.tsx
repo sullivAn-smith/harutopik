@@ -93,6 +93,11 @@ export function VocabularyList({
                         <p className="text-base font-black text-orange-700">
                           {capitalizeFirst(item.vietnamese)}
                         </p>
+                        {item.partOfSpeech && (
+                          <p className="mt-2 w-fit rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-extrabold text-blue-700">
+                            {item.partOfSpeech}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
