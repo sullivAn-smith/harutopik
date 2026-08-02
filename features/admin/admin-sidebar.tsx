@@ -10,6 +10,7 @@ const sections = [
       { icon: "⌂", label: "Tổng quan", href: "/quan-tri" },
       { icon: "✓", label: "Hàng chờ duyệt", href: "/quan-tri/duyet" },
       { icon: "↑", label: "Phát hành", href: "/quan-tri/phat-hanh" },
+      { icon: "◉", label: "Duyệt đề thi", href: "/quan-tri/de-thi" },
     ],
   },
   {

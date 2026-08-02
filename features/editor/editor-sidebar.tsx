@@ -10,6 +10,7 @@ const groups = [
       { icon: "⌂", label: "Tổng quan", href: "/bien-tap" },
       { icon: "✎", label: "Bài của tôi", href: "/bien-tap/noi-dung" },
       { icon: "▦", label: "Khóa & chương", href: "/bien-tap/cau-truc" },
+      { icon: "◉", label: "Ngân hàng đề", href: "/bien-tap/de-thi" },
     ],
   },
   {

@@ -1,0 +1,14 @@
+import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
+import { getCurrentActor } from "@/lib/auth/authorize";
+import { getExamAttempt } from "@/lib/data/exams";
+
+export default async function ExamResultPage({ params, searchParams }: { params: Promise<{ examId: string }>; searchParams: Promise<{ attempt?: string }> }) {
+  const [{ examId }, query, actor] = await Promise.all([params, searchParams, getCurrentActor()]);
+  if (!actor) redirect("/dang-nhap"); if (!query.attempt) notFound();
+  const attempt = await getExamAttempt(query.attempt, actor.id); if (!attempt || attempt.exam_id !== examId || attempt.status === "in_progress") notFound();
+  const answers = (attempt.answers ?? {}) as Record<string, number>;
+  const questions = Array.isArray(attempt.question_snapshot) ? attempt.question_snapshot as Array<Record<string, unknown>> : [];
+  return <main className="elegant-blue min-h-screen text-[#10243e]"><div className="mx-auto max-w-5xl px-5 py-10"><Link href="/luyen-de" className="font-black text-[#087eba]">← Danh sách đề</Link><section className="mt-6 rounded-[2rem] bg-white p-8 shadow-2xl"><p className="text-xs font-black uppercase tracking-[.2em] text-emerald-600">Đã hoàn thành</p><h1 className="mt-2 text-4xl font-black">Kết quả phần Nghe</h1><div className="mt-7 grid gap-4 sm:grid-cols-3"><Result value={`${attempt.score ?? 0}`} label="Điểm" /><Result value={`${attempt.correct_count ?? 0}/${attempt.total_questions}`} label="Câu đúng" /><Result value={`${Object.keys(answers).length}`} label="Đã trả lời" /></div></section><section className="mt-6 space-y-3">{questions.map((q, index) => { const id = String(q.id); const correct = Number(q.correct_option); const selected = answers[id]; const explanation = String(q.explanation ?? ""); return <article key={id} className={`rounded-2xl border bg-white p-5 ${selected === correct ? "border-emerald-200" : "border-red-200"}`}><div className="flex items-center justify-between"><h2 className="font-black">Câu {index + 1}</h2><span className={`rounded-full px-3 py-1 text-xs font-black ${selected === correct ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>{selected === correct ? "Đúng" : selected ? "Sai" : "Bỏ trống"}</span></div><p className="mt-2 font-semibold text-slate-600">Bạn chọn: {selected ? `${selected}. ${String((q.options as unknown[])[selected - 1])}` : "Chưa trả lời"}</p><p className="mt-1 font-bold text-emerald-700">Đáp án: {correct}. {String((q.options as unknown[])[correct - 1])}</p>{explanation && <p className="mt-2 text-sm text-slate-500">{explanation}</p>}</article>; })}</section></div></main>;
+}
+function Result({ value, label }: { value: string; label: string }) { return <div className="rounded-2xl bg-sky-50 p-5 text-center"><strong className="block text-3xl text-[#087eba]">{value}</strong><span className="text-sm font-bold text-slate-500">{label}</span></div>; }
