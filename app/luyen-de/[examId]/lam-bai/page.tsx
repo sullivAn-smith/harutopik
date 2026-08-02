@@ -12,7 +12,10 @@ export default async function ExamRunnerPage({ params, searchParams }: { params:
   if (attempt.status !== "in_progress") redirect(`/luyen-de/${examId}/ket-qua?attempt=${attempt.id}`);
   const snapshot = (Array.isArray(attempt.question_snapshot) ? attempt.question_snapshot : []).map((raw) => {
     const q = raw as Record<string, unknown>;
-    return { id: String(q.id), position: Number(q.position), instruction: String(q.instruction ?? ""), prompt: String(q.prompt ?? ""), audioUrl: String(q.audio_url ?? ""), imageUrl: String(q.image_url ?? ""), playLimit: Number(q.play_limit ?? 1), options: Array.isArray(q.options) ? q.options.map(String) : [] };
+    return { id: String(q.id), position: Number(q.position), section: q.section === "reading" ? "reading" as const : "listening" as const, instruction: String(q.instruction ?? ""), prompt: String(q.prompt ?? ""), audioUrl: String(q.audio_url ?? ""), imageUrl: String(q.image_url ?? ""), options: Array.isArray(q.options) ? q.options.map(String) : [] };
   });
-  return <ExamRunner attemptId={attempt.id} examId={examId} title={(attempt.exam_sets as unknown as { title: string })?.title ?? "Đề nghe TOPIK I"} expiresAt={attempt.expires_at} initialPosition={attempt.current_position} initialAnswers={(attempt.answers ?? {}) as Record<string, number>} initialFlagged={Array.isArray(attempt.flagged) ? attempt.flagged.map(String) : []} questions={snapshot} />;
+  const section = attempt.current_section === "reading" ? "reading" as const : "listening" as const;
+  const expiresAt = section === "reading" ? attempt.reading_expires_at : attempt.listening_expires_at;
+  if (!expiresAt) notFound();
+  return <ExamRunner attemptId={attempt.id} examId={examId} title={(attempt.exam_sets as unknown as { title: string })?.title ?? "Đề TOPIK I"} section={section} expiresAt={expiresAt} initialPosition={attempt.current_position} initialAnswers={(attempt.answers ?? {}) as Record<string, number>} initialFlagged={Array.isArray(attempt.flagged) ? attempt.flagged.map(String) : []} initialAudioPlays={(attempt.audio_plays ?? {}) as Record<string, number>} initialWindowLeaveCount={attempt.window_leave_count ?? 0} questions={snapshot} />;
 }

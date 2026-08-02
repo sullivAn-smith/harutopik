@@ -14,7 +14,7 @@ function text(formData: FormData, key: string) {
 
 function message(error: unknown) {
   const value = error instanceof Error ? error.message : "Không thể hoàn tất thao tác.";
-  if (value.includes("EXAM_NOT_READY")) return "Mỗi câu nghe phải có audio và đủ 4 đáp án trước khi gửi duyệt.";
+  if (value.includes("EXAM_NOT_READY")) return "Đề phải có cả phần Nghe và Đọc; mỗi câu nghe cần audio và mọi câu cần đủ 4 đáp án.";
   if (value.includes("duplicate") || value.includes("unique")) return "Mã đề hoặc số thứ tự câu đã tồn tại.";
   return value;
 }
@@ -24,17 +24,22 @@ export async function createExamDraft(formData: FormData) {
   const parsed = z.object({
     code: z.string().regex(/^[a-z0-9][a-z0-9-]{2,79}$/),
     title: z.string().min(3).max(160),
-    durationMinutes: z.coerce.number().int().min(1).max(180),
+    listeningDurationMinutes: z.coerce.number().int().min(1).max(180),
+    readingDurationMinutes: z.coerce.number().int().min(1).max(180),
   }).safeParse({
     code: text(formData, "code"), title: text(formData, "title"),
-    durationMinutes: formData.get("durationMinutes"),
+    listeningDurationMinutes: formData.get("listeningDurationMinutes"),
+    readingDurationMinutes: formData.get("readingDurationMinutes"),
   });
   if (!parsed.success) redirect("/bien-tap/de-thi/moi?error=Thông tin đề chưa hợp lệ.");
   const supabase = await createClient();
   const { data, error } = await supabase.from("exam_sets").insert({
     code: parsed.data.code, title: parsed.data.title,
-    duration_minutes: parsed.data.durationMinutes, created_by: actor.id,
-    instructions: "Mỗi câu có một audio riêng. Chọn một đáp án đúng. Hết giờ hệ thống sẽ tự nộp bài.",
+    duration_minutes: parsed.data.listeningDurationMinutes + parsed.data.readingDurationMinutes,
+    listening_duration_minutes: parsed.data.listeningDurationMinutes,
+    reading_duration_minutes: parsed.data.readingDurationMinutes,
+    created_by: actor.id,
+    instructions: "Hoàn thành phần Nghe trước, sau đó chuyển sang phần Đọc. Không thể quay lại phần đã hoàn thành.",
   }).select("id").single();
   if (error) redirect(`/bien-tap/de-thi/moi?error=${encodeURIComponent(message(error))}`);
   redirect(`/bien-tap/de-thi/${data.id}?created=1`);
@@ -46,7 +51,8 @@ export async function saveExamDraft(examId: string, _state: { message: string; o
   const parsed = examDraftSchema.safeParse({
     code: text(formData, "code"), title: text(formData, "title"),
     description: text(formData, "description"),
-    durationMinutes: Number(formData.get("durationMinutes")),
+    listeningDurationMinutes: Number(formData.get("listeningDurationMinutes")),
+    readingDurationMinutes: Number(formData.get("readingDurationMinutes")),
     instructions: text(formData, "instructions"),
     questions: JSON.parse(questionsRaw || "[]"),
   });
@@ -57,14 +63,16 @@ export async function saveExamDraft(examId: string, _state: { message: string; o
     p_exam_id: examId,
     p_exam: {
       code: parsed.data.code, title: parsed.data.title,
-      description: parsed.data.description, durationMinutes: parsed.data.durationMinutes,
+      description: parsed.data.description,
+      listeningDurationMinutes: parsed.data.listeningDurationMinutes,
+      readingDurationMinutes: parsed.data.readingDurationMinutes,
       instructions: parsed.data.instructions,
     },
     p_questions: parsed.data.questions,
   });
   if (saveError) return { ok: false, message: message(saveError) };
   revalidatePath(`/bien-tap/de-thi/${examId}`);
-  return { ok: true, message: `Đã lưu ${parsed.data.questions.length} câu nghe.` };
+  return { ok: true, message: `Đã lưu ${parsed.data.questions.length} câu TOPIK I.` };
 }
 
 export async function submitExamForReview(formData: FormData) {
@@ -114,12 +122,16 @@ export async function startExam(formData: FormData) {
   if (!actor) redirect(`/dang-nhap?next=/luyen-de`);
   const examId = text(formData, "examId");
   const admin = createAdminClient();
-  const { data: exam } = await admin.from("exam_sets").select("id,status,duration_minutes,exam_questions(id,position,instruction,prompt,audio_url,image_url,play_limit,options,correct_option,explanation)").eq("id", examId).eq("status", "published").maybeSingle();
+  const { data: exam } = await admin.from("exam_sets").select("id,status,version,listening_duration_minutes,reading_duration_minutes,exam_questions(id,position,section,instruction,prompt,audio_url,image_url,play_limit,options,correct_option,explanation)").eq("id", examId).eq("status", "published").maybeSingle();
   if (!exam || !exam.exam_questions?.length) redirect("/luyen-de?error=Đề thi chưa sẵn sàng.");
+  if (!exam.exam_questions.some((question) => question.section === "listening") || !exam.exam_questions.some((question) => question.section === "reading")) redirect("/luyen-de?error=Đề TOPIK I chưa có đủ phần Nghe và Đọc.");
   const now = Date.now();
   const { data, error } = await admin.from("exam_attempts").insert({
     exam_id: examId, user_id: actor.id,
-    expires_at: new Date(now + exam.duration_minutes * 60_000).toISOString(),
+    expires_at: new Date(now + (exam.listening_duration_minutes + exam.reading_duration_minutes) * 60_000).toISOString(),
+    listening_expires_at: new Date(now + exam.listening_duration_minutes * 60_000).toISOString(),
+    exam_version: exam.version,
+    current_section: "listening",
     total_questions: exam.exam_questions.length,
     question_snapshot: exam.exam_questions,
   }).select("id").single();

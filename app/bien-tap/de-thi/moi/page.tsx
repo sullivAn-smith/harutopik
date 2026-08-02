@@ -10,7 +10,10 @@ export default async function NewExamPage({ searchParams }: { searchParams: Prom
     <form action={createExamDraft} className="mt-6 space-y-5 rounded-3xl bg-white p-7 shadow-sm">
       <label className="block font-black">Mã đề<input name="code" required placeholder="topik-i-nghe-01" className="mt-2 w-full rounded-2xl border px-4 py-3 font-semibold" /></label>
       <label className="block font-black">Tên đề<input name="title" required placeholder="Đề luyện nghe TOPIK I · Số 1" className="mt-2 w-full rounded-2xl border px-4 py-3 font-semibold" /></label>
-      <label className="block font-black">Thời gian (phút)<input name="durationMinutes" type="number" min="1" max="180" defaultValue="40" className="mt-2 w-full rounded-2xl border px-4 py-3 font-semibold" /></label>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="block font-black">Thời gian Nghe (phút)<input name="listeningDurationMinutes" type="number" min="1" max="180" defaultValue="40" className="mt-2 w-full rounded-2xl border px-4 py-3 font-semibold" /></label>
+        <label className="block font-black">Thời gian Đọc (phút)<input name="readingDurationMinutes" type="number" min="1" max="180" defaultValue="60" className="mt-2 w-full rounded-2xl border px-4 py-3 font-semibold" /></label>
+      </div>
       <button className="w-full rounded-2xl bg-[#087eba] px-5 py-3 font-black text-white">Tạo bản nháp và thêm câu →</button>
     </form>
   </main>;
