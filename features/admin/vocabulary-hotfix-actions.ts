@@ -138,6 +138,162 @@ function buildAcceptedAnswers({
   ];
 }
 
+type LessonSnapshot = {
+  vocabulary?: unknown;
+  [key: string]: unknown;
+};
+
+type VocabularySnapshotUpdate = {
+  id: string;
+  korean: string;
+  vietnamese: string;
+  romanization: string;
+  category: string;
+  partOfSpeech: string | null;
+  audioUrl: string | null;
+  imageUrl: string | null;
+  acceptedVietnameseAnswers: string[];
+  acceptedKoreanAnswers: string[];
+  examples: Array<{
+    id: string;
+    korean: string;
+    vietnamese: string;
+    audioUrl?: string;
+  }>;
+};
+
+function applyVocabularySnapshotUpdate(
+  entry: Record<string, unknown>,
+  update: VocabularySnapshotUpdate,
+) {
+  const next: Record<string, unknown> = {
+    ...entry,
+    korean: update.korean,
+    vietnamese: update.vietnamese,
+    romanization: update.romanization,
+    category: update.category,
+    acceptedVietnameseAnswers: update.acceptedVietnameseAnswers,
+    acceptedKoreanAnswers: update.acceptedKoreanAnswers,
+    examples: update.examples,
+  };
+  if (update.partOfSpeech) next.partOfSpeech = update.partOfSpeech;
+  else delete next.partOfSpeech;
+  if (update.audioUrl) next.audioUrl = update.audioUrl;
+  else delete next.audioUrl;
+  if (update.imageUrl) next.imageUrl = update.imageUrl;
+  else delete next.imageUrl;
+  return next;
+}
+
+async function syncVocabularySnapshots(
+  admin: ReturnType<typeof createAdminClient>,
+  update: VocabularySnapshotUpdate,
+) {
+  const { data: revisions, error: revisionsError } = await admin
+    .from("content_revisions")
+    .select("id,content_id,version,status,payload")
+    .eq("content_type", "lesson");
+  if (revisionsError) return false;
+
+  const publishedRevisionPayloads = new Map<string, Record<string, unknown>>();
+  const revisionUpdates = (revisions ?? []).flatMap((revision) => {
+    const payload = revision.payload;
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return [];
+    }
+    const snapshot = payload as LessonSnapshot;
+    if (!Array.isArray(snapshot.vocabulary)) return [];
+
+    let changed = false;
+    const vocabulary = snapshot.vocabulary.map((item) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) return item;
+      const entry = item as Record<string, unknown>;
+      if (entry.id !== update.id) return item;
+      changed = true;
+      return applyVocabularySnapshotUpdate(entry, update);
+    });
+    if (!changed) return [];
+
+    const nextPayload = {
+      ...snapshot,
+      vocabulary,
+      ...(revision.status === "published" ? { status: "published" } : {}),
+    };
+    if (revision.status === "published") {
+      publishedRevisionPayloads.set(
+        `${revision.content_id}:${revision.version}`,
+        nextPayload,
+      );
+    }
+
+    return [
+      admin
+        .from("content_revisions")
+        .update({ payload: nextPayload })
+        .eq("id", revision.id),
+    ];
+  });
+
+  const revisionResults = await Promise.all(revisionUpdates);
+  if (revisionResults.some((result) => result.error)) return false;
+
+  const { data: catalogRows, error: catalogError } = await admin
+    .from("published_catalog")
+    .select("content_id,version,payload")
+    .eq("content_type", "lesson");
+  if (catalogError) return false;
+
+  const catalogUpdates = (catalogRows ?? []).flatMap((row) => {
+    const payload = row.payload;
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return [];
+    }
+    const snapshot = payload as LessonSnapshot;
+    if (!Array.isArray(snapshot.vocabulary)) return [];
+    if (
+      !snapshot.vocabulary.some(
+        (item) =>
+          item &&
+          typeof item === "object" &&
+          !Array.isArray(item) &&
+          (item as Record<string, unknown>).id === update.id,
+      )
+    ) {
+      return [];
+    }
+
+    const revisionPayload = publishedRevisionPayloads.get(
+      `${row.content_id}:${row.version}`,
+    );
+    const nextPayload = {
+      ...(revisionPayload ?? {
+        ...snapshot,
+        vocabulary: snapshot.vocabulary.map((item) => {
+          if (!item || typeof item !== "object" || Array.isArray(item)) {
+            return item;
+          }
+          const entry = item as Record<string, unknown>;
+          return entry.id === update.id
+            ? applyVocabularySnapshotUpdate(entry, update)
+            : item;
+        }),
+      }),
+      status: "published",
+    };
+
+    return [
+      admin
+        .from("published_catalog")
+        .update({ payload: nextPayload })
+        .eq("content_id", row.content_id)
+        .eq("content_type", "lesson"),
+    ];
+  });
+
+  const catalogResults = await Promise.all(catalogUpdates);
+  return catalogResults.every((result) => !result.error);
+}
+
 export async function applyVocabularyHotfix(
   _state: VocabularyHotfixState,
   formData: FormData,
@@ -291,6 +447,36 @@ export async function applyVocabularyHotfix(
     };
   }
 
+  const snapshotsSynced = await syncVocabularySnapshots(admin, {
+    id: parsed.data.vocabularyId,
+    korean: parsed.data.hangul,
+    vietnamese: parsed.data.meaningVi,
+    romanization: parsed.data.romanization,
+    category: parsed.data.category,
+    partOfSpeech: parsed.data.partOfSpeech || null,
+    audioUrl: hangulChanged ? null : current.audio_url,
+    imageUrl: parsed.data.imageUrl || null,
+    acceptedVietnameseAnswers: acceptedAnswers
+      .filter((answer) => answer.direction === "ko_vi")
+      .map((answer) => answer.answer),
+    acceptedKoreanAnswers: acceptedAnswers
+      .filter((answer) => answer.direction === "vi_ko")
+      .map((answer) => answer.answer),
+    examples: examples.map((example) => ({
+      id: example.id,
+      korean: example.korean,
+      vietnamese: example.vietnamese,
+      ...(example.audioUrl ? { audioUrl: example.audioUrl } : {}),
+    })),
+  });
+  if (!snapshotsSynced) {
+    return {
+      status: "error",
+      message:
+        "Từ đã lưu, nhưng bản nháp/bản duyệt/bản phát hành chưa đồng bộ được. Hãy thử lưu lại.",
+    };
+  }
+
   await admin.from("audit_logs").insert({
     actor_id: actor.id,
     action: "vocabulary.hotfix.applied",
@@ -307,6 +493,8 @@ export async function applyVocabularyHotfix(
   revalidatePath(`/quan-tri/hotfix/${parsed.data.contentId}`);
   revalidatePath("/quan-tri/noi-dung");
   revalidatePath("/bien-tap/tu-vung", "layout");
+  revalidatePath("/bien-tap/noi-dung", "layout");
+  revalidatePath("/xem-truoc", "layout");
   revalidatePath("/courses", "layout");
   redirect(
     `/quan-tri/hotfix/${parsed.data.contentId}/tu-vung/${parsed.data.vocabularyId}?saved=1`,

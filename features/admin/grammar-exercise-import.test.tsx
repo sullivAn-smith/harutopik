@@ -11,7 +11,9 @@ describe("GrammarExerciseImport", () => {
     const onChange = vi.fn();
     render(<GrammarExerciseImport exercises={[]} onChange={onChange} />);
 
-    expect(screen.queryByText(/Nhập CSV/)).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "↑ Nhập CSV/XLSX" }),
+    ).toBeTruthy();
     fireEvent.click(
       screen.getByRole("button", { name: "+ Thêm câu luyện tập" }),
     );
@@ -45,6 +47,31 @@ describe("GrammarExerciseImport", () => {
         prompt: "저는 학생___.",
         translation: "Tôi là học sinh.",
         acceptedAnswers: ["입니다", "이에요"],
+      },
+    ]);
+  });
+
+  it("nhập câu luyện tập từ CSV và thay thế danh sách hiện tại", async () => {
+    const onChange = vi.fn();
+    const { container } = render(
+      <GrammarExerciseImport exercises={[]} onChange={onChange} />,
+    );
+    const fileInput = container.querySelector('input[type="file"]');
+    const csv = [
+      "prompt,translation,accepted_answers",
+      '"오늘은 날씨가 ___.","Hôm nay thời tiết đẹp.","좋습니다 | 좋아요"',
+    ].join("\n");
+
+    fireEvent.change(fileInput!, {
+      target: { files: [new File([csv], "grammar.csv", { type: "text/csv" })] },
+    });
+
+    expect(await screen.findByText(/Đã nhập 1 câu/)).toBeTruthy();
+    expect(onChange).toHaveBeenCalledWith([
+      {
+        prompt: "오늘은 날씨가 ___.",
+        translation: "Hôm nay thời tiết đẹp.",
+        acceptedAnswers: ["좋습니다", "좋아요"],
       },
     ]);
   });

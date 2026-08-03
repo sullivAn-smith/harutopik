@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  ExerciseFileImport,
+  splitImportedAnswers,
+} from "@/features/admin/exercise-file-import";
+
 export type GrammarExerciseDraft = {
   prompt: string;
   translation: string;
@@ -57,6 +62,30 @@ export function GrammarExerciseImport({
           + Thêm câu luyện tập
         </button>
       </div>
+
+      <ExerciseFileImport
+        label="Nhập CSV/XLSX"
+        sampleFileName="grammar-exercise-import-template.csv"
+        sampleCsv={[
+          "prompt,translation,accepted_answers",
+          '\"저는 학생___.\",\"Tôi là học sinh.\",\"입니다 | 이에요\"',
+        ].join("\n")}
+        requiredHeaders={["prompt", "translation", "accepted_answers"]}
+        accent="emerald"
+        parseRow={(row, rowNumber) => {
+          const prompt = row.prompt?.trim();
+          const translation = row.translation?.trim();
+          const acceptedAnswers = splitImportedAnswers(row.accepted_answers ?? "");
+          if (!prompt) throw new Error(`Dòng ${rowNumber}: thiếu câu tiếng Hàn.`);
+          if (!prompt.includes("___")) {
+            throw new Error(`Dòng ${rowNumber}: câu tiếng Hàn phải có dấu ___.`);
+          }
+          if (!translation) throw new Error(`Dòng ${rowNumber}: thiếu nghĩa tiếng Việt.`);
+          if (!acceptedAnswers.length) throw new Error(`Dòng ${rowNumber}: thiếu đáp án.`);
+          return { prompt, translation, acceptedAnswers };
+        }}
+        onImport={onChange}
+      />
 
       <div className="mt-5 space-y-4">
         {exercises.length === 0 ? (
