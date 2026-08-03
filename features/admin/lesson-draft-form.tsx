@@ -26,6 +26,10 @@ import {
   type TranslationExerciseDraft,
 } from "@/features/admin/translation-exercise-editor";
 import { SentenceAudioButton } from "@/features/admin/sentence-audio-button";
+import {
+  GrammarPointFileImport,
+  type GrammarPointDraft,
+} from "@/features/admin/grammar-point-file-import";
 
 function FieldError({
   state,
@@ -57,17 +61,7 @@ export type LessonDraftDefaults = {
   vocabulary: string;
   dictations: DictationExerciseDraft[];
   translations: TranslationExerciseDraft[];
-  grammar: Array<{
-    title: string;
-    form: string;
-    explanation: string;
-    formula: string;
-    examples: Array<{
-      korean: string;
-      vietnamese: string;
-      audioUrl?: string;
-    }>;
-  }>;
+  grammar: GrammarPointDraft[];
   exercises: GrammarExerciseDraft[];
   changeSummary: string;
 };
@@ -343,6 +337,7 @@ export function LessonDraftForm({
             + Thêm ngữ pháp
           </button>
         </div>
+        <GrammarPointFileImport onImport={setGrammar} />
         <div className="mt-5 space-y-5">
           {grammar.map((point, pointIndex) => (
             <article key={pointIndex} className="rounded-2xl border bg-white p-5">

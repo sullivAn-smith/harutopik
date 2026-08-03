@@ -12,7 +12,9 @@ type ExerciseFileImportProps<T> = {
   requiredHeaders: string[];
   parseRow: (row: Record<string, string>, rowNumber: number) => T;
   onImport: (items: T[]) => void;
-  accent: "sky" | "emerald";
+  accent: "sky" | "emerald" | "violet";
+  itemLabel?: string;
+  maxItems?: number;
 };
 
 function parseCsv(text: string) {
@@ -66,12 +68,16 @@ export function ExerciseFileImport<T>({
   parseRow,
   onImport,
   accent,
+  itemLabel = "câu",
+  maxItems = 15,
 }: ExerciseFileImportProps<T>) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState("");
   const colors = accent === "sky"
     ? "border-sky-200 text-sky-800 hover:bg-sky-100"
-    : "border-emerald-200 text-emerald-800 hover:bg-emerald-100";
+    : accent === "violet"
+      ? "border-violet-200 text-violet-800 hover:bg-violet-100"
+      : "border-emerald-200 text-emerald-800 hover:bg-emerald-100";
 
   function downloadSample() {
     const blob = new Blob([`\uFEFF${sampleCsv}`], {
@@ -116,9 +122,13 @@ export function ExerciseFileImport<T>({
           return parseRow(record, index + 2);
         });
       if (!items.length) throw new Error("Tệp chưa có dòng nội dung nào.");
-      if (items.length > 15) throw new Error("Mỗi bài chỉ được nhập tối đa 15 câu.");
+      if (items.length > maxItems) {
+        throw new Error(`Mỗi bài chỉ được nhập tối đa ${maxItems} ${itemLabel}.`);
+      }
       onImport(items);
-      setMessage(`Đã nhập ${items.length} câu. Danh sách cũ đã được thay thế.`);
+      setMessage(
+        `Đã nhập ${items.length} ${itemLabel}. Danh sách cũ đã được thay thế.`,
+      );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Không thể đọc tệp.");
     }
@@ -150,7 +160,7 @@ export function ExerciseFileImport<T>({
         </button>
       </div>
       <p className="mt-2 text-xs font-semibold text-ink-500">
-        Import sẽ thay thế danh sách hiện tại · tối đa 15 câu · tối đa 5 MB.
+        Import sẽ thay thế danh sách hiện tại · tối đa {maxItems} {itemLabel} · tối đa 5 MB.
       </p>
       {message && (
         <p aria-live="polite" className="mt-3 rounded-xl bg-white px-3 py-2 text-sm font-bold text-ink-700">

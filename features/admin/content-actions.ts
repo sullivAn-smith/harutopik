@@ -97,6 +97,65 @@ async function revisionPassesEligibility(
   return lesson.success && evaluateLessonEligibility(lesson.data).canSubmit;
 }
 
+async function findPublishedLessonOrderConflict(revisionId: string) {
+  const admin = createAdminClient();
+  const { data: revision, error: revisionError } = await admin
+    .from("content_revisions")
+    .select("content_id,payload")
+    .eq("id", revisionId)
+    .eq("content_type", "lesson")
+    .maybeSingle();
+  const lesson = lessonSchema.safeParse(revision?.payload);
+  if (revisionError || !revision || !lesson.success) {
+    return "Không thể kiểm tra số thứ tự của bài học.";
+  }
+
+  const { data: publishedLessons, error: catalogError } = await admin
+    .from("published_catalog")
+    .select("content_id,payload")
+    .eq("content_type", "lesson")
+    .neq("content_id", revision.content_id);
+  if (catalogError) return "Không thể kiểm tra danh sách bài đang phát hành.";
+
+  const conflict = (publishedLessons ?? []).find((row) => {
+    const publishedLesson = lessonSchema.safeParse(row.payload);
+    return (
+      publishedLesson.success &&
+      publishedLesson.data.courseId === lesson.data.courseId &&
+      publishedLesson.data.order === lesson.data.order
+    );
+  });
+  if (!conflict) return null;
+
+  const conflictLesson = lessonSchema.safeParse(conflict.payload);
+  return conflictLesson.success
+    ? `Bài ${lesson.data.order} đã được dùng bởi “${conflictLesson.data.title.vi}”. Hãy đổi số thứ tự trước khi phát hành.`
+    : `Bài ${lesson.data.order} đã tồn tại trong khóa học này. Hãy đổi số thứ tự trước khi phát hành.`;
+}
+
+async function syncPublishedRevisionPayloadStatus(revisionId: string) {
+  const admin = createAdminClient();
+  const { data: revision, error: readError } = await admin
+    .from("content_revisions")
+    .select("payload")
+    .eq("id", revisionId)
+    .eq("status", "published")
+    .maybeSingle();
+  if (readError || !revision?.payload) return false;
+  if (
+    typeof revision.payload !== "object" ||
+    Array.isArray(revision.payload)
+  ) {
+    return false;
+  }
+  const { error } = await admin
+    .from("content_revisions")
+    .update({ payload: { ...revision.payload, status: "published" } })
+    .eq("id", revisionId)
+    .eq("status", "published");
+  return !error;
+}
+
 async function notifyWorkflow(
   revisionId: string,
   event: "submitted" | "approved" | "changes_requested",
@@ -438,6 +497,14 @@ async function transitionRevision(
   if (!(await revisionPassesEligibility(supabase, revisionId))) {
     redirect(`${destination}?workflow=validation`);
   }
+  if (targetStatus === "published") {
+    const orderConflict = await findPublishedLessonOrderConflict(revisionId);
+    if (orderConflict) {
+      redirect(
+        `${destination}?workflow=error&errorMessage=${encodeURIComponent(orderConflict)}`,
+      );
+    }
+  }
   const { error } = await supabase.rpc("transition_content_revision", {
     p_revision_id: revisionId,
     p_target_status: targetStatus,
@@ -451,6 +518,14 @@ async function transitionRevision(
 
   if (targetStatus === "in_review") {
     await notifyWorkflow(revisionId, "submitted");
+  }
+  if (
+    targetStatus === "published" &&
+    !(await syncPublishedRevisionPayloadStatus(revisionId))
+  ) {
+    console.error("Published revision payload status was not synchronized", {
+      revisionId,
+    });
   }
   revalidatePath(destination);
   revalidatePath("/thong-bao");
