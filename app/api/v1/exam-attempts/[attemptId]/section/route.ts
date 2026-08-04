@@ -3,7 +3,7 @@ import { getApiActor } from "@/lib/api/auth";
 import { apiError, apiSuccess } from "@/lib/api/responses";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-const schema = z.object({ section: z.literal("reading") });
+const schema = z.object({ section: z.enum(["listening", "reading"]) });
 
 export async function POST(request: Request, { params }: { params: Promise<{ attemptId: string }> }) {
   const actor = await getApiActor(request);
@@ -13,17 +13,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ att
   const { attemptId } = await params;
   const admin = createAdminClient();
   const { data: attempt } = await admin.from("exam_attempts")
-    .select("id,user_id,status,current_section,exam_sets(reading_duration_minutes)")
+    .select("id,user_id,status,expires_at,question_snapshot")
     .eq("id", attemptId).maybeSingle();
   if (!attempt || attempt.user_id !== actor.user.id) return apiError("NOT_FOUND", "Không tìm thấy lượt thi.", 404);
-  if (attempt.status !== "in_progress" || attempt.current_section !== "listening") return apiError("INVALID_SECTION", "Không thể chuyển phần.", 409);
-  const exam = attempt.exam_sets as unknown as { reading_duration_minutes: number };
+  if (attempt.status !== "in_progress") return apiError("EXAM_FINISHED", "Lượt thi này đã kết thúc.", 409);
+  if (!attempt.expires_at || Date.parse(attempt.expires_at) <= Date.now()) {
+    return apiError("EXAM_EXPIRED", "Thời gian làm bài đã kết thúc.", 409);
+  }
+  const sectionExists = (attempt.question_snapshot as Array<{ section?: string }>).some(
+    (question) => question.section === parsed.data.section,
+  );
+  if (!sectionExists) return apiError("SECTION_UNAVAILABLE", "Phần thi này không có trong chế độ bạn đã chọn.", 409);
   const { error } = await admin.from("exam_attempts").update({
-    current_section: "reading",
+    current_section: parsed.data.section,
     current_position: 1,
-    reading_expires_at: new Date(Date.now() + exam.reading_duration_minutes * 60_000).toISOString(),
     updated_at: new Date().toISOString(),
-  }).eq("id", attemptId).eq("current_section", "listening");
-  if (error) return apiError("SECTION_START_FAILED", "Chưa thể bắt đầu phần Đọc.", 500);
+  }).eq("id", attemptId).eq("status", "in_progress");
+  if (error) return apiError("SECTION_START_FAILED", "Chưa thể chuyển phần thi.", 500);
   return apiSuccess({ section: parsed.data.section });
 }

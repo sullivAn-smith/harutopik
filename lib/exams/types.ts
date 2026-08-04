@@ -1,13 +1,17 @@
 import { z } from "zod";
 
-export const examOptionSchema = z.string().trim().min(1).max(500);
+export const examOptionSchema = z.string().trim().min(1, "Đáp án không được để trống.").max(500, "Đáp án không được dài quá 500 ký tự.");
 export const examSectionSchema = z.enum(["listening", "reading"]);
 export type ExamSection = z.infer<typeof examSectionSchema>;
+export const examAnswerTypeSchema = z.enum(["text", "image"]);
+export type ExamAnswerType = z.infer<typeof examAnswerTypeSchema>;
 
 export const examQuestionSchema = z.object({
   id: z.string().uuid().optional(),
   position: z.number().int().positive(),
   section: examSectionSchema.default("listening"),
+  audioBlockKey: z.string().trim().max(80).default(""),
+  answerType: examAnswerTypeSchema.default("text"),
   instruction: z.string().trim().max(500).default(""),
   prompt: z.string().trim().max(1000).default(""),
   audioUrl: z.union([z.literal(""), z.string().url("Audio phải là URL hợp lệ.")]),
@@ -15,6 +19,7 @@ export const examQuestionSchema = z.object({
   imageUrl: z.union([z.literal(""), z.string().url()]).default(""),
   playLimit: z.number().int().min(1).max(10).default(1),
   options: z.array(examOptionSchema).length(4),
+  optionImages: z.array(z.union([z.literal(""), z.string().url("Ảnh đáp án phải là URL hợp lệ.")])).length(4).default(["", "", "", ""]),
   correctOption: z.number().int().min(1).max(4),
   explanation: z.string().trim().max(2000).default(""),
 });
@@ -32,15 +37,59 @@ export const examDraftSchema = z.object({
 export type ExamQuestionInput = z.infer<typeof examQuestionSchema>;
 export type ExamDraftInput = z.infer<typeof examDraftSchema>;
 
+type ExamValidationInput = {
+  questions?: Array<{ section?: unknown; [key: string]: unknown }>;
+};
+
+export function formatExamValidationError(error: z.ZodError, input?: ExamValidationInput) {
+  const issue = error.issues[0];
+  if (!issue) return "Dữ liệu đề chưa hợp lệ.";
+
+  const [field, questionIndex, questionField, optionIndex] = issue.path;
+  const fieldMessages: Record<string, string> = {
+    code: "Mã đề chỉ được gồm chữ thường, số và dấu gạch ngang; dài từ 3 đến 80 ký tự.",
+    title: "Tên đề phải có từ 3 đến 160 ký tự.",
+    listeningDurationMinutes: "Thời gian Nghe phải là số nguyên từ 1 đến 180 phút.",
+    readingDurationMinutes: "Thời gian Đọc phải là số nguyên từ 1 đến 180 phút.",
+    description: "Mô tả không được dài quá 1.000 ký tự.",
+    instructions: "Hướng dẫn không được dài quá 4.000 ký tự.",
+  };
+  if (field === "title" && issue.code === "too_small") return "Tên đề phải có ít nhất 3 ký tự.";
+  if (field === "title" && issue.code === "too_big") return "Tên đề không được dài quá 160 ký tự.";
+  if (typeof field === "string" && field !== "questions" && fieldMessages[field]) {
+    return fieldMessages[field];
+  }
+
+  if (field === "questions" && typeof questionIndex === "number") {
+    const section = input?.questions?.[questionIndex]?.section === "reading" ? "đọc" : "nghe";
+    const prefix = `Câu ${section} ${questionIndex + 1}`;
+    if (questionField === "options" && typeof optionIndex === "number") {
+      return `${prefix}: đáp án ${optionIndex + 1} không được để trống.`;
+    }
+    if (questionField === "audioUrl") return `${prefix}: đường dẫn audio không hợp lệ.`;
+    if (questionField === "imageUrl") return `${prefix}: đường dẫn ảnh không hợp lệ.`;
+    if (questionField === "playLimit") return `${prefix}: số lượt nghe phải từ 1 đến 10.`;
+    if (questionField === "correctOption") return `${prefix}: đáp án đúng phải là một lựa chọn từ 1 đến 4.`;
+    if (questionField === "instruction") return `${prefix}: hướng dẫn không được dài quá 500 ký tự.`;
+    if (questionField === "prompt") return `${prefix}: nội dung câu hỏi không được dài quá 1.000 ký tự.`;
+    if (questionField === "audioText") return `${prefix}: nội dung tạo audio không được dài quá 500 ký tự.`;
+    if (questionField === "explanation") return `${prefix}: giải thích không được dài quá 2.000 ký tự.`;
+    return `${prefix}: dữ liệu chưa hợp lệ.`;
+  }
+
+  return "Dữ liệu đề chưa hợp lệ. Hãy kiểm tra lại các trường bắt buộc.";
+}
+
 export function getExamEligibility(questions: readonly ExamQuestionInput[]) {
   const listening = questions.filter((question) => question.section === "listening");
   const reading = questions.filter((question) => question.section === "reading");
   const issues: string[] = [];
   if (listening.length === 0) issues.push("Đề phải có ít nhất một câu nghe.");
   if (reading.length === 0) issues.push("Đề phải có ít nhất một câu đọc.");
-  listening.forEach((question, index) => {
-    if (!question.audioUrl) issues.push(`Câu nghe ${index + 1} đang thiếu audio.`);
-  });
+  const invalidImageQuestion = questions.find((question) =>
+    question.answerType === "image" && question.optionImages.some((url) => !url),
+  );
+  if (invalidImageQuestion) issues.push(`Câu ${invalidImageQuestion.position} dùng đáp án ảnh nhưng chưa đủ 4 ảnh.`);
   return {
     eligible: issues.length === 0,
     listeningCount: listening.length,

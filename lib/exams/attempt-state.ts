@@ -6,8 +6,8 @@ export function canAccessQuestion(input: {
   questionSection: ExamSection;
   questionPosition: number;
 }) {
-  if (input.questionSection !== input.section) return false;
-  return input.section === "reading" || input.questionPosition === input.currentPosition;
+  return input.questionPosition > 0
+    && (input.questionSection === "listening" || input.questionSection === "reading");
 }
 
 export function mergeAttemptAnswer(

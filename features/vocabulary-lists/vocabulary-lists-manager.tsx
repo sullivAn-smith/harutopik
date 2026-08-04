@@ -6,6 +6,36 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { VocabularyListSummary } from "@/lib/vocabulary-lists/schema";
 
 type ApiResponse<T> = { data?: T; error?: { message: string } };
+type SavedVocabularyItem = NonNullable<VocabularyListSummary["items"]>[number];
+type PersonalVocabularyForm = {
+  korean: string;
+  vietnamese: string;
+  romanization: string;
+  partOfSpeech: string;
+  example: string;
+  category: string;
+};
+
+function isHighlightVocabulary(item: SavedVocabularyItem) {
+  return (
+    item.vocabularyId.startsWith("exam-highlight-") ||
+    item.lessonId.startsWith("exam:")
+  );
+}
+
+function personalVocabularyForm(item: SavedVocabularyItem): PersonalVocabularyForm {
+  return {
+    korean: item.item.korean,
+    vietnamese: item.item.vietnamese,
+    romanization: item.item.romanization,
+    partOfSpeech:
+      item.item.partOfSpeech === "Từ highlight"
+        ? ""
+        : (item.item.partOfSpeech ?? ""),
+    example: item.item.examples[0]?.korean ?? "",
+    category: item.item.category,
+  };
+}
 
 export function VocabularyListsManager({ backHref }: { backHref: string }) {
   const [lists, setLists] = useState<VocabularyListSummary[]>([]);
@@ -16,6 +46,12 @@ export function VocabularyListsManager({ backHref }: { backHref: string }) {
   const [deleteCandidate, setDeleteCandidate] =
     useState<VocabularyListSummary | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [editCandidate, setEditCandidate] = useState<SavedVocabularyItem | null>(
+    null,
+  );
+  const [editForm, setEditForm] = useState<PersonalVocabularyForm | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState("");
 
   async function reload(preferredId?: string) {
     setLoading(true);
@@ -116,6 +152,66 @@ export function VocabularyListsManager({ backHref }: { backHref: string }) {
       return;
     }
     setMessage("Đã bỏ từ khỏi danh sách.");
+    await reload(active.id);
+  }
+
+  function openEdit(item: SavedVocabularyItem) {
+    setMessage("");
+    setEditError("");
+    setEditCandidate(item);
+    setEditForm(personalVocabularyForm(item));
+  }
+
+  async function savePersonalVocabulary(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!active || !editCandidate || !editForm) return;
+
+    setSavingEdit(true);
+    const example = editForm.example.trim();
+    const response = await fetch(
+      `/api/v1/vocabulary-lists/${active.id}/items/${encodeURIComponent(editCandidate.vocabularyId)}`,
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          item: {
+            ...editCandidate.item,
+            id: editCandidate.vocabularyId,
+            korean: editForm.korean.trim(),
+            vietnamese: editForm.vietnamese.trim(),
+            romanization: editForm.romanization.trim(),
+            category: editForm.category.trim(),
+            partOfSpeech: editForm.partOfSpeech.trim() || undefined,
+            examples: example
+              ? [
+                  {
+                    id:
+                      editCandidate.item.examples[0]?.id ??
+                      `${editCandidate.vocabularyId}-example-1`,
+                    korean: example,
+                    vietnamese: editForm.vietnamese.trim(),
+                  },
+                ]
+              : [],
+          },
+        }),
+      },
+    );
+    const payload = (await response.json()) as ApiResponse<{
+      updated: boolean;
+    }>;
+    if (!response.ok) {
+      setEditError(
+        payload.error?.message ?? "Chưa thể lưu thông tin của từ này.",
+      );
+      setSavingEdit(false);
+      return;
+    }
+
+    setSavingEdit(false);
+    setEditCandidate(null);
+    setEditForm(null);
+    setMessage("Đã cập nhật từ cá nhân. Các chế độ học sẽ dùng dữ liệu mới.");
     await reload(active.id);
   }
 
@@ -222,32 +318,48 @@ export function VocabularyListsManager({ backHref }: { backHref: string }) {
                     {active.items?.map((savedItem) => (
                       <article
                         key={savedItem.vocabularyId}
-                        className="flex items-start gap-3 rounded-2xl border bg-white p-4"
+                        className="rounded-2xl border bg-white p-4"
                       >
-                        <div className="min-w-0 flex-1">
-                          <p
-                            lang="ko"
-                            className="font-korean text-xl font-black text-ink-900"
+                        <div className="flex items-start gap-3">
+                          <div className="min-w-0 flex-1">
+                            <p
+                              lang="ko"
+                              className="font-korean text-xl font-black text-ink-900"
+                            >
+                              {savedItem.item.korean}
+                            </p>
+                            <p className="mt-1 font-bold text-orange-700">
+                              {savedItem.item.vietnamese}
+                            </p>
+                            <p className="mt-1 text-sm italic text-ink-600">
+                              {savedItem.item.romanization}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void removeItem(savedItem.vocabularyId)
+                            }
+                            className="rounded-lg px-2 py-1 text-sm font-bold text-red-500 hover:bg-red-50"
+                            aria-label={`Bỏ từ ${savedItem.item.korean}`}
                           >
-                            {savedItem.item.korean}
-                          </p>
-                          <p className="mt-1 font-bold text-orange-700">
-                            {savedItem.item.vietnamese}
-                          </p>
-                          <p className="mt-1 text-sm italic text-ink-600">
-                            {savedItem.item.romanization}
-                          </p>
+                            ×
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            void removeItem(savedItem.vocabularyId)
-                          }
-                          className="rounded-lg px-2 py-1 text-sm font-bold text-red-500 hover:bg-red-50"
-                          aria-label={`Bỏ từ ${savedItem.item.korean}`}
-                        >
-                          ×
-                        </button>
+                        {isHighlightVocabulary(savedItem) && (
+                          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+                            <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">
+                              Từ highlight
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => openEdit(savedItem)}
+                              className="rounded-xl bg-sky-50 px-3 py-2 text-sm font-black text-brand-700 transition hover:bg-sky-100"
+                            >
+                              Bổ sung thông tin →
+                            </button>
+                          </div>
+                        )}
                       </article>
                     ))}
                   </div>
@@ -315,6 +427,206 @@ export function VocabularyListsManager({ backHref }: { backHref: string }) {
           </div>,
           document.body,
         )}
+      {editCandidate &&
+        editForm &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[95] flex items-center justify-center p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-personal-word-title"
+          >
+            <button
+              type="button"
+              aria-label="Đóng chỉnh sửa từ"
+              onClick={() => {
+                if (savingEdit) return;
+                setEditCandidate(null);
+                setEditForm(null);
+              }}
+              className="absolute inset-0 bg-[#071224]/55 backdrop-blur-sm"
+            />
+            <form
+              onSubmit={(event) => void savePersonalVocabulary(event)}
+              className="relative z-10 max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[2rem] border border-sky-100 bg-white shadow-2xl"
+            >
+              <div className="bg-gradient-to-br from-sky-50 to-indigo-50 px-6 py-6 sm:px-8">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[.18em] text-brand-600">
+                      Từ cá nhân
+                    </p>
+                    <h2
+                      id="edit-personal-word-title"
+                      className="mt-1 text-3xl font-black text-ink-900"
+                    >
+                      Bổ sung để học tốt hơn
+                    </h2>
+                    <p className="mt-2 text-sm font-semibold text-ink-600">
+                      Dữ liệu này chỉ thuộc bộ từ của bạn, không sửa nội dung gốc của đề.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={savingEdit}
+                    onClick={() => {
+                      setEditCandidate(null);
+                      setEditForm(null);
+                    }}
+                    className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white text-xl font-black text-ink-600 shadow-sm"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid gap-5 px-6 py-6 sm:grid-cols-2 sm:px-8">
+                <EditField
+                  label="Từ highlight"
+                  value={editForm.korean}
+                  required
+                  lang="ko"
+                  onChange={(value) =>
+                    setEditForm((current) =>
+                      current ? { ...current, korean: value } : current,
+                    )
+                  }
+                />
+                <EditField
+                  label="Nghĩa tiếng Việt"
+                  value={editForm.vietnamese}
+                  required
+                  onChange={(value) =>
+                    setEditForm((current) =>
+                      current ? { ...current, vietnamese: value } : current,
+                    )
+                  }
+                />
+                <EditField
+                  label="Phiên âm"
+                  value={editForm.romanization}
+                  required
+                  onChange={(value) =>
+                    setEditForm((current) =>
+                      current ? { ...current, romanization: value } : current,
+                    )
+                  }
+                />
+                <label className="block">
+                  <span className="text-sm font-black text-ink-700">Từ loại</span>
+                  <select
+                    value={editForm.partOfSpeech}
+                    onChange={(event) =>
+                      setEditForm((current) =>
+                        current
+                          ? { ...current, partOfSpeech: event.target.value }
+                          : current,
+                      )
+                    }
+                    className="mt-2 w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-3 font-bold text-ink-900 outline-none focus:border-brand-500"
+                  >
+                    <option value="">Chưa chọn</option>
+                    <option>Danh từ</option>
+                    <option>Động từ</option>
+                    <option>Tính từ</option>
+                    <option>Trạng từ</option>
+                    <option>Đại từ</option>
+                    <option>Tiểu từ</option>
+                    <option>Biểu hiện</option>
+                  </select>
+                </label>
+                <EditField
+                  label="Ví dụ tiếng Hàn"
+                  value={editForm.example}
+                  lang="ko"
+                  placeholder="Ví dụ có chứa từ này"
+                  onChange={(value) =>
+                    setEditForm((current) =>
+                      current ? { ...current, example: value } : current,
+                    )
+                  }
+                />
+                <EditField
+                  label="Chủ đề"
+                  value={editForm.category}
+                  required
+                  placeholder="Ví dụ: Giao tiếp"
+                  onChange={(value) =>
+                    setEditForm((current) =>
+                      current ? { ...current, category: value } : current,
+                    )
+                  }
+                />
+              </div>
+
+              {editError && (
+                <p
+                  role="alert"
+                  className="mx-6 mb-5 rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700 sm:mx-8"
+                >
+                  {editError}
+                </p>
+              )}
+
+              <div className="flex flex-col-reverse gap-3 border-t border-slate-100 px-6 py-5 sm:flex-row sm:justify-end sm:px-8">
+                <button
+                  type="button"
+                  disabled={savingEdit}
+                  onClick={() => {
+                    setEditCandidate(null);
+                    setEditForm(null);
+                  }}
+                  className="rounded-xl border border-slate-200 px-5 py-3 font-black text-ink-700"
+                >
+                  Huỷ
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingEdit}
+                  className="rounded-xl bg-brand-600 px-6 py-3 font-black text-white transition hover:bg-brand-700 disabled:opacity-50"
+                >
+                  {savingEdit ? "Đang lưu..." : "Lưu từ cá nhân"}
+                </button>
+              </div>
+            </form>
+          </div>,
+          document.body,
+        )}
     </div>
+  );
+}
+
+function EditField({
+  label,
+  value,
+  onChange,
+  required = false,
+  placeholder,
+  lang,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  required?: boolean;
+  placeholder?: string;
+  lang?: string;
+}) {
+  return (
+    <label className="block">
+      <span className="text-sm font-black text-ink-700">
+        {label}
+        {required && <span className="text-red-500"> *</span>}
+      </span>
+      <input
+        lang={lang}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        required={required}
+        maxLength={240}
+        placeholder={placeholder}
+        className="mt-2 w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-3 font-bold text-ink-900 outline-none focus:border-brand-500"
+      />
+    </label>
   );
 }

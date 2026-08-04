@@ -17,6 +17,10 @@ export const saveVocabularyItemSchema = z.object({
   item: vocabularyItemSchema,
 });
 
+export const updatePersonalVocabularyItemSchema = z.object({
+  item: vocabularyItemSchema,
+});
+
 export type VocabularyListSummary = {
   id: string;
   name: string;

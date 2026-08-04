@@ -5,6 +5,8 @@ const requiredHeaders = [
   "option_3", "option_4", "correct_option", "explanation", "audio_text", "image_url",
 ] as const;
 
+const optionalHeaders = ["audio_block", "answer_type", "option_image_1", "option_image_2", "option_image_3", "option_image_4"] as const;
+
 export function parseCsv(source: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
@@ -40,21 +42,31 @@ export function parseExamImportRows(rows: unknown[][]): ExamQuestionInput[] {
     }
     const position = Number(value(row, "number"));
     const answer = Number(value(row, "correct_option"));
+    const answerType = value(row, "answer_type") === "image" ? "image" as const : "text" as const;
     if (!Number.isInteger(position) || position < 1) throw new Error(`Dòng ${rowIndex + 2}: number không hợp lệ.`);
     if (!Number.isInteger(answer) || answer < 1 || answer > 4) throw new Error(`Dòng ${rowIndex + 2}: correct_option phải từ 1 đến 4.`);
     const key = `${section}:${position}`;
     if (positions.has(key)) throw new Error(`Dòng ${rowIndex + 2}: số câu bị trùng trong phần ${section}.`);
     positions.add(key);
+    const options = [1, 2, 3, 4].map((index) => value(row, `option_${index}`));
+    const optionImages = [1, 2, 3, 4].map((index) => value(row, `option_image_${index}`));
+    if (answerType === "image") {
+      for (let index = 0; index < options.length; index += 1) options[index] ||= String(index + 1);
+    }
+    void optionalHeaders;
     return {
       position,
       section,
+      audioBlockKey: value(row, "audio_block"),
+      answerType,
       instruction: value(row, "instruction"),
       prompt: value(row, "question"),
       audioUrl: "",
       audioText: value(row, "audio_text"),
       imageUrl: value(row, "image_url"),
       playLimit: 1,
-      options: [1, 2, 3, 4].map((index) => value(row, `option_${index}`)),
+      options,
+      optionImages,
       correctOption: answer,
       explanation: value(row, "explanation"),
     };

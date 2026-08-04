@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { examDraftSchema, getExamEligibility, type ExamQuestionInput } from "./types";
+import { examDraftSchema, formatExamValidationError, getExamEligibility, type ExamQuestionInput } from "./types";
 
 const question = {
   position: 1, section: "listening", instruction: "Nghe và chọn.", prompt: "",
+  audioBlockKey: "", answerType: "text",
   audioUrl: "https://cdn.example.com/q1.mp3", audioText: "안녕하세요", imageUrl: "",
-  playLimit: 1, options: ["하나", "둘", "셋", "넷"], correctOption: 1, explanation: "",
+  playLimit: 1, options: ["하나", "둘", "셋", "넷"], optionImages: ["", "", "", ""], correctOption: 1, explanation: "",
 } satisfies ExamQuestionInput;
 
 describe("examDraftSchema", () => {
@@ -32,6 +33,34 @@ describe("examDraftSchema", () => {
   it("từ chối section không thuộc TOPIK I", () => {
     expect(examDraftSchema.safeParse({ ...draft, questions: [{ ...question, section: "writing" }] }).success).toBe(false);
   });
+
+  it("nêu rõ câu và đáp án đang bị bỏ trống bằng tiếng Việt", () => {
+    const result = examDraftSchema.safeParse({
+      ...draft,
+      questions: [{ ...question, options: ["", "둘", "셋", "넷"] }],
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(formatExamValidationError(result.error, {
+        ...draft,
+        questions: [{ ...question, options: ["", "둘", "셋", "넷"] }],
+      })).toBe(
+        "Câu nghe 1: đáp án 1 không được để trống.",
+      );
+    }
+  });
+
+  it("nêu rõ trường thông tin chung không hợp lệ bằng tiếng Việt", () => {
+    const result = examDraftSchema.safeParse({ ...draft, title: "" });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(formatExamValidationError(result.error)).toBe(
+        "Tên đề phải có ít nhất 3 ký tự.",
+      );
+    }
+  });
 });
 
 describe("getExamEligibility", () => {
@@ -39,9 +68,9 @@ describe("getExamEligibility", () => {
     expect(getExamEligibility([question])).toEqual(expect.objectContaining({ eligible: false, readingCount: 0 }));
   });
 
-  it("yêu cầu audio cho câu nghe nhưng không yêu cầu audio cho câu đọc", () => {
+  it("cho phép gửi duyệt câu nghe không có audio", () => {
     const reading = { ...question, section: "reading" as const, audioUrl: "", audioText: "" };
-    expect(getExamEligibility([{ ...question, audioUrl: "" }, reading]).issues).toContain("Câu nghe 1 đang thiếu audio.");
+    expect(getExamEligibility([{ ...question, audioUrl: "" }, reading]).eligible).toBe(true);
     expect(getExamEligibility([question, reading]).eligible).toBe(true);
   });
 });

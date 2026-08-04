@@ -9,13 +9,11 @@ const questions = [
 ] as const;
 
 describe("canAccessQuestion", () => {
-  it("chỉ cho mở câu nghe hiện tại", () => {
-    expect(canAccessQuestion({ section: "listening", currentPosition: 2, questionSection: "listening", questionPosition: 1 })).toBe(false);
+  it("cho mở mọi câu trong cả phần nghe và phần đọc", () => {
+    expect(canAccessQuestion({ section: "listening", currentPosition: 2, questionSection: "listening", questionPosition: 1 })).toBe(true);
     expect(canAccessQuestion({ section: "listening", currentPosition: 2, questionSection: "listening", questionPosition: 2 })).toBe(true);
-  });
-
-  it("cho chuyển tự do giữa các câu đọc", () => {
     expect(canAccessQuestion({ section: "reading", currentPosition: 2, questionSection: "reading", questionPosition: 1 })).toBe(true);
+    expect(canAccessQuestion({ section: "listening", currentPosition: 2, questionSection: "reading", questionPosition: 1 })).toBe(true);
   });
 });
 

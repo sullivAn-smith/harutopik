@@ -103,6 +103,7 @@ export default async function StudyVocabularyListPage({
         "flashcard",
         "quiz",
         "typing",
+        "matching",
         "dictation",
         "translation",
       ]}
