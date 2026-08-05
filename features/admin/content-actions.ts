@@ -18,6 +18,216 @@ import { toUserFacingError } from "@/lib/errors/user-facing";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { evaluateLessonEligibility } from "@/lib/vocabulary/eligibility";
+import type { ZodError } from "zod";
+
+type LessonIdentityField = "id" | "slug" | "order";
+
+type LessonIdentityInput = {
+  id: string;
+  slug: string;
+  courseId: string;
+  moduleId: string;
+  order: number;
+};
+
+type LessonValidationInput = {
+  vocabulary: VocabularyItem[];
+  grammar: Array<{ title?: string; form?: string }>;
+  exercises: Array<{ type?: string }>;
+};
+
+function contentEntryTitle(entry: { id: string; title?: unknown }) {
+  if (
+    entry.title &&
+    typeof entry.title === "object" &&
+    !Array.isArray(entry.title) &&
+    "vi" in entry.title
+  ) {
+    const title = String((entry.title as { vi?: unknown }).vi ?? "").trim();
+    if (title) return title;
+  }
+  return entry.id;
+}
+
+async function findLessonIdentityConflict(
+  input: LessonIdentityInput,
+  excludeContentId?: string,
+  checkOrder = true,
+): Promise<{ field: LessonIdentityField; message: string } | null> {
+  const admin = createAdminClient();
+  let idQuery = admin
+    .from("content_entries")
+    .select("id,title")
+    .eq("id", input.id);
+  let slugQuery = admin
+    .from("content_entries")
+    .select("id,title")
+    .eq("content_type", "lesson")
+    .eq("parent_id", input.moduleId)
+    .eq("slug", input.slug);
+
+  if (excludeContentId) {
+    idQuery = idQuery.neq("id", excludeContentId);
+    slugQuery = slugQuery.neq("id", excludeContentId);
+  }
+
+  const [idResult, slugResult] = await Promise.all([
+    idQuery.limit(1),
+    slugQuery.limit(1),
+  ]);
+  const lookupError = idResult.error ?? slugResult.error;
+  if (lookupError) {
+    console.error("lesson identity lookup failed", lookupError);
+    return null;
+  }
+
+  const idConflict = idResult.data?.[0];
+  if (idConflict) {
+    return {
+      field: "id",
+      message: `ID “${input.id}” đã được dùng. Hãy nhập ID khác.`,
+    };
+  }
+  const slugConflict = slugResult.data?.[0];
+  if (slugConflict) {
+    return {
+      field: "slug",
+      message: `Slug “${input.slug}” đã được dùng bởi “${contentEntryTitle(slugConflict)}”.`,
+    };
+  }
+
+  if (!checkOrder) return null;
+
+  const { data: modules, error: moduleError } = await admin
+    .from("content_entries")
+    .select("id")
+    .eq("content_type", "module")
+    .eq("parent_id", input.courseId);
+  if (moduleError) {
+    console.error("lesson identity module lookup failed", moduleError);
+    return null;
+  }
+
+  const moduleIds = (modules ?? []).map((module) => module.id);
+  let orderQuery = admin
+    .from("content_entries")
+    .select("id,title")
+    .eq("content_type", "lesson")
+    .eq("sort_order", input.order);
+  orderQuery = moduleIds.length
+    ? orderQuery.in("parent_id", moduleIds)
+    : orderQuery.eq("parent_id", input.moduleId);
+  if (excludeContentId) {
+    orderQuery = orderQuery.neq("id", excludeContentId);
+  }
+  const orderResult = await orderQuery.limit(1);
+  if (orderResult.error) {
+    console.error("lesson order lookup failed", orderResult.error);
+    return null;
+  }
+  const orderConflict = orderResult.data?.[0];
+  if (orderConflict) {
+    return {
+      field: "order",
+      message: `Bài ${input.order} đã là “${contentEntryTitle(orderConflict)}”. Hãy chọn thứ tự khác.`,
+    };
+  }
+  return null;
+}
+
+function lessonValidationErrorState(
+  error: ZodError,
+  input: LessonValidationInput,
+): ContentFormState {
+  const issue = error.issues[0];
+  const section = String(issue?.path[0] ?? "");
+  const index = Number(issue?.path[1]);
+  const field = String(issue?.path[2] ?? "");
+
+  if (section === "vocabulary" && Number.isInteger(index)) {
+    const item = input.vocabulary[index];
+    const label = item?.korean?.trim() || `số ${index + 1}`;
+    const fieldNames: Record<string, string> = {
+      korean: "từ tiếng Hàn",
+      vietnamese: "nghĩa tiếng Việt",
+      romanization: "phiên âm",
+      category: "chủ đề",
+    };
+    const missing = fieldNames[field] ?? "thông tin bắt buộc";
+    const message = `Từ “${label}” chưa có ${missing}. Hãy bổ sung trong Thư viện từ.`;
+    return {
+      status: "error",
+      message,
+      fields: { vocabularyIdsJson: [message] },
+    };
+  }
+
+  if (section === "grammar" && Number.isInteger(index)) {
+    const point = input.grammar[index];
+    const label = point?.title?.trim() || point?.form?.trim() || `số ${index + 1}`;
+    const message = `Điểm ngữ pháp “${label}” còn thiếu nội dung hoặc câu ví dụ.`;
+    return {
+      status: "error",
+      message,
+      fields: { grammarJson: [message] },
+    };
+  }
+
+  if (section === "exercises" && Number.isInteger(index)) {
+    const exercise = input.exercises[index];
+    const fieldName =
+      exercise?.type === "dictation"
+        ? "dictationsJson"
+        : exercise?.type === "translation"
+          ? "translationsJson"
+          : "exercisesJson";
+    const message = `Câu luyện tập ${index + 1} còn thiếu nội dung hoặc đáp án.`;
+    return { status: "error", message, fields: { [fieldName]: [message] } };
+  }
+
+  const simpleFields: Record<string, { formField: string; message: string }> = {
+    summary: {
+      formField: "summary",
+      message: "Mô tả ngắn chưa đủ nội dung.",
+    },
+    objectives: {
+      formField: "objectives",
+      message: "Hãy nhập ít nhất một mục tiêu bài học.",
+    },
+    title: {
+      formField: issue?.path[1] === "ko" ? "titleKo" : "titleVi",
+      message: "Tên bài học chưa đầy đủ.",
+    },
+  };
+  const simple = simpleFields[section];
+  if (simple) {
+    return {
+      status: "error",
+      message: simple.message,
+      fields: { [simple.formField]: [simple.message] },
+    };
+  }
+
+  return {
+    status: "error",
+    message: `Nội dung bài chưa hợp lệ: ${issue?.message ?? "hãy kiểm tra lại các trường bắt buộc."}`,
+  };
+}
+
+function lessonBackendErrorState(error: unknown, fallback: string): ContentFormState {
+  const friendly = toUserFacingError(error, fallback);
+  const fieldByCode: Partial<Record<string, LessonIdentityField>> = {
+    LESSON_ID_CONFLICT: "id",
+    LESSON_SLUG_CONFLICT: "slug",
+    LESSON_ORDER_CONFLICT: "order",
+  };
+  const field = fieldByCode[friendly.code];
+  return {
+    status: "error",
+    message: friendly.message,
+    ...(field ? { fields: { [field]: [friendly.message] } } : {}),
+  };
+}
 
 async function loadVocabularySelection(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -219,6 +429,22 @@ export async function createLessonDraft(
   }
 
   const supabase = await createClient();
+  const identity: LessonIdentityInput = {
+    id: parsed.data.id,
+    slug: parsed.data.slug,
+    courseId: parsed.data.courseId,
+    moduleId: parsed.data.moduleId,
+    order: parsed.data.order,
+  };
+  const identityConflict = await findLessonIdentityConflict(identity);
+  if (identityConflict) {
+    return {
+      status: "error",
+      message: identityConflict.message,
+      fields: { [identityConflict.field]: [identityConflict.message] },
+    };
+  }
+
   let vocabulary;
   try {
     const selectedIds = parseVocabularyIdsJson(parsed.data.vocabularyIdsJson);
@@ -271,7 +497,7 @@ export async function createLessonDraft(
     };
   }
 
-  const lesson = lessonSchema.safeParse({
+  const lessonInput = {
     id: parsed.data.id,
     slug: parsed.data.slug,
     courseId: parsed.data.courseId,
@@ -288,13 +514,10 @@ export async function createLessonDraft(
     vocabulary,
     grammar,
     exercises: [...dictations, ...translations, ...exercises],
-  });
+  };
+  const lesson = lessonSchema.safeParse(lessonInput);
   if (!lesson.success) {
-    return {
-      status: "error",
-      message: "Bài học chưa vượt qua kiểm tra cấu trúc nội dung.",
-      fields: lesson.error.flatten().fieldErrors,
-    };
+    return lessonValidationErrorState(lesson.error, lessonInput);
   }
 
   const { data: revisionId, error } = await supabase.rpc("create_lesson_draft", {
@@ -309,22 +532,13 @@ export async function createLessonDraft(
   });
 
   if (error) {
-    const duplicate = error.code === "23505";
-    const invalidCatalog = error.message.includes("invalid_course_module");
     console.error("create_lesson_draft failed", {
       code: error.code,
       message: error.message,
       details: error.details,
       hint: error.hint,
     });
-    return {
-      status: "error",
-      message: duplicate
-        ? "ID hoặc slug này đã tồn tại."
-        : invalidCatalog
-          ? "Khóa học hoặc học phần chưa được khởi tạo. Admin cần cập nhật cấu trúc khóa học."
-        : "Chưa thể tạo bản nháp. Vui lòng thử lại.",
-    };
+    return lessonBackendErrorState(error, "Chưa thể tạo bản nháp. Vui lòng thử lại.");
   }
 
   if (typeof revisionId !== "string" || !revisionId) {
@@ -377,6 +591,28 @@ export async function updateLessonDraft(
     };
   }
 
+  const identity: LessonIdentityInput = {
+    id: parsed.data.id,
+    slug: parsed.data.slug,
+    courseId: parsed.data.courseId,
+    moduleId: parsed.data.moduleId,
+    order: parsed.data.order,
+  };
+  const identityConflict = await findLessonIdentityConflict(
+    identity,
+    currentLesson.data.id,
+    identity.order !== currentLesson.data.order ||
+      identity.courseId !== currentLesson.data.courseId ||
+      identity.moduleId !== currentLesson.data.moduleId,
+  );
+  if (identityConflict) {
+    return {
+      status: "error",
+      message: identityConflict.message,
+      fields: { [identityConflict.field]: [identityConflict.message] },
+    };
+  }
+
   let grammar;
   let grammarExercises;
   let dictations;
@@ -408,7 +644,7 @@ export async function updateLessonDraft(
     };
   }
 
-  const lesson = lessonSchema.safeParse({
+  const lessonInput = {
     id: parsed.data.id,
     slug: parsed.data.slug,
     courseId: parsed.data.courseId,
@@ -432,9 +668,10 @@ export async function updateLessonDraft(
       ...translations,
       ...grammarExercises,
     ],
-  });
+  };
+  const lesson = lessonSchema.safeParse(lessonInput);
   if (!lesson.success) {
-    return { status: "error", message: "Bài học chưa vượt qua kiểm tra cấu trúc nội dung." };
+    return lessonValidationErrorState(lesson.error, lessonInput);
   }
 
   const { error } = await supabase.rpc(
@@ -451,10 +688,7 @@ export async function updateLessonDraft(
     },
   );
   if (error) {
-    return {
-      status: "error",
-      message: toUserFacingError(error, "Không thể cập nhật bản nháp.").message,
-    };
+    return lessonBackendErrorState(error, "Không thể cập nhật bản nháp.");
   }
 
   if (reviewEdit) {

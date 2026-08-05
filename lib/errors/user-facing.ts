@@ -78,6 +78,21 @@ const domainErrors: Array<{
       "Chương đã chọn không thuộc khóa học này. Hãy chọn lại đúng khóa học và chương.",
   },
   {
+    match: "lesson_id_conflict",
+    code: "LESSON_ID_CONFLICT",
+    message: "ID bài học đã được dùng. Hãy nhập ID khác.",
+  },
+  {
+    match: "lesson_slug_conflict",
+    code: "LESSON_SLUG_CONFLICT",
+    message: "Slug đã được dùng trong chương này. Hãy nhập slug khác.",
+  },
+  {
+    match: "lesson_order_conflict",
+    code: "LESSON_ORDER_CONFLICT",
+    message: "Thứ tự bài đã được dùng trong khóa học này. Hãy chọn số khác.",
+  },
+  {
     match: "insufficient_privilege",
     code: "FORBIDDEN",
     message: "Tài khoản của bạn không có quyền thực hiện thao tác này.",
