@@ -54,6 +54,13 @@ function audioKey(question: Question) {
   return question.audioBlockKey || question.id;
 }
 
+function formatAudioTime(value: number) {
+  if (!Number.isFinite(value) || value < 0) return "00:00";
+  const minutes = Math.floor(value / 60);
+  const seconds = Math.floor(value % 60);
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
 function colorClass(color: HighlightColor) {
   if (color === "blue") return "bg-cyan-200";
   if (color === "pink") return "bg-pink-200";
@@ -160,11 +167,13 @@ export function ExamRunner({
   const [activeQuestionId, setActiveQuestionId] = useState(initialQuestion?.id ?? "");
   const [answers, setAnswers] = useState(initialAnswers);
   const [flagged, setFlagged] = useState(initialFlagged);
-  const [audioPlays, setAudioPlays] = useState(initialAudioPlays);
   const [finishedAudioKeys, setFinishedAudioKeys] = useState<Set<string>>(
     () => new Set(Object.entries(initialAudioPlays).filter(([, count]) => count > 0).map(([key]) => key)),
   );
-  const [audioPlayingKey, setAudioPlayingKey] = useState<string | null>(null);
+  const [activeAudioKey, setActiveAudioKey] = useState<string | null>(null);
+  const [audioIsPlaying, setAudioIsPlaying] = useState(false);
+  const [audioCurrentTime, setAudioCurrentTime] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0);
   const [remaining, setRemaining] = useState(() => Math.max(0, Math.floor((Date.parse(expiresAt) - Date.now()) / 1000)));
   const [saving, setSaving] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -197,6 +206,7 @@ export function ExamRunner({
       return;
     }
     const previousSection = activeSection;
+    audioRef.current?.pause();
     const firstQuestion = questions
       .filter((question) => question.section === nextSection)
       .sort((left, right) => left.position - right.position)[0];
@@ -316,34 +326,46 @@ export function ExamRunner({
     });
   }
 
-  async function playAudio(question: Question) {
+  async function playAudio(question: Question, restart = false) {
     const playKey = audioKey(question);
-    if (!question.audioUrl || audioPlayingKey || (audioPlays[playKey] ?? 0) >= 1) return;
-    setSaving(`Đang chuẩn bị audio câu ${question.position}...`);
-    const response = await fetch(`/api/v1/exam-attempts/${attemptId}/audio`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ questionId: question.id }),
-    });
-    if (!response.ok) {
-      const body = await response.json().catch(() => null);
-      setSaving(body?.error?.message ?? "Không thể bắt đầu audio. Hãy tải lại trang.");
-      return;
-    }
-    setAudioPlays((current) => ({ ...current, [playKey]: 1 }));
-    setAudioPlayingKey(playKey);
-    setSaving("Audio đang phát — bạn vẫn có thể đọc và highlight nội dung.");
+    if (!question.audioUrl) return;
     try {
       const audio = audioRef.current;
       if (!audio) throw new Error("AUDIO_NOT_READY");
-      audio.src = question.audioUrl;
-      audio.currentTime = 0;
+      if (activeAudioKey !== playKey) {
+        audio.pause();
+        audio.src = question.audioUrl;
+        audio.load();
+        setActiveAudioKey(playKey);
+        setAudioCurrentTime(0);
+        setAudioDuration(0);
+      } else if (restart || audio.ended) {
+        audio.currentTime = 0;
+        setAudioCurrentTime(0);
+      }
       await audio.play();
+      setSaving("");
     } catch {
-      setAudioPlayingKey(null);
-      setFinishedAudioKeys((current) => new Set(current).add(playKey));
-      setSaving("Trình duyệt không phát được audio; câu hỏi đã được mở để tránh mất lượt nghe.");
+      setAudioIsPlaying(false);
+      setSaving("Không phát được audio. Hãy kiểm tra kết nối và thử lại.");
     }
+  }
+
+  function toggleAudio(question: Question) {
+    const playKey = audioKey(question);
+    const audio = audioRef.current;
+    if (audio && activeAudioKey === playKey && !audio.paused) {
+      audio.pause();
+      return;
+    }
+    void playAudio(question);
+  }
+
+  function seekAudio(question: Question, nextTime: number) {
+    const audio = audioRef.current;
+    if (!audio || activeAudioKey !== audioKey(question) || !Number.isFinite(nextTime)) return;
+    audio.currentTime = Math.min(Math.max(0, nextTime), audio.duration || nextTime);
+    setAudioCurrentTime(audio.currentTime);
   }
 
   function prepareHighlight(
@@ -503,11 +525,25 @@ export function ExamRunner({
     <main className="min-h-screen bg-[#eef7fc] text-[#10243e]">
       <audio
         ref={audioRef}
-        preload="none"
+        preload="metadata"
+        onLoadedMetadata={(event) => {
+          setAudioDuration(Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0);
+          setAudioCurrentTime(event.currentTarget.currentTime);
+        }}
+        onDurationChange={(event) => {
+          setAudioDuration(Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0);
+        }}
+        onTimeUpdate={(event) => setAudioCurrentTime(event.currentTarget.currentTime)}
+        onPlay={() => setAudioIsPlaying(true)}
+        onPause={() => setAudioIsPlaying(false)}
         onEnded={() => {
-          if (audioPlayingKey) setFinishedAudioKeys((current) => new Set(current).add(audioPlayingKey));
-          setAudioPlayingKey(null);
-          setSaving("Audio đã phát xong. Bạn có thể chọn đáp án.");
+          if (activeAudioKey) setFinishedAudioKeys((current) => new Set(current).add(activeAudioKey));
+          setAudioIsPlaying(false);
+          setSaving("");
+        }}
+        onError={() => {
+          setAudioIsPlaying(false);
+          setSaving("Không tải được audio. Hãy kiểm tra kết nối và thử lại.");
         }}
       />
 
@@ -571,7 +607,10 @@ export function ExamRunner({
             {sectionQuestions.map((question) => {
               const questionHighlights = highlights.filter((highlight) => highlight.questionId === question.id);
               const playKey = audioKey(question);
-              const audioReady = !question.audioUrl || finishedAudioKeys.has(playKey);
+              const isActiveAudio = activeAudioKey === playKey;
+              const audioReady = !question.audioUrl || finishedAudioKeys.has(playKey) || isActiveAudio || Boolean(answers[question.id]);
+              const displayedCurrentTime = isActiveAudio ? audioCurrentTime : 0;
+              const displayedDuration = isActiveAudio ? audioDuration : 0;
               return <article key={question.id} id={`question-${question.id}`} data-question-id={question.id} className="scroll-mt-32 px-6 py-8 md:px-8 md:py-10">
                 <div className="flex gap-4">
                   <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full text-lg font-black ${answers[question.id] ? "bg-[#087eba] text-white" : "bg-sky-100 text-[#087eba]"}`}>{question.position}</span>
@@ -587,7 +626,41 @@ export function ExamRunner({
                     {question.imageUrl && <Image unoptimized width={800} height={500} src={question.imageUrl} alt={`Minh họa câu ${question.position}`} className="mt-5 max-h-[430px] w-auto rounded-2xl object-contain" />}
 
                     {activeSection === "listening" && (question.audioUrl
-                      ? <div className="mt-5 flex flex-wrap items-center gap-3 rounded-2xl bg-cyan-50 p-4"><button type="button" onClick={() => void playAudio(question)} disabled={Boolean(audioPlayingKey) || (audioPlays[playKey] ?? 0) >= 1} className="rounded-xl bg-[#087eba] px-5 py-3 font-black text-white disabled:cursor-not-allowed disabled:bg-slate-300">{audioPlayingKey === playKey ? "Đang phát audio…" : (audioPlays[playKey] ?? 0) >= 1 ? "Đã nghe audio" : "▶ Bắt đầu nghe"}</button><p className="text-sm font-bold text-slate-500">Audio chỉ phát một lần.</p></div>
+                      ? <div className="mt-5 rounded-2xl bg-cyan-50 p-4 ring-1 ring-cyan-100">
+                          <div className="flex flex-wrap items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() => toggleAudio(question)}
+                              aria-label={isActiveAudio && audioIsPlaying ? `Tạm dừng audio câu ${question.position}` : `Phát audio câu ${question.position}`}
+                              className="min-w-32 rounded-xl bg-[#087eba] px-5 py-3 font-black text-white shadow-sm transition hover:bg-[#066c9f]"
+                            >
+                              {isActiveAudio && audioIsPlaying ? "❚❚ Tạm dừng" : "▶ Phát audio"}
+                            </button>
+                            <div className="flex min-w-56 flex-1 items-center gap-3">
+                              <span className="w-12 text-right text-xs font-black tabular-nums text-slate-600">{formatAudioTime(displayedCurrentTime)}</span>
+                              <input
+                                type="range"
+                                min={0}
+                                max={displayedDuration || 0}
+                                step={0.1}
+                                value={Math.min(displayedCurrentTime, displayedDuration || 0)}
+                                disabled={!isActiveAudio || displayedDuration <= 0}
+                                onChange={(event) => seekAudio(question, Number(event.currentTarget.value))}
+                                aria-label={`Tua audio câu ${question.position}`}
+                                className="h-2 min-w-28 flex-1 cursor-pointer accent-[#087eba] disabled:cursor-not-allowed disabled:opacity-50"
+                              />
+                              <span className="w-12 text-xs font-black tabular-nums text-slate-600">{formatAudioTime(displayedDuration)}</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => void playAudio(question, true)}
+                              className="rounded-xl border border-sky-200 bg-white px-4 py-3 font-black text-[#087eba] transition hover:bg-sky-50"
+                            >
+                              ↻ Nghe lại
+                            </button>
+                          </div>
+                          <p className="mt-3 text-sm font-bold text-slate-500">Bạn có thể tạm dừng, tua và nghe lại không giới hạn.</p>
+                        </div>
                       : <p className="mt-5 rounded-2xl bg-slate-100 p-4 font-bold text-slate-600">Câu này không có audio.</p>)}
 
                     <div className="mt-6 grid gap-3 sm:grid-cols-2">

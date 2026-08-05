@@ -15,7 +15,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ att
     p_question_id: parsed.data.questionId,
   });
   if (error) {
-    if (error.message.includes("PLAY_LIMIT_REACHED")) return apiError("PLAY_LIMIT_REACHED", "Audio chỉ được nghe một lần.", 409);
     if (error.message.includes("QUESTION_LOCKED")) return apiError("QUESTION_LOCKED", "Câu nghe này đã bị khóa.", 409);
     return apiError("AUDIO_START_FAILED", "Chưa thể bắt đầu audio.", 409);
   }

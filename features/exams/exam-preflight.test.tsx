@@ -10,7 +10,7 @@ afterEach(cleanup);
 describe("ExamPreflight", () => {
   it("hiển thị quy định TOPIK I và khóa nút trước khi đồng ý", () => {
     render(<ExamPreflight examId="00000000-0000-4000-8000-000000000000" listeningMinutes={40} readingMinutes={60} />);
-    expect(screen.getByText(/Audio mỗi câu chỉ phát một lần/)).toBeTruthy();
+    expect(screen.getByText(/phát, tạm dừng, tua và nghe lại audio/)).toBeTruthy();
     expect((screen.getByRole("button", { name: /Bắt đầu thi mô phỏng/ }) as HTMLButtonElement).disabled).toBe(true);
   });
 

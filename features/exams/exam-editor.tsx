@@ -10,12 +10,26 @@ import { getExamEligibility, type ExamQuestionInput, type ExamSection } from "@/
 import { parseCsv, parseExamImportRows } from "./exam-import";
 import { hotfixPublishedExam } from "./exam-hotfix-actions";
 import { normalizeExamQuestion, type StoredExamQuestion } from "./normalize-exam-question";
+import { answerReviewPolicyOptions } from "@/lib/exams/answer-review-policy";
+import type { ExamAnswerReviewPolicy, ExamLevel } from "@/lib/exams/types";
 
 type ExamForEditor = {
   id: string; code: string; title: string; description: string; duration_minutes: number;
   listening_duration_minutes: number; reading_duration_minutes: number;
+  level: ExamLevel; answer_review_policy: ExamAnswerReviewPolicy; answer_review_available_at: string | null;
   instructions: string; status: string; review_note: string | null; exam_questions: StoredExamQuestion[];
 };
+
+function toVietnamDateTimeLocal(value: string | null) {
+  if (!value) return "";
+  const parts = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  }).formatToParts(new Date(value));
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}T${part("hour")}:${part("minute")}`;
+}
 
 function emptyQuestion(position: number, section: ExamSection): ExamQuestionInput {
   return { position, section, audioBlockKey: "", answerType: "text", instruction: section === "listening" ? "Nghe và chọn đáp án đúng." : "Đọc và chọn đáp án đúng.", prompt: "", audioUrl: "", audioText: "", imageUrl: "", playLimit: 1, options: ["", "", "", ""], optionImages: ["", "", "", ""], correctOption: 1, explanation: "" };
@@ -26,6 +40,8 @@ export function ExamEditor({ exam, error, hotfix = false, reviewEdit = false }: 
   const [state, action, pending] = useActionState(save, { ok: false, message: "" });
   const [questions, setQuestions] = useState<ExamQuestionInput[]>(() => (exam.exam_questions ?? []).map(normalizeExamQuestion));
   const [activeSection, setActiveSection] = useState<ExamSection>("listening");
+  const [answerReviewPolicy, setAnswerReviewPolicy] = useState<ExamAnswerReviewPolicy>(exam.answer_review_policy ?? "immediate");
+  const [answerReviewAvailableAt, setAnswerReviewAvailableAt] = useState(() => toVietnamDateTimeLocal(exam.answer_review_available_at));
   const [busyIndex, setBusyIndex] = useState<number | null>(null);
   const [importMessage, setImportMessage] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -150,6 +166,9 @@ export function ExamEditor({ exam, error, hotfix = false, reviewEdit = false }: 
       <section className="grid gap-4 rounded-3xl bg-white p-6 shadow-sm md:grid-cols-2">
         <label className="font-black">Mã đề<input name="code" defaultValue={exam.code} disabled={!editable} className="mt-2 w-full rounded-2xl border px-4 py-3" /></label>
         <label className="font-black">Tên đề<input name="title" defaultValue={exam.title} disabled={!editable} className="mt-2 w-full rounded-2xl border px-4 py-3" /></label>
+        <label className="font-black">Trình độ<select name="level" defaultValue={exam.level ?? "topik_i"} disabled={!editable} className="mt-2 w-full rounded-2xl border px-4 py-3"><option value="topik_i">TOPIK I</option><option value="topik_ii">TOPIK II</option></select></label>
+        <label className="font-black">Chính sách xem đáp án<select name="answerReviewPolicy" value={answerReviewPolicy} disabled={!editable} onChange={(event) => setAnswerReviewPolicy(event.target.value as ExamAnswerReviewPolicy)} className="mt-2 w-full rounded-2xl border px-4 py-3">{answerReviewPolicyOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><span className="mt-2 block text-xs font-semibold leading-5 text-slate-500">{answerReviewPolicyOptions.find((option) => option.value === answerReviewPolicy)?.description}</span></label>
+        {answerReviewPolicy === "after_date" && <label className="font-black md:col-span-2">Thời điểm công bố đáp án<input type="hidden" name="answerReviewAvailableAt" value={answerReviewAvailableAt ? new Date(`${answerReviewAvailableAt}:00+07:00`).toISOString() : ""} /><input type="datetime-local" required value={answerReviewAvailableAt} onChange={(event) => setAnswerReviewAvailableAt(event.target.value)} disabled={!editable} className="mt-2 w-full rounded-2xl border px-4 py-3" /><span className="mt-2 block text-xs font-semibold text-slate-500">Múi giờ Việt Nam (UTC+7)</span></label>}
         <label className="font-black">Thời gian Nghe<input name="listeningDurationMinutes" type="number" defaultValue={exam.listening_duration_minutes} disabled={!editable} className="mt-2 w-full rounded-2xl border px-4 py-3" /></label>
         <label className="font-black">Thời gian Đọc<input name="readingDurationMinutes" type="number" defaultValue={exam.reading_duration_minutes} disabled={!editable} className="mt-2 w-full rounded-2xl border px-4 py-3" /></label>
         <label className="font-black">Mô tả<input name="description" defaultValue={exam.description} disabled={!editable} className="mt-2 w-full rounded-2xl border px-4 py-3" /></label>

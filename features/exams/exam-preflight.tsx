@@ -110,7 +110,7 @@ export function ExamPreflight({ examId, listeningMinutes, readingMinutes }: {
         <h2 className="font-black">Quy định trước khi bắt đầu</h2>
         <ul className="mt-3 list-disc space-y-2 pl-5 font-semibold leading-7 text-slate-700">
           <li>{mode === "full" ? "Bạn có thể chuyển tự do giữa phần Nghe và phần Đọc." : `Bạn chỉ làm và chỉ thấy câu hỏi phần ${mode === "listening" ? "Nghe" : "Đọc"}.`}</li>
-          {mode !== "reading" && <li>Audio mỗi câu chỉ phát một lần; không thể tạm dừng hoặc tua.</li>}
+          {mode !== "reading" && <li>Bạn có thể phát, tạm dừng, tua và nghe lại audio trong thời gian làm bài.</li>}
           <li>Đáp án được tự động lưu; bạn có thể đánh dấu câu để xem lại.</li>
           <li>Hệ thống ghi nhận số lần rời khỏi cửa sổ thi.</li>
           <li>Desktop hoặc laptop và chế độ toàn màn hình được khuyến nghị.</li>

@@ -5,6 +5,10 @@ export const examSectionSchema = z.enum(["listening", "reading"]);
 export type ExamSection = z.infer<typeof examSectionSchema>;
 export const examAnswerTypeSchema = z.enum(["text", "image"]);
 export type ExamAnswerType = z.infer<typeof examAnswerTypeSchema>;
+export const examLevelSchema = z.enum(["topik_i", "topik_ii"]);
+export type ExamLevel = z.infer<typeof examLevelSchema>;
+export const examAnswerReviewPolicySchema = z.enum(["immediate", "score_only", "after_date", "never"]);
+export type ExamAnswerReviewPolicy = z.infer<typeof examAnswerReviewPolicySchema>;
 
 export const examQuestionSchema = z.object({
   id: z.string().uuid().optional(),
@@ -27,11 +31,21 @@ export const examQuestionSchema = z.object({
 export const examDraftSchema = z.object({
   code: z.string().trim().regex(/^[a-z0-9][a-z0-9-]{2,79}$/, "Mã đề chỉ gồm chữ thường, số và dấu gạch ngang."),
   title: z.string().trim().min(3).max(160),
+  level: examLevelSchema.default("topik_i"),
+  answerReviewPolicy: examAnswerReviewPolicySchema.default("immediate"),
+  answerReviewAvailableAt: z.string().trim().default(""),
   description: z.string().trim().max(1000).default(""),
   listeningDurationMinutes: z.number().int().min(1).max(180),
   readingDurationMinutes: z.number().int().min(1).max(180),
   instructions: z.string().trim().max(4000).default(""),
   questions: z.array(examQuestionSchema).max(100),
+}).superRefine((value, context) => {
+  if (value.answerReviewPolicy === "after_date") {
+    const timestamp = Date.parse(value.answerReviewAvailableAt);
+    if (!value.answerReviewAvailableAt || Number.isNaN(timestamp)) {
+      context.addIssue({ code: "custom", path: ["answerReviewAvailableAt"], message: "Hãy chọn thời điểm công bố đáp án." });
+    }
+  }
 });
 
 export type ExamQuestionInput = z.infer<typeof examQuestionSchema>;
@@ -49,6 +63,9 @@ export function formatExamValidationError(error: z.ZodError, input?: ExamValidat
   const fieldMessages: Record<string, string> = {
     code: "Mã đề chỉ được gồm chữ thường, số và dấu gạch ngang; dài từ 3 đến 80 ký tự.",
     title: "Tên đề phải có từ 3 đến 160 ký tự.",
+    level: "Hãy chọn TOPIK I hoặc TOPIK II.",
+    answerReviewPolicy: "Chính sách xem đáp án chưa hợp lệ.",
+    answerReviewAvailableAt: "Hãy chọn thời điểm công bố đáp án hợp lệ.",
     listeningDurationMinutes: "Thời gian Nghe phải là số nguyên từ 1 đến 180 phút.",
     readingDurationMinutes: "Thời gian Đọc phải là số nguyên từ 1 đến 180 phút.",
     description: "Mô tả không được dài quá 1.000 ký tự.",
@@ -102,12 +119,17 @@ export type ExamSummary = {
   id: string;
   code: string;
   title: string;
+  level: ExamLevel;
   description: string;
   durationMinutes: number;
   listeningDurationMinutes: number;
   readingDurationMinutes: number;
   status: string;
   questionCount: number;
+  listeningQuestionCount: number;
+  readingQuestionCount: number;
+  answerReviewPolicy: ExamAnswerReviewPolicy;
+  answerReviewAvailableAt: string | null;
   updatedAt: string;
 };
 

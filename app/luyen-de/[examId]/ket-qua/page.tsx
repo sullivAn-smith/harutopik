@@ -5,6 +5,8 @@ import { getCurrentActor } from "@/lib/auth/authorize";
 import { getExamAttempt } from "@/lib/data/exams";
 import { examAttemptModeLabel, examAttemptModeSchema } from "@/lib/exams/attempt-mode";
 import { ExamResultHighlights } from "@/features/exams/exam-result-highlights";
+import { answerReviewPolicyLabel, canReviewExamAnswers } from "@/lib/exams/answer-review-policy";
+import { examAnswerReviewPolicySchema } from "@/lib/exams/types";
 
 type ResultHighlight = {
   id: string;
@@ -47,11 +49,16 @@ export default async function ExamResultPage({
   const highlights = Array.isArray(attempt.exam_highlights)
     ? attempt.exam_highlights as ResultHighlight[]
     : [];
+  const exam = attempt.exam_sets as unknown as { title?: string; answer_review_policy?: string; answer_review_available_at?: string | null } | null;
+  const policyResult = examAnswerReviewPolicySchema.safeParse(exam?.answer_review_policy);
+  const reviewPolicy = policyResult.success ? policyResult.data : "immediate";
+  const reviewAvailableAt = exam?.answer_review_available_at ?? null;
+  const canReviewAnswers = canReviewExamAnswers(reviewPolicy, reviewAvailableAt);
 
   return (
     <main className="elegant-blue min-h-screen text-[#10243e]">
       <div className="mx-auto max-w-5xl px-5 py-10">
-        <Link href="/luyen-de" className="font-black text-[#087eba]">← Danh sách đề</Link>
+        <Link href={`/luyen-de/${examId}/lich-su`} className="font-black text-[#087eba]">← Lịch sử đề này</Link>
         <section className="mt-6 rounded-[2rem] bg-white p-8 shadow-2xl">
           <p className="text-xs font-black uppercase tracking-[.2em] text-emerald-600">Đã hoàn thành · {examAttemptModeLabel(attemptMode)}</p>
           <h1 className="mt-2 text-4xl font-black">Kết quả bài thi</h1>
@@ -81,7 +88,15 @@ export default async function ExamResultPage({
           />
         )}
 
-        {availableSections.map((section) => (
+        {!canReviewAnswers && (
+          <section className="mt-7 rounded-3xl border border-amber-200 bg-amber-50 p-6">
+            <p className="text-xs font-black uppercase tracking-[.18em] text-amber-700">Chính sách xem đáp án</p>
+            <h2 className="mt-2 text-2xl font-black">{answerReviewPolicyLabel(reviewPolicy)}</h2>
+            <p className="mt-2 font-semibold leading-7 text-slate-600">{reviewPolicy === "after_date" && reviewAvailableAt ? `Đáp án và lời giải sẽ mở từ ${new Date(reviewAvailableAt).toLocaleString("vi-VN")}.` : reviewPolicy === "never" ? "Đề này không công bố đáp án và lời giải." : "Bạn vẫn xem được điểm và thống kê, nhưng đáp án của đề được giữ kín."}</p>
+          </section>
+        )}
+
+        {canReviewAnswers && availableSections.map((section) => (
           <section key={section} className="mt-7">
             <h2 className="text-2xl font-black">Phần {section === "listening" ? "Nghe" : "Đọc"}</h2>
             <div className="mt-4 space-y-3">
