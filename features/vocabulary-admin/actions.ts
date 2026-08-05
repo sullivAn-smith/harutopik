@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 import { requirePermission } from "@/lib/auth/authorize";
 import { toUserFacingError } from "@/lib/errors/user-facing";
 import { createClient } from "@/lib/supabase/server";
@@ -161,4 +162,45 @@ export async function deleteVocabularyDraft(formData: FormData) {
   }
   revalidatePath("/bien-tap/tu-vung");
   redirect("/bien-tap/tu-vung?delete=done");
+}
+
+const vocabularyIdsSchema = z
+  .array(z.string().trim().min(1).max(240))
+  .min(1)
+  .max(500)
+  .transform((ids) => [...new Set(ids)]);
+
+export async function deleteVocabularyDrafts(formData: FormData) {
+  await requirePermission("content:delete-own");
+  const rawIds = formData.get("vocabularyIdsJson");
+  let parsedJson: unknown;
+
+  try {
+    parsedJson = typeof rawIds === "string" ? JSON.parse(rawIds) : null;
+  } catch {
+    parsedJson = null;
+  }
+
+  const parsedIds = vocabularyIdsSchema.safeParse(parsedJson);
+  if (!parsedIds.success) {
+    redirect(
+      "/bien-tap/tu-vung?delete=error&errorMessage=" +
+        encodeURIComponent("Hãy chọn ít nhất một từ cần xóa."),
+    );
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("delete_vocabulary_drafts", {
+    p_vocabulary_ids: parsedIds.data,
+  });
+  if (error) {
+    const friendly = toUserFacingError(error, "Chưa thể xóa các từ đã chọn.");
+    redirect(
+      "/bien-tap/tu-vung?delete=error&errorMessage=" +
+        encodeURIComponent(friendly.message),
+    );
+  }
+
+  revalidatePath("/bien-tap/tu-vung");
+  redirect(`/bien-tap/tu-vung?delete=done&count=${parsedIds.data.length}`);
 }

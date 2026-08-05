@@ -105,7 +105,7 @@ const domainErrors: Array<{
   {
     match: "not_vocabulary_owner",
     code: "NOT_VOCABULARY_OWNER",
-    message: "Bạn chỉ có thể sửa từ vựng do chính mình tạo.",
+    message: "Bạn chỉ có thể sửa hoặc xóa từ vựng do chính mình tạo.",
   },
   {
     match: "not_import_owner",
@@ -148,6 +148,16 @@ const domainErrors: Array<{
     code: "VOCABULARY_USED_BY_LESSONS",
     message:
       "Từ đang được dùng trong một hoặc nhiều bài học. Hãy gỡ từ khỏi các bài đó trước khi xóa.",
+  },
+  {
+    match: "vocabulary_selection_required",
+    code: "VOCABULARY_SELECTION_REQUIRED",
+    message: "Hãy chọn ít nhất một từ cần xóa.",
+  },
+  {
+    match: "too_many_vocabulary_items_selected",
+    code: "TOO_MANY_VOCABULARY_ITEMS_SELECTED",
+    message: "Bạn chỉ có thể xóa tối đa 500 từ trong một lần.",
   },
   {
     match: "active_revision_cannot_delete",

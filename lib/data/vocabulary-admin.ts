@@ -15,6 +15,7 @@ export type VocabularyAdminItem = {
   imageUrl: string | null;
   status: string;
   createdBy: string;
+  canDelete?: boolean;
   acceptedVi?: string[];
   acceptedKo?: string[];
   examples?: Array<{
@@ -27,7 +28,7 @@ export type VocabularyAdminItem = {
 };
 
 export async function getVocabularyLibrary() {
-  await requirePermission("content:read-draft");
+  const actor = await requirePermission("content:read-draft");
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("vocabulary_items")
@@ -47,6 +48,9 @@ export async function getVocabularyLibrary() {
     imageUrl: item.image_url,
     status: item.status,
     createdBy: item.created_by,
+    canDelete:
+      ["draft", "changes_requested"].includes(item.status) &&
+      (item.created_by === actor.id || actor.roles.includes("admin")),
   })) satisfies VocabularyAdminItem[];
 }
 

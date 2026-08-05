@@ -5,7 +5,11 @@ import { getVocabularyLibrary } from "@/lib/data/vocabulary-admin";
 export default async function VocabularyLibraryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ delete?: string }>;
+  searchParams: Promise<{
+    delete?: string;
+    count?: string;
+    errorMessage?: string;
+  }>;
 }) {
   const items = await getVocabularyLibrary();
   const notice = await searchParams;
@@ -20,7 +24,12 @@ export default async function VocabularyLibraryPage({
       </div>
       {notice.delete === "done" && (
         <p role="status" className="mt-6 rounded-2xl bg-emerald-50 p-4 font-bold text-emerald-800">
-          Đã xóa từ vựng bản nháp khỏi thư viện.
+          Đã xóa {notice.count ? `${notice.count} từ vựng` : "từ vựng"} bản nháp khỏi thư viện.
+        </p>
+      )}
+      {notice.delete === "error" && (
+        <p role="alert" className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 font-bold text-red-800">
+          {notice.errorMessage || "Chưa thể xóa các từ đã chọn. Hãy thử lại."}
         </p>
       )}
       <VocabularyLibrary items={items} />
