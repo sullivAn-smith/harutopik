@@ -61,9 +61,22 @@ export function PublishedLessonHotfixForm({ lesson }: { lesson: Lesson }) {
   const [visibleVocabularyCount, setVisibleVocabularyCount] = useState(
     VOCABULARY_PAGE_SIZE,
   );
-  const visibleVocabulary = lesson.vocabulary.slice(0, visibleVocabularyCount);
+  const [selectedVocabularyIds, setSelectedVocabularyIds] = useState<
+    string[]
+  >([]);
+  const [removedVocabularyIds, setRemovedVocabularyIds] = useState<string[]>(
+    [],
+  );
+  const removedVocabularyIdSet = new Set(removedVocabularyIds);
+  const availableVocabulary = lesson.vocabulary.filter(
+    (item) => !removedVocabularyIdSet.has(item.id),
+  );
+  const visibleVocabulary = availableVocabulary.slice(
+    0,
+    visibleVocabularyCount,
+  );
   const remainingVocabularyCount = Math.max(
-    lesson.vocabulary.length - visibleVocabularyCount,
+    availableVocabulary.length - visibleVocabularyCount,
     0,
   );
   const nextVocabularyCount = Math.min(
@@ -92,6 +105,11 @@ export function PublishedLessonHotfixForm({ lesson }: { lesson: Lesson }) {
             points: exercise.points ?? 1,
           })),
         )}
+      />
+      <input
+        type="hidden"
+        name="removedVocabularyIdsJson"
+        value={JSON.stringify(removedVocabularyIds)}
       />
       {state.message && (
         <p role="alert" className="rounded-2xl bg-red-50 p-4 font-bold text-red-700">
@@ -213,34 +231,148 @@ export function PublishedLessonHotfixForm({ lesson }: { lesson: Lesson }) {
       </section>
 
       <section className="rounded-3xl border border-sky-200 bg-sky-50 p-6">
-        <h2 className="text-2xl font-black">Ảnh, nội dung và audio từ vựng</h2>
-        <p className="mt-2 text-sm leading-6 text-ink-600">
-          Mở riêng từng từ để sửa lỗi nhỏ, tải ảnh mới hoặc tạo lại audio Azure.
-          Dữ liệu từ dùng chung sẽ cập nhật cho mọi bài đang sử dụng từ đó.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-black">Ảnh, nội dung và audio từ vựng</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-600">
+              Mở riêng từng từ để sửa lỗi nhỏ, hoặc chọn các từ cần gỡ khỏi bài.
+              Gỡ khỏi bài không xóa từ trong Thư viện từ dùng chung.
+            </p>
+          </div>
+          <span className="rounded-full border border-sky-200 bg-white px-4 py-2 text-sm font-black text-sky-800">
+            {availableVocabulary.length} từ trong bài
+          </span>
+        </div>
+
+        {availableVocabulary.length > 0 && (
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-sky-200 bg-white p-3 shadow-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedVocabularyIds(
+                    availableVocabulary.map((item) => item.id),
+                  )
+                }
+                className="rounded-xl border-2 border-sky-200 bg-sky-50 px-4 py-2 text-sm font-black text-sky-800 transition hover:border-sky-400"
+              >
+                Chọn tất cả {availableVocabulary.length} từ
+              </button>
+              {selectedVocabularyIds.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedVocabularyIds([])}
+                  className="rounded-xl px-4 py-2 text-sm font-black text-slate-600 transition hover:bg-slate-100"
+                >
+                  Bỏ chọn
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <strong className="text-sm text-sky-900">
+                Đã chọn {selectedVocabularyIds.length} từ
+              </strong>
+              <button
+                type="button"
+                disabled={selectedVocabularyIds.length === 0}
+                onClick={() => {
+                  const count = selectedVocabularyIds.length;
+                  const removingAll = count === availableVocabulary.length;
+                  const confirmation = removingAll
+                    ? `Gỡ toàn bộ ${count} từ khỏi bài đang phát hành? Các từ vẫn còn trong Thư viện từ.`
+                    : `Gỡ ${count} từ đã chọn khỏi bài đang phát hành? Các từ vẫn còn trong Thư viện từ.`;
+                  if (!window.confirm(confirmation)) return;
+                  setRemovedVocabularyIds((items) => [
+                    ...new Set([...items, ...selectedVocabularyIds]),
+                  ]);
+                  setSelectedVocabularyIds([]);
+                }}
+                className="rounded-xl border-2 border-red-200 bg-red-50 px-4 py-2 text-sm font-black text-red-700 transition hover:border-red-400 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Gỡ khỏi bài
+              </button>
+            </div>
+          </div>
+        )}
+
+        {removedVocabularyIds.length > 0 && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
+            <p className="font-bold">
+              Đã đánh dấu gỡ {removedVocabularyIds.length} từ. Nhập lý do và
+              bấm “Áp dụng hotfix” để cập nhật cho người học.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setRemovedVocabularyIds([]);
+                setVisibleVocabularyCount(VOCABULARY_PAGE_SIZE);
+              }}
+              className="rounded-xl border border-amber-300 bg-white px-4 py-2 text-sm font-black text-amber-900"
+            >
+              Hoàn tác
+            </button>
+          </div>
+        )}
+
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           {visibleVocabulary.map((item, index) => (
-            <Link
+            <article
               key={item.id}
-              href={`/quan-tri/hotfix/${lesson.id}/tu-vung/${item.id}`}
-              className="flex items-center justify-between gap-3 rounded-2xl border bg-white p-4 transition hover:-translate-y-0.5 hover:border-sky-400"
+              className={`flex items-center gap-3 rounded-2xl border-2 bg-white p-4 transition ${
+                selectedVocabularyIds.includes(item.id)
+                  ? "border-sky-500 bg-sky-100/70 shadow-sm"
+                  : "border-white hover:border-sky-300"
+              }`}
             >
-              <span>
-                <strong lang="ko" className="block text-xl">{item.korean}</strong>
-                <span className="mt-1 block text-sm font-bold text-orange-700">
-                  {item.vietnamese}
+              <label className="grid h-11 w-11 shrink-0 cursor-pointer place-items-center rounded-xl border border-sky-200 bg-sky-50">
+                <span className="sr-only">Chọn từ {item.korean}</span>
+                <input
+                  type="checkbox"
+                  checked={selectedVocabularyIds.includes(item.id)}
+                  onChange={(event) =>
+                    setSelectedVocabularyIds((items) =>
+                      event.target.checked
+                        ? [...new Set([...items, item.id])]
+                        : items.filter((id) => id !== item.id),
+                    )
+                  }
+                  className="h-5 w-5 accent-sky-600"
+                />
+              </label>
+              <Link
+                href={`/quan-tri/hotfix/${lesson.id}/tu-vung/${item.id}`}
+                className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-4"
+              >
+                <span className="min-w-0">
+                  <strong lang="ko" className="block truncate text-xl">
+                    {item.korean}
+                  </strong>
+                  <span className="mt-1 block truncate text-sm font-bold text-orange-700">
+                    {item.vietnamese}
+                  </span>
                 </span>
-              </span>
-              <span className="text-sm font-black text-sky-700">
-                Từ {index + 1} →
-              </span>
-            </Link>
+                <span className="shrink-0 text-sm font-black text-sky-700">
+                  Từ {index + 1} →
+                </span>
+              </Link>
+            </article>
           ))}
         </div>
+        {availableVocabulary.length === 0 && (
+          <div className="mt-5 rounded-2xl border border-dashed border-amber-300 bg-white p-6 text-center">
+            <p className="font-black text-amber-950">
+              Toàn bộ từ đã được đánh dấu gỡ khỏi bài.
+            </p>
+            <p className="mt-1 text-sm text-amber-800">
+              Các từ vẫn an toàn trong Thư viện từ và chưa bị gỡ cho đến khi
+              bạn áp dụng hotfix.
+            </p>
+          </div>
+        )}
         {remainingVocabularyCount > 0 && (
           <div className="mt-6 rounded-3xl border border-sky-200 bg-white/80 p-4 text-center shadow-sm">
             <p className="text-sm font-bold text-ink-600">
-              Đang hiển thị {visibleVocabulary.length}/{lesson.vocabulary.length} từ
+              Đang hiển thị {visibleVocabulary.length}/{availableVocabulary.length} từ
             </p>
             <button
               type="button"
@@ -248,7 +380,7 @@ export function PublishedLessonHotfixForm({ lesson }: { lesson: Lesson }) {
                 setVisibleVocabularyCount((count) =>
                   Math.min(
                     count + VOCABULARY_PAGE_SIZE,
-                    lesson.vocabulary.length,
+                    availableVocabulary.length,
                   ),
                 )
               }
@@ -265,7 +397,7 @@ export function PublishedLessonHotfixForm({ lesson }: { lesson: Lesson }) {
           </div>
         )}
         {remainingVocabularyCount === 0 &&
-          lesson.vocabulary.length > VOCABULARY_PAGE_SIZE && (
+          availableVocabulary.length > VOCABULARY_PAGE_SIZE && (
             <div className="mt-6 text-center">
               <button
                 type="button"

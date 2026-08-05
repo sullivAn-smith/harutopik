@@ -6,6 +6,7 @@ import { z } from "zod";
 import { lessonSchema } from "@/content/schema";
 import { requirePermission } from "@/lib/auth/authorize";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { planPublishedLessonVocabularyRemoval } from "./published-lesson-vocabulary";
 
 const hotfixSchema = z.object({
   contentId: z.string().min(1).max(200),
@@ -16,7 +17,12 @@ const hotfixSchema = z.object({
   dictationsJson: z.string(),
   grammarJson: z.string(),
   grammarExercisesJson: z.string(),
+  removedVocabularyIdsJson: z.string(),
 });
+
+const removedVocabularyIdsSchema = z.array(
+  z.string().trim().min(1).max(240),
+).max(2_000, "Số từ cần gỡ vượt quá giới hạn cho phép.");
 
 const dictationsSchema = z.array(
   z.object({
@@ -79,6 +85,7 @@ export async function applyPublishedLessonHotfix(
   let dictations;
   let grammar;
   let grammarExercises;
+  let removedVocabularyIds;
   try {
     dictations = dictationsSchema.parse(
       JSON.parse(parsed.data.dictationsJson || "[]"),
@@ -86,6 +93,9 @@ export async function applyPublishedLessonHotfix(
     grammar = grammarSchema.parse(JSON.parse(parsed.data.grammarJson || "[]"));
     grammarExercises = grammarExercisesSchema.parse(
       JSON.parse(parsed.data.grammarExercisesJson || "[]"),
+    );
+    removedVocabularyIds = removedVocabularyIdsSchema.parse(
+      JSON.parse(parsed.data.removedVocabularyIdsJson || "[]"),
     );
   } catch {
     return {
@@ -111,7 +121,20 @@ export async function applyPublishedLessonHotfix(
     return { status: "error", message: "Không tìm thấy bài đang phát hành." };
   }
 
-  const vocabularyIds = current.data.vocabulary.map((item) => item.id);
+  const vocabularyRemoval = planPublishedLessonVocabularyRemoval(
+    current.data.vocabulary,
+    removedVocabularyIds,
+  );
+  if (vocabularyRemoval.invalidVocabularyIds.length > 0) {
+    return {
+      status: "error",
+      message:
+        "Danh sách từ đã thay đổi. Hãy tải lại trang rồi chọn lại các từ cần gỡ.",
+    };
+  }
+
+  const retainedVocabulary = vocabularyRemoval.retainedVocabulary;
+  const vocabularyIds = retainedVocabulary.map((item) => item.id);
   const [{ data: masterVocabulary }, { data: masterExamples }] =
     vocabularyIds.length
       ? await Promise.all([
@@ -142,7 +165,7 @@ export async function applyPublishedLessonHotfix(
     title: { vi: parsed.data.titleVi, ko: parsed.data.titleKo },
     summary: parsed.data.summary,
     grammar,
-    vocabulary: current.data.vocabulary.map((item) => {
+    vocabulary: retainedVocabulary.map((item) => {
       const master = assets.get(item.id);
       const content = { ...item };
       delete content.audioUrl;
@@ -216,6 +239,9 @@ export async function applyPublishedLessonHotfix(
       dictation_audio_count: dictations.filter((item) => item.audioUrl).length,
       grammar_point_count: grammar.length,
       grammar_exercise_count: grammarExercises.length,
+      removed_vocabulary_count:
+        vocabularyRemoval.removedVocabularyIds.length,
+      removed_vocabulary_ids: vocabularyRemoval.removedVocabularyIds,
       grammar_example_audio_count: grammar.reduce(
         (count, point) =>
           count + point.examples.filter((example) => example.audioUrl).length,
