@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   lessonDraftFormSchema,
+  normalizeLessonId,
   parseDictationExercisesJson,
   parseGrammarExercisesJson,
   parseGrammarJson,
@@ -8,6 +9,18 @@ import {
   parseVocabularyIdsJson,
   parseVocabularyLines,
 } from "./content-schema";
+
+describe("normalizeLessonId", () => {
+  it("bỏ số 0 ở đầu ID dạng số", () => {
+    expect(normalizeLessonId("015")).toBe("15");
+  });
+
+  it("giữ nguyên ID có cấu trúc để không đổi định danh đã quy ước", () => {
+    expect(normalizeLessonId("lesson-topik-2-015")).toBe(
+      "lesson-topik-2-015",
+    );
+  });
+});
 
 describe("lessonDraftFormSchema", () => {
   it("chuẩn hóa dữ liệu form CMS hợp lệ", () => {
@@ -31,6 +44,30 @@ describe("lessonDraftFormSchema", () => {
 
     expect(result.order).toBe(2);
     expect(result.slug).toBe("quoc-tich-va-nghe-nghiep");
+  });
+
+  it("chuẩn hóa ID và thứ tự 015 thành 15", () => {
+    const result = lessonDraftFormSchema.parse({
+      id: "015",
+      slug: "bai-15",
+      courseId: "course-topik-2",
+      moduleId: "module-topik-2",
+      order: "015",
+      titleVi: "Bài số 15",
+      titleKo: "십오과",
+      summary: "Nội dung bài học số mười lăm.",
+      objectives: "Hoàn thành bài học.",
+      vocabulary: "",
+      vocabularyIdsJson: "[]",
+      dictationsJson: "[]",
+      translationsJson: "[]",
+      grammarJson: "[]",
+      exercisesJson: "[]",
+      changeSummary: "",
+    });
+
+    expect(result.id).toBe("15");
+    expect(result.order).toBe(15);
   });
 
   it("từ chối slug có chữ hoa hoặc dấu cách", () => {

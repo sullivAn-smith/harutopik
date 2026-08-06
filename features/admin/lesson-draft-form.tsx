@@ -8,6 +8,7 @@ import {
 } from "@/features/admin/content-actions";
 import {
   initialContentFormState,
+  normalizeLessonId,
   type ContentFormState,
 } from "@/features/admin/content-schema";
 import type { CatalogStructureOption } from "@/lib/data/admin";
@@ -88,6 +89,22 @@ export function LessonDraftForm({
   );
   const courses = catalogOptions.filter((item) => item.type === "course");
   const modules = catalogOptions.filter((item) => item.type === "module");
+  const [formValues, setFormValues] = useState(() => ({
+    id: defaults?.id ?? "",
+    slug: defaults?.slug ?? "",
+    courseId: defaults?.courseId ?? courses[0]?.id ?? "course-topik-1",
+    moduleId:
+      defaults?.moduleId ?? modules[0]?.id ?? "module-topik-1-foundation",
+    order: String(defaults?.order ?? 2),
+    titleVi: defaults?.titleVi ?? "",
+    titleKo: defaults?.titleKo ?? "",
+    summary: defaults?.summary ?? "",
+    objectives: defaults?.objectives ?? "",
+    changeSummary: defaults?.changeSummary ?? "",
+  }));
+  const updateFormValue = (name: keyof typeof formValues, value: string) => {
+    setFormValues((current) => ({ ...current, [name]: value }));
+  };
   const [grammar, setGrammar] = useState(defaults?.grammar ?? []);
   const [exercises, setExercises] = useState(defaults?.exercises ?? []);
   const [dictations, setDictations] = useState(defaults?.dictations ?? []);
@@ -145,7 +162,13 @@ export function LessonDraftForm({
               name="id"
               required
               readOnly={editing}
-              defaultValue={defaults?.id}
+              value={formValues.id}
+              onChange={(event) =>
+                updateFormValue("id", normalizeLessonId(event.target.value))
+              }
+              onBlur={(event) =>
+                updateFormValue("id", normalizeLessonId(event.target.value))
+              }
               placeholder="lesson-topik-1-02"
               className={inputClass}
             />
@@ -156,7 +179,8 @@ export function LessonDraftForm({
             <input
               name="slug"
               required
-              defaultValue={defaults?.slug}
+              value={formValues.slug}
+              onChange={(event) => updateFormValue("slug", event.target.value)}
               placeholder="quoc-tich-va-nghe-nghiep"
               className={inputClass}
             />
@@ -167,7 +191,10 @@ export function LessonDraftForm({
             <select
               name="courseId"
               required
-              defaultValue={defaults?.courseId ?? "course-topik-1"}
+              value={formValues.courseId}
+              onChange={(event) =>
+                updateFormValue("courseId", event.target.value)
+              }
               className={inputClass}
             >
               {courses.map((course) => (
@@ -181,7 +208,10 @@ export function LessonDraftForm({
             <select
               name="moduleId"
               required
-              defaultValue={defaults?.moduleId ?? "module-topik-1-foundation"}
+              value={formValues.moduleId}
+              onChange={(event) =>
+                updateFormValue("moduleId", event.target.value)
+              }
               className={inputClass}
             >
               {modules.map((module) => (
@@ -197,7 +227,14 @@ export function LessonDraftForm({
               type="number"
               min={1}
               required
-              defaultValue={defaults?.order ?? 2}
+              value={formValues.order}
+              onChange={(event) => updateFormValue("order", event.target.value)}
+              onBlur={(event) => {
+                const value = Number(event.target.value);
+                if (Number.isInteger(value) && value > 0) {
+                  updateFormValue("order", String(value));
+                }
+              }}
               className={inputClass}
             />
             <FieldError state={state} name="order" />
@@ -213,7 +250,10 @@ export function LessonDraftForm({
             <input
               name="titleVi"
               required
-              defaultValue={defaults?.titleVi}
+              value={formValues.titleVi}
+              onChange={(event) =>
+                updateFormValue("titleVi", event.target.value)
+              }
               placeholder="Quốc tịch và nghề nghiệp"
               className={inputClass}
             />
@@ -224,7 +264,10 @@ export function LessonDraftForm({
             <input
               name="titleKo"
               required
-              defaultValue={defaults?.titleKo}
+              value={formValues.titleKo}
+              onChange={(event) =>
+                updateFormValue("titleKo", event.target.value)
+              }
               lang="ko"
               placeholder="국적과 직업"
               className={inputClass}
@@ -237,7 +280,10 @@ export function LessonDraftForm({
           <textarea
             name="summary"
             required
-            defaultValue={defaults?.summary}
+            value={formValues.summary}
+            onChange={(event) =>
+              updateFormValue("summary", event.target.value)
+            }
             rows={3}
             placeholder="Người học sẽ đạt được gì sau bài này?"
             className={inputClass}
@@ -249,7 +295,10 @@ export function LessonDraftForm({
           <textarea
             name="objectives"
             required
-            defaultValue={defaults?.objectives}
+            value={formValues.objectives}
+            onChange={(event) =>
+              updateFormValue("objectives", event.target.value)
+            }
             rows={4}
             placeholder={"Nhận biết tên các quốc gia.\nHỏi và trả lời về quốc tịch."}
             className={inputClass}
@@ -532,7 +581,10 @@ export function LessonDraftForm({
         Ghi chú thay đổi
         <input
           name="changeSummary"
-          defaultValue={defaults?.changeSummary}
+          value={formValues.changeSummary}
+          onChange={(event) =>
+            updateFormValue("changeSummary", event.target.value)
+          }
           placeholder="Ví dụ: Tạo khung nội dung bài 2"
           className={inputClass}
         />

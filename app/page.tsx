@@ -4,9 +4,12 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
+import {
+  buildTopikShelf,
+  getAdditionalPublishedCourses,
+} from "@/lib/catalog/course-shelf";
 import { createClient } from "@/lib/supabase/client";
 
-const levels = [1, 2, 3, 4, 5, 6];
 const bookThemes = [
   "from-[#15a7d8] via-[#087eba] to-[#123f72]",
   "from-[#7c83f3] via-[#5964cf] to-[#303b91]",
@@ -15,6 +18,24 @@ const bookThemes = [
   "from-[#4ca8d8] via-[#287ba9] to-[#205377]",
   "from-[#7086b8] via-[#526b9d] to-[#34466f]",
 ];
+
+type CourseSummary = {
+  id: string;
+  slug: string;
+  title: { ko: string; vi: string };
+  summary: string;
+  lessonCount: number;
+  lessons: Array<{ id: string }>;
+};
+
+const fallbackCourses: CourseSummary[] = [{
+  id: "course-topik-1",
+  slug: "topik-1",
+  title: { ko: "한국어 초급 1", vi: "Tiếng Hàn sơ cấp 1" },
+  summary: "Lộ trình nền tảng dành cho người Việt bắt đầu học tiếng Hàn và chuẩn bị TOPIK I.",
+  lessonCount: 15,
+  lessons: [{ id: "lesson-topik-1-01" }],
+}];
 
 function viewerName(user: User) {
   const metadata = user.user_metadata;
@@ -76,8 +97,8 @@ function AccountLink({
   );
 }
 
-function BookCover({ level }: { level: number }) {
-  const theme = bookThemes[level - 1] ?? bookThemes[0];
+function BookCover({ label, themeIndex }: { label: string; themeIndex: number }) {
+  const theme = bookThemes[themeIndex % bookThemes.length] ?? bookThemes[0];
   return (
     <div className={`relative aspect-[3/4] w-full overflow-hidden rounded-2xl border-2 border-white/55 bg-gradient-to-br ${theme} shadow-[0_14px_28px_rgba(16,36,62,0.28)] ring-1 ring-[#10243e]/25 transition duration-300 group-hover:-translate-y-2 group-hover:rotate-[-1deg] group-hover:shadow-[0_22px_38px_rgba(16,36,62,0.38)]`}>
       <div className="absolute inset-y-0 left-0 w-[8%] bg-gradient-to-r from-[#10243e]/25 to-transparent" />
@@ -89,7 +110,7 @@ function BookCover({ level }: { level: number }) {
         <span className="text-[clamp(.4rem,.64vw,.68rem)] font-bold leading-tight text-[#245d93]">người Việt</span>
       </div>
       <span className="absolute bottom-[6%] right-[10%] -rotate-6 text-[clamp(2rem,3.6vw,3.6rem)] font-black italic leading-none text-white drop-shadow-lg">
-        {level}
+        {label}
       </span>
     </div>
   );
@@ -99,12 +120,29 @@ export default function Home() {
   const [showBooks, setShowBooks] = useState(false);
   const [comingSoon, setComingSoon] = useState(false);
   const [user, setUser] = useState<User | null | undefined>(undefined);
+  const [publishedCourses, setPublishedCourses] = useState(fallbackCourses);
+  const topikShelf = buildTopikShelf(publishedCourses);
+  const additionalCourses = getAdditionalPublishedCourses(publishedCourses);
+  const primaryCourse = publishedCourses.find((course) => course.slug === "topik-1") ?? publishedCourses[0];
 
   useEffect(() => {
     if (!comingSoon) return;
     const timer = window.setTimeout(() => setComingSoon(false), 2000);
     return () => window.clearTimeout(timer);
   }, [comingSoon]);
+
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/v1/catalog", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : Promise.reject())
+      .then((body: { data?: { courses?: CourseSummary[] } }) => {
+        if (active && body.data?.courses?.length) {
+          setPublishedCourses(body.data.courses);
+        }
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     const supabase = createClient();
@@ -139,7 +177,7 @@ export default function Home() {
         <nav className="mt-3 space-y-2">
           <Link href="/" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-gradient-to-r from-[#168fd0] to-[#087eba] px-4 py-3.5 font-bold text-white shadow-[0_10px_22px_rgba(8,126,186,0.24)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_26px_rgba(8,126,186,0.3)]"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/18">⌂</span><span>Trang chủ</span></Link>
           <button onClick={() => setShowBooks((value) => !value)} aria-expanded={showBooks} className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 text-left font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="flex items-center gap-3"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-blue-100 text-[#087eba]"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-none stroke-current" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11a2 2 0 0 1 2 2v15a2 2 0 0 0-2-2H6.5A2.5 2.5 0 0 0 4 20.5z" /><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v17a2 2 0 0 1 2-2h2.5a2.5 2.5 0 0 1 2.5 2.5z" /></svg></span><span>Thư viện học</span></span><span className="text-sm text-[#087eba]">{showBooks ? "⌃" : "⌄"}</span></button>
-          {showBooks && <div className="ml-4 max-h-[min(26rem,55vh)] space-y-1 overflow-y-auto overscroll-contain border-l-2 border-[#087eba]/25 py-1 pl-3 pr-2 [scrollbar-color:rgba(8,126,186,0.45)_transparent] [scrollbar-width:thin]"><p className="px-3 pt-1 text-[.65rem] font-black uppercase tracking-[.14em] text-[#087eba]/70">Giáo trình</p>{[1, 2, 3, 4, 5, 6].map((level) => <Link key={level} href={level === 1 ? "/courses/topik-1" : `/tieng-han-th/${level}`} onClick={(event) => { if (level > 1) { event.preventDefault(); setComingSoon(true); } }} className="block rounded-lg px-3 py-2 text-sm font-bold text-[#10243e]/70 transition hover:bg-[#e7f4ff] hover:text-[#087eba]">TOPIK {level}</Link>)}</div>}
+          {showBooks && <div className="ml-4 max-h-[min(26rem,55vh)] space-y-1 overflow-y-auto overscroll-contain border-l-2 border-[#087eba]/25 py-1 pl-3 pr-2 [scrollbar-color:rgba(8,126,186,0.45)_transparent] [scrollbar-width:thin]"><p className="px-3 pt-1 text-[.65rem] font-black uppercase tracking-[.14em] text-[#087eba]/70">Giáo trình TOPIK</p>{topikShelf.map((item) => item.course ? <Link key={item.id} href={`/courses/${item.course.slug}`} className="block rounded-lg px-3 py-2 text-sm font-bold text-[#10243e]/70 transition hover:bg-[#e7f4ff] hover:text-[#087eba]">{item.label}</Link> : <button type="button" key={item.id} onClick={() => setComingSoon(true)} className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-bold text-[#10243e]/35"><span>{item.label}</span><svg aria-label="Đang khóa" viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="10" width="14" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg></button>)}{additionalCourses.length > 0 && <><p className="px-3 pt-3 text-[.65rem] font-black uppercase tracking-[.14em] text-[#087eba]/70">Khóa học khác</p>{additionalCourses.map((course) => <Link key={course.id} href={`/courses/${course.slug}`} className="block rounded-lg px-3 py-2 text-sm font-bold text-[#10243e]/70 transition hover:bg-[#e7f4ff] hover:text-[#087eba]">{course.title.vi}</Link>)}</>}</div>}
           <Link href="/tu-cua-toi" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-cyan-100 text-[#087eba]"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-none stroke-current" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="3" /><path d="M7 9h10M7 13h6" /><path d="M17.5 12.5v4M15.5 14.5h4" /></svg></span><span>Quản lý bộ từ</span></Link>
           <Link href="/luyen-de" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-[#087eba]">✎</span><span>Luyện đề</span></Link>
           <Link href="/tro-ly" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-[#087eba]">✦</span><span>Trợ lý Haru AI</span></Link>
@@ -149,7 +187,7 @@ export default function Home() {
           <AccountLink user={user} />
         </div>
       </aside>
-      {comingSoon && <div className="fixed bottom-8 left-1/2 z-50 -translate-x-1/2 rounded-full border-2 border-orange-700 bg-yellow-300 px-6 py-3 text-lg font-black text-orange-950 shadow-[4px_4px_0_#10243e]">Sắp ra mắt</div>}
+      {comingSoon && <div className="fixed bottom-8 left-1/2 z-50 -translate-x-1/2 rounded-full border border-white/80 bg-[#10243e] px-6 py-3 text-base font-black text-white shadow-[0_14px_30px_rgba(16,36,62,0.28)]">Khóa học chưa phát hành</div>}
       <div className="home-grid-glow pointer-events-none absolute inset-0" />
       <div className="home-aurora home-aurora-one pointer-events-none absolute" />
       <div className="home-aurora home-aurora-two pointer-events-none absolute" />
@@ -180,14 +218,14 @@ export default function Home() {
 
         <div className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Link
-            href="/courses/topik-1"
+            href={`/courses/${primaryCourse.slug}`}
             className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#087eba] via-[#168fd0] to-[#20a9d8] p-6 text-white shadow-[0_18px_38px_rgba(8,126,186,0.28)] transition hover:-translate-y-1 hover:shadow-[0_24px_46px_rgba(8,126,186,0.36)] md:col-span-2"
           >
             <div className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-white/12" />
             <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-100">
               Khóa học đang mở
             </p>
-            <h2 className="mt-3 text-3xl font-black">Tiếp tục TOPIK 1</h2>
+            <h2 className="mt-3 text-3xl font-black">{primaryCourse.title.vi}</h2>
             <p className="mt-2 max-w-md font-semibold leading-7 text-white/80">
               Học từ vựng, ngữ pháp, nghe chép, ghép từ và kiểm tra ngay trong từng bài.
             </p>
@@ -227,31 +265,23 @@ export default function Home() {
             </h2>
           </div>
           <p className="rounded-full bg-[#e7f4ff] px-4 py-2 text-sm font-bold text-[#245d93]">
-            TOPIK 1 đang mở · TOPIK 2–6 đang biên soạn
+            {topikShelf.filter((item) => item.course).length}/6 giáo trình TOPIK đang mở
           </p>
         </div>
 
         <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6 lg:gap-5">
-          {levels.map((level) => (
-            level === 1 ? (
-              <Link key={level} href="/courses/topik-1" className="group relative" aria-label="Mở sách sơ cấp 1">
-                <BookCover level={level} />
+          {topikShelf.map((item, index) => (
+            item.course ? (
+              <Link key={item.id} href={`/courses/${item.course.slug}`} className="group relative" aria-label={`Mở ${item.course.title.vi}`}>
+                <BookCover label={String(item.level)} themeIndex={index} />
                 <span className="absolute bottom-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-white px-3 py-1.5 text-xs font-black text-[#087eba] shadow-lg">
                   HỌC NGAY
                 </span>
               </Link>
             ) : (
-              <button
-                type="button"
-                onClick={() => setComingSoon(true)}
-                key={level}
-                className="group relative cursor-not-allowed opacity-55 grayscale-[25%]"
-                aria-label={`TOPIK ${level} sắp ra mắt`}
-              >
-                <BookCover level={level} />
-                <span className="absolute bottom-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-white/80 bg-[#10243e]/85 px-3 py-1.5 text-xs font-black text-white shadow-md">
-                  Sắp ra mắt
-                </span>
+              <button type="button" onClick={() => setComingSoon(true)} key={item.id} className="relative opacity-45 grayscale-[45%]" aria-label={`${item.label} chưa phát hành`}>
+                <BookCover label={String(item.level)} themeIndex={index} />
+                <span className="absolute bottom-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-white/80 bg-[#10243e]/85 px-3 py-1.5 text-xs font-black text-white shadow-md">Sắp ra mắt</span>
               </button>
             )
           ))}

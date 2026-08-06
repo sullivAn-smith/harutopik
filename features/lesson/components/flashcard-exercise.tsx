@@ -44,10 +44,6 @@ export function FlashcardExercise({
 }: FlashcardExerciseProps) {
   const first = position === 0;
   const last = position === total - 1;
-  const flagArtwork =
-    word.imageUrl === "/flag-japan.svg" ||
-    word.imageUrl === "/flag-indonesia.svg";
-
   return (
     <section className="mt-7 grid items-stretch gap-5 lg:grid-cols-[230px_1fr]">
       <aside className="rounded-3xl border border-white bg-white/95 p-6 shadow-[0_16px_35px_rgba(16,36,62,0.16)]">
@@ -114,10 +110,9 @@ export function FlashcardExercise({
               {word.imageUrl && (
                 <span
                   aria-hidden="true"
-                  className="block h-40 w-56 overflow-hidden rounded-2xl border border-white/80 bg-white bg-center bg-no-repeat shadow-[0_10px_24px_rgba(16,36,62,0.14)]"
+                  className="block h-40 w-56 overflow-hidden rounded-2xl border border-white/80 bg-white bg-cover bg-center bg-no-repeat shadow-[0_10px_24px_rgba(16,36,62,0.14)]"
                   style={{
                     backgroundImage: `url(${word.imageUrl})`,
-                    backgroundSize: flagArtwork ? "78%" : "88%",
                   }}
                 />
               )}

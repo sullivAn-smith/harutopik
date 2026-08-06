@@ -4,7 +4,9 @@ import { notFound } from "next/navigation";
 import {
   getCourseParams,
   lessonPath,
+  type Course,
 } from "@/content/catalog";
+import type { Lesson } from "@/content/schema";
 import { getPublishedCourses } from "@/lib/data/published-catalog";
 import { createClient } from "@/lib/supabase/server";
 
@@ -17,6 +19,49 @@ export const dynamic = "force-dynamic";
 
 export function generateStaticParams() {
   return getCourseParams();
+}
+
+function CourseLessonCard({
+  course,
+  lesson,
+  completed,
+}: {
+  course: Course;
+  lesson: Lesson;
+  completed: boolean;
+}) {
+  return (
+    <Link
+      href={lessonPath(course, lesson)}
+      className={`flex items-center gap-4 rounded-2xl border px-5 py-4 shadow-[0_12px_28px_rgba(16,36,62,0.12)] backdrop-blur transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_34px_rgba(16,36,62,0.16)] ${
+        completed
+          ? "border-emerald-200 bg-emerald-50/90 hover:border-emerald-300"
+          : "border-white/80 bg-white/85 hover:border-blue-200"
+      }`}
+    >
+      <span
+        aria-label={completed ? `Bài ${lesson.order} đã hoàn thành` : `Bài ${lesson.order} chưa hoàn thành`}
+        className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-[3px] text-xl font-black shadow-inner transition ${
+          completed
+            ? "border-emerald-300 bg-emerald-600 text-white shadow-emerald-900/20"
+            : "border-[#10243e]/15 bg-[#10243e]/8 text-[#10243e]/55"
+        }`}
+      >
+        {lesson.order}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex min-w-0 items-center gap-3">
+          <strong lang="ko" className="font-korean shrink-0 text-xl font-black">{lesson.title.ko}</strong>
+          <span className="min-w-0 truncate whitespace-nowrap text-base font-bold text-[#344b67]">{lesson.title.vi}</span>
+        </span>
+        <span className="mt-1 block text-sm font-semibold text-[#52637a]">
+          {lesson.vocabulary.length} từ
+          {completed && <span className="ml-2 font-black text-emerald-700">✓ Đã hoàn thành</span>}
+        </span>
+      </span>
+      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#10243e]/5 text-2xl text-[#52637a]">›</span>
+    </Link>
+  );
 }
 
 export async function generateMetadata({
@@ -70,6 +115,10 @@ export default async function CoursePage({ params }: CoursePageProps) {
       })
       .map((lesson) => lesson.id),
   );
+  const courseCode = course.slug.match(/topik-(\d+)/)?.[1]
+    ? `TOPIK ${course.slug.match(/topik-(\d+)/)?.[1]}`
+    : course.title.vi;
+  const levelLabel = course.level === "beginner" ? "Sơ cấp" : course.level === "intermediate" ? "Trung cấp" : course.level === "advanced" ? "Cao cấp" : course.level;
 
   return (
     <main className="elegant-blue min-h-screen text-[#10243e]">
@@ -84,10 +133,10 @@ export default async function CoursePage({ params }: CoursePageProps) {
         <section className="mt-6 rounded-[2rem] border border-white/70 bg-white/45 p-6 shadow-[0_20px_50px_rgba(16,36,62,0.12)] backdrop-blur-xl md:p-8">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-[#087eba] px-3.5 py-1.5 text-sm font-black text-white shadow-sm">
-              TOPIK 1
+              {courseCode}
             </span>
             <span className="rounded-full bg-white/70 px-3.5 py-1.5 text-sm font-bold text-[#52637a]">
-              Sơ cấp · {course.lessonCount} bài
+              {levelLabel} · {course.lessonCount} bài
             </span>
           </div>
           <h1 className="page-heading mt-4">{course.title.vi}</h1>
@@ -116,59 +165,14 @@ export default async function CoursePage({ params }: CoursePageProps) {
           </div>
 
           <div className="space-y-3">
-            {course.lessons.map((lesson) => {
-              const completed = completedLessons.has(lesson.id);
-              return (
-                <Link
-                  key={lesson.id}
-                  href={lessonPath(course, lesson)}
-                  className={`flex items-center gap-4 rounded-2xl border px-5 py-4 shadow-[0_12px_28px_rgba(16,36,62,0.12)] backdrop-blur transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_34px_rgba(16,36,62,0.16)] ${
-                    completed
-                      ? "border-emerald-200 bg-emerald-50/90 hover:border-emerald-300"
-                      : "border-white/80 bg-white/85 hover:border-blue-200"
-                  }`}
-                >
-                  <span
-                    aria-label={
-                      completed
-                        ? `Bài ${lesson.order} đã hoàn thành`
-                        : `Bài ${lesson.order} chưa hoàn thành`
-                    }
-                    className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-[3px] text-xl font-black shadow-inner transition ${
-                      completed
-                        ? "border-emerald-300 bg-emerald-600 text-white shadow-emerald-900/20"
-                        : "border-[#10243e]/15 bg-[#10243e]/8 text-[#10243e]/55"
-                    }`}
-                  >
-                    {lesson.order}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex min-w-0 items-center gap-3">
-                      <strong
-                        lang="ko"
-                        className="font-korean shrink-0 text-xl font-black"
-                      >
-                        {lesson.title.ko}
-                      </strong>
-                      <span className="min-w-0 truncate whitespace-nowrap text-base font-bold text-[#344b67]">
-                        {lesson.title.vi}
-                      </span>
-                    </span>
-                    <span className="mt-1 block text-sm font-semibold text-[#52637a]">
-                      {lesson.vocabulary.length} từ
-                      {completed && (
-                        <span className="ml-2 font-black text-emerald-700">
-                          ✓ Đã hoàn thành
-                        </span>
-                      )}
-                    </span>
-                  </span>
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#10243e]/5 text-2xl text-[#52637a]">
-                    ›
-                  </span>
-                </Link>
-              );
-            })}
+            {course.lessons.map((lesson) => (
+              <CourseLessonCard
+                key={lesson.id}
+                course={course}
+                lesson={lesson}
+                completed={completedLessons.has(lesson.id)}
+              />
+            ))}
 
             {Array.from({
               length: Math.max(0, course.lessonCount - course.lessons.length),

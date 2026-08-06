@@ -2,8 +2,31 @@ import { topikOneCourse } from "@/content/courses/topik-1/course";
 import { lessonOne } from "@/content/courses/topik-1/lessons/lesson-01";
 import type { Lesson } from "@/content/schema";
 
-export type Course = typeof topikOneCourse & {
+export type CourseModule = {
+  id: string;
+  slug: string;
+  courseId: string;
+  title: {
+    ko: string;
+    vi: string;
+  };
+  order: number;
   lessons: readonly Lesson[];
+};
+
+export type Course = {
+  id: string;
+  slug: string;
+  title: {
+    ko: string;
+    vi: string;
+  };
+  summary: string;
+  level: string;
+  lessonCount: number;
+  status: string;
+  lessons: readonly Lesson[];
+  modules?: readonly CourseModule[];
 };
 
 export const courses: readonly Course[] = [

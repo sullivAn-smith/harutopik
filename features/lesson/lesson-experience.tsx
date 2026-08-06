@@ -173,7 +173,7 @@ function LessonContent({
       );
       setDictationInput(session.dictationInput);
       setDictationChecked(session.dictationChecked);
-      setDictationHint(session.dictationHint);
+      setDictationHint(Math.min(session.dictationHint, 3));
       setDictationWrongIndices(
         session.dictationWrongIndices.filter(
           (index) => index <= maxDictationIndex,
@@ -567,6 +567,12 @@ function LessonContent({
     setDictationHint(0);
   }
 
+  function retryDictation() {
+    setDictationInput("");
+    setDictationChecked(false);
+    setDictationHint(0);
+  }
+
   function checkTranslation() {
     if (!translationInput.trim()) return;
 
@@ -903,6 +909,7 @@ function LessonContent({
                 value={dictationInput}
                 checked={dictationChecked}
                 correct={dictationCorrect}
+                visibleHintWords={dictationHint}
                 onChange={(value) => {
                   setDictationInput(value);
                   setDictationChecked(false);
@@ -913,7 +920,18 @@ function LessonContent({
                     dictationSentence,
                   )
                 }
+                onHint={() =>
+                  setDictationHint((value) =>
+                    Math.min(
+                      value + 1,
+                      3,
+                      dictationSentence.trim().split(/\s+/).filter(Boolean)
+                        .length,
+                    ),
+                  )
+                }
                 onCheck={checkDictation}
+                onRetry={retryDictation}
                 onNext={nextDictation}
               />
             )}

@@ -10,8 +10,23 @@ const slugSchema = z
     "Chỉ dùng chữ thường không dấu, số và dấu gạch ngang.",
   );
 
+export function normalizeLessonId(value: string) {
+  const trimmed = value.trim();
+  if (/^\d+$/.test(trimmed)) {
+    return String(Number(trimmed));
+  }
+
+  return trimmed;
+}
+
+const lessonIdSchema = z.preprocess(
+  (value) =>
+    typeof value === "string" ? normalizeLessonId(value) : value,
+  slugSchema.max(200),
+);
+
 export const lessonDraftFormSchema = z.object({
-  id: slugSchema.max(200),
+  id: lessonIdSchema,
   slug: slugSchema,
   courseId: slugSchema.max(200),
   moduleId: slugSchema.max(200),

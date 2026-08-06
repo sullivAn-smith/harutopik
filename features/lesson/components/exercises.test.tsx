@@ -254,8 +254,9 @@ describe("MatchingExercise", () => {
 });
 
 describe("DictationExercise", () => {
-  it("chỉ cho nghe audio và nhập đáp án trước khi kiểm tra", () => {
+  it("cho nghe, mở từng gợi ý và kiểm tra", () => {
     const onListen = vi.fn();
+    const onHint = vi.fn();
     const onCheck = vi.fn();
     render(
       <DictationExercise
@@ -265,20 +266,58 @@ describe("DictationExercise", () => {
         value=""
         checked={false}
         correct={false}
+        visibleHintWords={0}
         onChange={vi.fn()}
         onListen={onListen}
+        onHint={onHint}
         onCheck={onCheck}
+        onRetry={vi.fn()}
         onNext={vi.fn()}
       />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "🔊 Nghe câu" }));
+    fireEvent.click(screen.getByRole("button", { name: /Gợi ý \(0\/3\)/ }));
     fireEvent.click(screen.getByRole("button", { name: "Kiểm tra" }));
 
     expect(onListen).toHaveBeenCalledOnce();
-    expect(onCheck).toHaveBeenCalledOnce();
-    expect(screen.queryByText(/Gợi ý/)).toBeNull();
+    expect(onHint).toHaveBeenCalledOnce();
+    expect(onCheck).not.toHaveBeenCalled();
     expect(screen.queryByText("저는 베트남 사람입니다.")).toBeNull();
+  });
+
+  it("chỉ mở tối đa 3 gợi ý và cho làm lại hoặc sang câu", () => {
+    const onHint = vi.fn();
+    const onRetry = vi.fn();
+    const onNext = vi.fn();
+
+    render(
+      <DictationExercise
+        sentence="저는 베트남 사람입니다. 학생입니다."
+        position={0}
+        total={2}
+        value="저는 베트남"
+        checked
+        correct={false}
+        visibleHintWords={3}
+        onChange={vi.fn()}
+        onListen={vi.fn()}
+        onHint={onHint}
+        onCheck={vi.fn()}
+        onRetry={onRetry}
+        onNext={onNext}
+      />,
+    );
+
+    const hintButton = screen.getByRole("button", { name: /Gợi ý \(3\/3\)/ });
+    expect(hintButton.hasAttribute("disabled")).toBe(true);
+    expect(screen.getByText("저는 베트남 사람입니다.")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /↻ Làm lại câu này/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Câu tiếp theo →" }));
+
+    expect(onRetry).toHaveBeenCalledOnce();
+    expect(onNext).toHaveBeenCalledOnce();
   });
 });
 

@@ -15,6 +15,6 @@ export async function GET() {
         ),
       })),
     },
-    { cacheControl: "public, max-age=300, stale-while-revalidate=86400" },
+    { cacheControl: "no-store" },
   );
 }
