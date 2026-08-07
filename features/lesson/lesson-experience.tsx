@@ -23,6 +23,7 @@ import {
 } from "@/features/lesson/components/translation-exercise";
 import { TypingExercise } from "@/features/lesson/components/typing-exercise";
 import { VocabularyList } from "@/features/lesson/components/vocabulary-list";
+import { FloatingLanguageKeyboard } from "@/features/lesson/components/floating-language-keyboard";
 import type { StudyMode } from "@/features/lesson/types";
 import { useLearningSync } from "@/features/learning/use-learning-sync";
 import { useStudySession } from "@/features/learning/use-study-session";
@@ -689,6 +690,7 @@ function LessonContent({
 
   return (
     <main className="elegant-blue min-h-screen text-[#10243e]">
+      <FloatingLanguageKeyboard />
       <header className="bg-transparent">
         <div className="mx-auto grid max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-3 px-5 py-4 md:px-8">
           <Link

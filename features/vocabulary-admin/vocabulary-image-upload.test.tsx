@@ -46,4 +46,18 @@ describe("VocabularyImageUpload", () => {
     ).toBeTruthy();
     expect(screen.getByText("학교")).toBeTruthy();
   });
+
+  it("đọc lại đúng phần trăm kích thước đã lưu trong URL ảnh", () => {
+    render(
+      <VocabularyImageUpload
+        defaultValue="https://cdn.example.com/vocabulary.webp?haru_image_scale=75"
+      />,
+    );
+
+    expect(screen.getByRole("slider", { name: "Kích thước ảnh" })).toHaveProperty(
+      "value",
+      "75",
+    );
+    expect(screen.getByText("75%")).toBeTruthy();
+  });
 });

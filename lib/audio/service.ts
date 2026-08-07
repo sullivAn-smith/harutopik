@@ -10,6 +10,7 @@ import {
 } from "./jobs";
 import { getAudioUrl } from "./storage";
 import type { AudioGenerationResult } from "./types";
+import { syncPublishedVocabularyAudio } from "@/lib/vocabulary/sync-published-audio";
 
 export type VocabularyAudioServiceResult =
   | ({ status: "ready" } & AudioGenerationResult)
@@ -91,6 +92,18 @@ export async function generateVocabularyAudioForActor(input: {
       .from("vocabulary_items")
       .update({ audio_url: audioUrl, updated_at: new Date().toISOString() })
       .eq("id", item.id);
+    const snapshotsSynced = await syncPublishedVocabularyAudio(
+      admin,
+      item.id,
+      audioUrl,
+    );
+    if (!snapshotsSynced) {
+      throw new VocabularyAudioError(
+        "Audio đã tạo nhưng chưa đồng bộ được sang bài học. Hãy thử lại.",
+        "AUDIO_SYNC_FAILED",
+        500,
+      );
+    }
     return {
       status: "ready",
       audioUrl,
@@ -121,6 +134,14 @@ export async function generateVocabularyAudioForActor(input: {
           updated_at: new Date().toISOString(),
         })
         .eq("id", item.id);
+    }
+    const snapshotsSynced = await syncPublishedVocabularyAudio(
+      admin,
+      item.id,
+      result.publicUrl,
+    );
+    if (!snapshotsSynced) {
+      throw new Error("Audio đã tạo nhưng chưa đồng bộ được sang bài học.");
     }
     await admin.from("audit_logs").insert({
       actor_id: input.actorId,

@@ -40,6 +40,7 @@ export function PublishedVocabularyHotfixForm({
   );
   const [examples, setExamples] = useState(item.examples ?? []);
   const [dirty, setDirty] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
   return (
     <form
       action={action}
@@ -132,6 +133,7 @@ export function PublishedVocabularyHotfixForm({
           defaultValue={item.imageUrl}
           previewLabel={item.hangul}
           onValueChange={() => setDirty(true)}
+          onUploadingChange={setImageUploading}
         />
         <FieldError state={state} name="imageUrl" />
       </section>
@@ -205,8 +207,8 @@ export function PublishedVocabularyHotfixForm({
       </div>
       {dirty ? (
         <>
-          <button disabled={pending} className="w-full rounded-2xl bg-violet-700 px-6 py-4 text-lg font-black text-white disabled:opacity-60">
-            {pending ? "Đang lưu…" : "Lưu"}
+          <button disabled={pending || imageUploading} className="w-full rounded-2xl bg-violet-700 px-6 py-4 text-lg font-black text-white disabled:opacity-60">
+            {imageUploading ? "Đang xử lý ảnh…" : pending ? "Đang lưu…" : "Lưu"}
           </button>
           <p className="text-center text-sm font-bold text-amber-700">
             Hãy lưu thay đổi trước khi chuyển sang từ tiếp theo.

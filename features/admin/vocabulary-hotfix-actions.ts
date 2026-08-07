@@ -149,6 +149,7 @@ type VocabularySnapshotUpdate = {
   vietnamese: string;
   romanization: string;
   category: string;
+  level: string;
   partOfSpeech: string | null;
   audioUrl: string | null;
   imageUrl: string | null;
@@ -172,6 +173,7 @@ function applyVocabularySnapshotUpdate(
     vietnamese: update.vietnamese,
     romanization: update.romanization,
     category: update.category,
+    level: update.level,
     acceptedVietnameseAnswers: update.acceptedVietnameseAnswers,
     acceptedKoreanAnswers: update.acceptedKoreanAnswers,
     examples: update.examples,
@@ -446,6 +448,18 @@ export async function applyVocabularyHotfix(
         "Thông tin từ đã lưu, nhưng câu ví dụ chưa lưu được. Hãy tải lại và thử lại.",
     };
   }
+  const { error: meaningError } = await admin
+    .from("vocabulary_meanings")
+    .update({ meaning_vi: parsed.data.meaningVi })
+    .eq("vocabulary_id", parsed.data.vocabularyId)
+    .eq("is_primary", true);
+  if (meaningError) {
+    return {
+      status: "error",
+      message:
+        "Thông tin từ đã lưu, nhưng nghĩa chính chưa đồng bộ được. Hãy thử lưu lại.",
+    };
+  }
 
   const snapshotsSynced = await syncVocabularySnapshots(admin, {
     id: parsed.data.vocabularyId,
@@ -453,6 +467,7 @@ export async function applyVocabularyHotfix(
     vietnamese: parsed.data.meaningVi,
     romanization: parsed.data.romanization,
     category: parsed.data.category,
+    level: parsed.data.level,
     partOfSpeech: parsed.data.partOfSpeech || null,
     audioUrl: hangulChanged ? null : current.audio_url,
     imageUrl: parsed.data.imageUrl || null,
@@ -496,6 +511,7 @@ export async function applyVocabularyHotfix(
   revalidatePath("/bien-tap/noi-dung", "layout");
   revalidatePath("/xem-truoc", "layout");
   revalidatePath("/courses", "layout");
+  revalidatePath("/", "layout");
   redirect(
     `/quan-tri/hotfix/${parsed.data.contentId}/tu-vung/${parsed.data.vocabularyId}?saved=1`,
   );

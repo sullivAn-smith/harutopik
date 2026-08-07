@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import {
   buildTopikShelf,
-  getAdditionalPublishedCourses,
 } from "@/lib/catalog/course-shelf";
 import { createClient } from "@/lib/supabase/client";
 
@@ -25,7 +24,12 @@ export type CourseSummary = {
   title: { ko: string; vi: string };
   summary: string;
   lessonCount: number;
-  lessons: Array<{ id: string }>;
+  lessons: Array<{
+    id: string;
+    slug: string;
+    order: number;
+    title: { ko: string; vi: string };
+  }>;
 };
 
 const fallbackCourses: CourseSummary[] = [{
@@ -34,8 +38,83 @@ const fallbackCourses: CourseSummary[] = [{
   title: { ko: "한국어 초급 1", vi: "Tiếng Hàn sơ cấp 1" },
   summary: "Lộ trình nền tảng dành cho người Việt bắt đầu học tiếng Hàn và chuẩn bị TOPIK I.",
   lessonCount: 15,
-  lessons: [{ id: "lesson-topik-1-01" }],
+  lessons: [{
+    id: "lesson-topik-1-01",
+    slug: "bai-1",
+    order: 1,
+    title: { ko: "자기소개", vi: "Giới thiệu bản thân" },
+  }],
 }];
+
+function LockIcon() {
+  return (
+    <svg aria-label="Đang khóa" viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="5" y="10" width="14" height="10" rx="2" />
+      <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+    </svg>
+  );
+}
+
+function SidebarLibrary({
+  topikShelf,
+  onComingSoon,
+}: {
+  topikShelf: ReturnType<typeof buildTopikShelf<CourseSummary>>;
+  onComingSoon: () => void;
+}) {
+  const [expandedCourseId, setExpandedCourseId] = useState<string | null>(null);
+  const upcomingSeries = [
+    { id: "vocabulary", title: "GIÁO TRÌNH TOPIK 2", total: 6 },
+    { id: "grammar", title: "GIÁO TRÌNH TOPIK 3", total: 8 },
+  ] as const;
+  return (
+    <div className="ml-3 border-l-2 border-[#087eba]/25 py-2 pl-3 pr-1">
+      <section>
+        <p className="px-2 pb-1 text-[.66rem] font-black uppercase tracking-[.15em] text-[#087eba]">GIÁO TRÌNH TOPIK 1</p>
+        <div className="space-y-1">
+          {topikShelf.map((item) => item.course ? (
+            <div key={item.id} className="overflow-hidden rounded-xl bg-white/35">
+              <button type="button" onClick={() => setExpandedCourseId((current) => current === item.course?.id ? null : item.course?.id ?? null)} className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left text-sm font-black text-[#10243e] transition hover:bg-white/70" aria-expanded={expandedCourseId === item.course.id}>
+                <span>Quyển {item.level}</span>
+                <span className="text-[#087eba]">{expandedCourseId === item.course.id ? "−" : "+"}</span>
+              </button>
+              {expandedCourseId === item.course.id && (
+                <div className="border-t border-[#087eba]/10 bg-white/55 px-2 py-2">
+                  <Link href={`/courses/${item.course.slug}`} className="mb-1 block rounded-lg bg-[#e7f4ff] px-2.5 py-2 text-xs font-black text-[#087eba]">Xem toàn bộ quyển →</Link>
+                  <div className="space-y-1">
+                    {item.course.lessons.map((lesson) => (
+                      <Link key={lesson.id} href={`/courses/${item.course!.slug}/lessons/${lesson.slug}`} className="block rounded-lg px-2.5 py-2 text-xs font-bold text-[#344b67] transition hover:bg-white hover:text-[#087eba]">
+                        <span className="font-black">Bài {lesson.order}</span>
+                        <span className="ml-1 line-clamp-1">· {lesson.title.vi}</span>
+                      </Link>
+                    ))}
+                    {item.course.lessons.length === 0 && <p className="px-2.5 py-2 text-xs font-bold text-slate-400">Chưa có bài phát hành</p>}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button type="button" key={item.id} onClick={onComingSoon} className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-bold text-[#10243e]/35 hover:bg-white/30">
+              <span>Quyển {item.level}</span><LockIcon />
+            </button>
+          ))}
+        </div>
+      </section>
+      {upcomingSeries.map((series) => (
+        <section key={series.id} className="mt-4 border-t border-[#087eba]/15 pt-3">
+          <p className="px-2 pb-1 text-[.66rem] font-black leading-4 text-[#087eba]">{series.title}</p>
+          <div className="space-y-1">
+            {Array.from({ length: series.total }, (_, index) => (
+              <button type="button" key={`${series.id}-${index + 1}`} onClick={onComingSoon} className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-bold text-[#10243e]/35 hover:bg-white/30">
+                <span>Quyển {index + 1}</span><LockIcon />
+              </button>
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
 
 function viewerName(user: User) {
   const metadata = user.user_metadata;
@@ -194,7 +273,6 @@ export function HomeClient({
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const publishedCourses = initialCourses.length ? initialCourses : fallbackCourses;
   const topikShelf = buildTopikShelf(publishedCourses);
-  const additionalCourses = getAdditionalPublishedCourses(publishedCourses);
   const primaryCourse = publishedCourses.find((course) => course.slug === "topik-1") ?? publishedCourses[0];
 
   useEffect(() => {
@@ -233,10 +311,10 @@ export function HomeClient({
           <Image src="/harutopik-logo-white.png" alt="Harutopik - Học tiếng Hàn" width={220} height={220} className="harutopik-logo logo-penguin-wave h-auto w-full" priority />
         </Link>
         <p className="mt-8 inline-flex w-fit items-center gap-2 rounded-full border border-white/70 bg-gradient-to-r from-[#10243e] to-[#245d93] px-4 py-2 text-sm font-black uppercase tracking-[0.14em] text-white shadow-[0_8px_18px_rgba(16,36,62,0.2)]"><span className="h-2 w-2 rounded-full bg-cyan-300" />Học tập</p>
-        <nav className="mt-3 space-y-2">
+        <nav className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1 [scrollbar-color:rgba(8,126,186,0.45)_transparent] [scrollbar-width:thin]">
           <Link href="/" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-gradient-to-r from-[#168fd0] to-[#087eba] px-4 py-3.5 font-bold text-white shadow-[0_10px_22px_rgba(8,126,186,0.24)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_26px_rgba(8,126,186,0.3)]"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/18">⌂</span><span>Trang chủ</span></Link>
           <button onClick={() => setShowBooks((value) => !value)} aria-expanded={showBooks} className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 text-left font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="flex items-center gap-3"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-blue-100 text-[#087eba]"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-none stroke-current" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11a2 2 0 0 1 2 2v15a2 2 0 0 0-2-2H6.5A2.5 2.5 0 0 0 4 20.5z" /><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v17a2 2 0 0 1 2-2h2.5a2.5 2.5 0 0 1 2.5 2.5z" /></svg></span><span>Thư viện học</span></span><span className="text-sm text-[#087eba]">{showBooks ? "⌃" : "⌄"}</span></button>
-          {showBooks && <div className="ml-4 max-h-[min(26rem,55vh)] space-y-1 overflow-y-auto overscroll-contain border-l-2 border-[#087eba]/25 py-1 pl-3 pr-2 [scrollbar-color:rgba(8,126,186,0.45)_transparent] [scrollbar-width:thin]"><p className="px-3 pt-1 text-[.65rem] font-black uppercase tracking-[.14em] text-[#087eba]/70">Giáo trình TOPIK</p>{topikShelf.map((item) => item.course ? <Link key={item.id} href={`/courses/${item.course.slug}`} className="block rounded-lg px-3 py-2 text-sm font-bold text-[#10243e]/70 transition hover:bg-[#e7f4ff] hover:text-[#087eba]">{item.label}</Link> : <button type="button" key={item.id} onClick={() => setComingSoon(true)} className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-bold text-[#10243e]/35"><span>{item.label}</span><svg aria-label="Đang khóa" viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="10" width="14" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg></button>)}{additionalCourses.length > 0 && <><p className="px-3 pt-3 text-[.65rem] font-black uppercase tracking-[.14em] text-[#087eba]/70">Khóa học khác</p>{additionalCourses.map((course) => <Link key={course.id} href={`/courses/${course.slug}`} className="block rounded-lg px-3 py-2 text-sm font-bold text-[#10243e]/70 transition hover:bg-[#e7f4ff] hover:text-[#087eba]">{course.title.vi}</Link>)}</>}</div>}
+          {showBooks && <SidebarLibrary topikShelf={topikShelf} onComingSoon={() => setComingSoon(true)} />}
           <Link href="/tu-cua-toi" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-cyan-100 text-[#087eba]"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-none stroke-current" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="3" /><path d="M7 9h10M7 13h6" /><path d="M17.5 12.5v4M15.5 14.5h4" /></svg></span><span>Quản lý bộ từ</span></Link>
           <Link href="/luyen-de" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-[#087eba]">✎</span><span>Luyện đề</span></Link>
           <Link href="/tro-ly" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-[#087eba]">✦</span><span>Trợ lý Haru AI</span></Link>

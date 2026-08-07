@@ -6,6 +6,7 @@ import {
 } from "@/lib/audio/service";
 import { isAzureTtsConfigured } from "@/lib/audio/config";
 import { roles, type AppRole } from "@/lib/auth/permissions";
+import { revalidatePath } from "next/cache";
 
 export const maxDuration = 60;
 
@@ -45,6 +46,8 @@ export async function POST(request: Request, context: RouteContext) {
     if (result.status === "processing") {
       return apiSuccess(result, { status: 202 });
     }
+    revalidatePath("/courses", "layout");
+    revalidatePath("/", "layout");
     return apiSuccess(result);
   } catch (error) {
     if (error instanceof VocabularyAudioError) {

@@ -34,6 +34,8 @@ export async function generateVocabularyAudio(formData: FormData) {
     });
     revalidatePath("/bien-tap/tu-vung");
     revalidatePath(`/bien-tap/tu-vung/${vocabularyId}`);
+    revalidatePath("/courses", "layout");
+    revalidatePath("/", "layout");
     redirect(
       resultUrl(
         vocabularyId,

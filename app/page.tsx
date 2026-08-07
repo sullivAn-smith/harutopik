@@ -11,7 +11,12 @@ export default async function HomePage() {
     title: course.title,
     summary: course.summary,
     lessonCount: course.lessons.length,
-    lessons: course.lessons.map((lesson) => ({ id: lesson.id })),
+    lessons: course.lessons.map((lesson) => ({
+      id: lesson.id,
+      slug: lesson.slug,
+      order: lesson.order,
+      title: lesson.title,
+    })),
   }));
 
   return <HomeClient initialCourses={initialCourses} />;

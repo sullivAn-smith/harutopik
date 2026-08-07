@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, useRef, useState } from "react";
+import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 const imageBucket = "vocabulary-images";
@@ -13,6 +13,23 @@ const acceptedImageTypes = new Set([
 
 const outputWidth = 1120;
 const outputHeight = 800;
+const imageScaleParam = "haru_image_scale";
+
+function readSavedImageScale(imageUrl?: string | null) {
+  if (!imageUrl) return 100;
+  try {
+    const value = Number(new URL(imageUrl).searchParams.get(imageScaleParam));
+    return Number.isFinite(value) && value >= 45 && value <= 125 ? value : 100;
+  } catch {
+    return 100;
+  }
+}
+
+function saveImageScale(imageUrl: string, scale: number) {
+  const url = new URL(imageUrl);
+  url.searchParams.set(imageScaleParam, String(scale));
+  return url.toString();
+}
 
 async function resizeForFlashcard(source: Blob, scale: number) {
   const bitmap = await createImageBitmap(source);
@@ -54,20 +71,29 @@ async function resizeForFlashcard(source: Blob, scale: number) {
 export function VocabularyImageUpload({
   defaultValue,
   onValueChange,
+  onUploadingChange,
   previewLabel,
 }: {
   defaultValue?: string | null;
   onValueChange?: (imageUrl: string) => void;
+  onUploadingChange?: (uploading: boolean) => void;
   previewLabel?: string;
 }) {
+  const initialImageScale = readSavedImageScale(defaultValue);
   const inputRef = useRef<HTMLInputElement>(null);
   const [imageUrl, setImageUrl] = useState(defaultValue ?? "");
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
   const [uploadedPath, setUploadedPath] = useState("");
   const [sourceImage, setSourceImage] = useState<Blob | null>(null);
-  const [imageScale, setImageScale] = useState(100);
+  const [imageScale, setImageScale] = useState(initialImageScale);
+  const [appliedImageScale, setAppliedImageScale] = useState(initialImageScale);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const previewScale = (imageScale / appliedImageScale) * 100;
+
+  useEffect(() => {
+    onUploadingChange?.(uploading);
+  }, [onUploadingChange, uploading]);
 
   async function uploadImage(source: Blob, scale: number) {
     setUploading(true);
@@ -92,10 +118,11 @@ export function VocabularyImageUpload({
 
     const previousUploadedPath = uploadedPath;
     const { data } = supabase.storage.from(imageBucket).getPublicUrl(storagePath);
-    setImageUrl(data.publicUrl);
-    onValueChange?.(data.publicUrl);
+    const scaledPublicUrl = saveImageScale(data.publicUrl, scale);
+    setImageUrl(scaledPublicUrl);
+    onValueChange?.(scaledPublicUrl);
     setUploadedPath(storagePath);
-    setImageScale(100);
+    setAppliedImageScale(scale);
     if (previousUploadedPath) {
       await supabase.storage.from(imageBucket).remove([previousUploadedPath]);
     }
@@ -116,6 +143,8 @@ export function VocabularyImageUpload({
     }
 
     setSourceImage(file);
+    setImageScale(100);
+    setAppliedImageScale(100);
     try {
       await uploadImage(file, 100);
       setMessage("Ảnh đã được căn theo khung flashcard. Hãy lưu từ vựng để hoàn tất.");
@@ -127,7 +156,7 @@ export function VocabularyImageUpload({
   }
 
   async function applyImageScale() {
-    if (!imageUrl || imageScale === 100) return;
+    if (!imageUrl || uploading || imageScale === appliedImageScale) return;
     try {
       let source = sourceImage;
       if (!source) {
@@ -155,6 +184,7 @@ export function VocabularyImageUpload({
     setUploadedPath("");
     setSourceImage(null);
     setImageScale(100);
+    setAppliedImageScale(100);
     setPreviewOpen(false);
     setMessage("Đã bỏ ảnh khỏi biểu mẫu.");
   }
@@ -224,19 +254,17 @@ export function VocabularyImageUpload({
               value={imageScale}
               disabled={uploading}
               onChange={(event) => setImageScale(Number(event.target.value))}
+              onPointerUp={() => void applyImageScale()}
+              onKeyUp={() => void applyImageScale()}
+              onBlur={() => void applyImageScale()}
               className="mt-3 w-full accent-sky-600"
             />
             <div className="mt-1 flex justify-between text-xs font-bold text-ink-500">
               <span>Nhỏ</span><span>Lớn</span>
             </div>
-            <button
-              type="button"
-              disabled={uploading || imageScale === 100}
-              onClick={() => void applyImageScale()}
-              className="mt-4 w-full rounded-xl bg-sky-700 px-4 py-2.5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Áp dụng kích thước
-            </button>
+            <p className="mt-3 text-center text-xs font-bold text-sky-800">
+              Kéo và thả thanh trượt, sau đó bấm Lưu ở cuối trang.
+            </p>
           </div>
         )}
       </div>
@@ -248,7 +276,7 @@ export function VocabularyImageUpload({
           className="aspect-[7/5] overflow-hidden rounded-2xl bg-slate-100 bg-center bg-no-repeat"
           style={imageUrl ? {
             backgroundImage: `url("${imageUrl}")`,
-            backgroundSize: `${imageScale}% auto`,
+            backgroundSize: `${previewScale}% auto`,
           } : undefined}
         >
           {!imageUrl && (
@@ -297,7 +325,7 @@ export function VocabularyImageUpload({
               className="h-40 w-56 overflow-hidden rounded-2xl border border-white/80 bg-white bg-center bg-no-repeat shadow-[0_10px_24px_rgba(16,36,62,0.14)]"
               style={{
                 backgroundImage: `url("${imageUrl}")`,
-                backgroundSize: `${imageScale}% auto`,
+                backgroundSize: `${previewScale}% auto`,
               }}
             />
             <strong lang="ko" className="font-korean mt-4 text-5xl font-black leading-tight text-[#10243e]">
