@@ -12,6 +12,7 @@ vi.mock("./hotfix-actions", () => ({
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 const lesson: Lesson = {
@@ -94,5 +95,104 @@ describe("PublishedLessonHotfixForm vocabulary removal", () => {
         'input[name="removedVocabularyIdsJson"]',
       )?.value,
     ).toBe("[]");
+  });
+});
+
+describe("PublishedLessonHotfixForm dictation editing", () => {
+  it("cho tạo câu chính tả khi bài phát hành chưa có câu nào", () => {
+    vi.stubGlobal("crypto", { randomUUID: () => "dictation-test-id" });
+    const { container } = render(
+      <PublishedLessonHotfixForm lesson={lesson} />,
+    );
+
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "Mở rộng (0) ↓" })[0],
+    );
+    expect(screen.getByText("Chưa có câu chính tả")).toBeTruthy();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "+ Thêm câu chính tả" }),
+    );
+
+    expect(screen.getByText("1/15 câu chính tả")).toBeTruthy();
+    const addButton = screen.getByRole("button", {
+      name: "+ Thêm câu chính tả",
+    });
+    const dictationSection = addButton.closest("section");
+    const sentenceInput = dictationSection?.querySelector<HTMLInputElement>(
+      'article input[lang="ko"]',
+    );
+    expect(sentenceInput).toBeTruthy();
+    fireEvent.change(sentenceInput!, { target: { value: "학교에 학생이 있습니다." } });
+
+    const serialized = container.querySelector<HTMLInputElement>(
+      'input[name="dictationsJson"]',
+    )?.value;
+    expect(serialized).toContain("학교에 학생이 있습니다.");
+    expect(serialized).toContain("lesson-hotfix-test-dictation-hotfix-dictation-test-id");
+  });
+});
+
+describe("PublishedLessonHotfixForm translation editing", () => {
+  it("cho tạo câu Dịch câu và thu gọn hai khu vực bài tập", () => {
+    vi.stubGlobal("crypto", { randomUUID: () => "translation-test-id" });
+    const { container } = render(
+      <PublishedLessonHotfixForm lesson={lesson} />,
+    );
+
+    const initiallyCollapsed = screen.getAllByRole("button", {
+      name: "Mở rộng (0) ↓",
+    });
+    expect(initiallyCollapsed).toHaveLength(2);
+    fireEvent.click(initiallyCollapsed[1]);
+    fireEvent.click(screen.getByRole("button", { name: "+ Thêm câu dịch" }));
+    const translationSection = screen
+      .getByRole("button", { name: "+ Thêm câu dịch" })
+      .closest("section");
+    const translationInputs = translationSection?.querySelectorAll("textarea");
+    expect(translationInputs).toHaveLength(4);
+    fireEvent.change(translationInputs![0], {
+      target: { value: "Tôi đi đến trường." },
+    });
+    fireEvent.change(translationInputs![1], {
+      target: { value: "저는 학교에 가요." },
+    });
+
+    const serialized = container.querySelector<HTMLInputElement>(
+      'input[name="translationsJson"]',
+    )?.value;
+    expect(serialized).toContain("Tôi đi đến trường.");
+    expect(serialized).toContain("저는 학교에 가요.");
+
+    const collapseButton = screen.getByRole("button", { name: "Thu gọn ↑" });
+    fireEvent.click(collapseButton);
+    expect(screen.getByRole("button", { name: "Mở rộng (1) ↓" })).toBeTruthy();
+  });
+
+  it("báo đã đủ khi chính tả và Dịch câu đều có 15 câu", () => {
+    const fullLesson: Lesson = {
+      ...lesson,
+      exercises: Array.from({ length: 15 }, (_, index) => [
+        {
+          id: `dictation-${index}`,
+          type: "dictation" as const,
+          sentence: `받아쓰기 문장 ${index + 1}`,
+          points: 1,
+        },
+        {
+          id: `translation-${index}`,
+          type: "translation" as const,
+          vietnamese: `Câu dịch ${index + 1}`,
+          korean: `번역 문장 ${index + 1}`,
+          acceptedVietnameseAnswers: [],
+          acceptedKoreanAnswers: [],
+          points: 1,
+        },
+      ]).flat(),
+    };
+
+    render(<PublishedLessonHotfixForm lesson={fullLesson} />);
+
+    expect(screen.getAllByText("Đã đủ 15/15")).toHaveLength(2);
   });
 });

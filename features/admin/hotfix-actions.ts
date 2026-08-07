@@ -15,6 +15,7 @@ const hotfixSchema = z.object({
   summary: z.string().trim().min(10).max(1_000),
   reason: z.string().trim().min(5, "Hãy ghi lý do hotfix.").max(500),
   dictationsJson: z.string(),
+  translationsJson: z.string(),
   grammarJson: z.string(),
   grammarExercisesJson: z.string(),
   removedVocabularyIdsJson: z.string(),
@@ -33,6 +34,17 @@ const dictationsSchema = z.array(
     points: z.number().positive().default(1),
   }),
 );
+
+const translationsSchema = z.array(
+  z.object({
+    id: z.string().min(1),
+    vietnamese: z.string().trim().min(1).max(500),
+    korean: z.string().trim().min(1).max(500),
+    acceptedVietnameseAnswers: z.array(z.string().trim().min(1).max(500)).default([]),
+    acceptedKoreanAnswers: z.array(z.string().trim().min(1).max(500)).default([]),
+    points: z.number().positive().default(1),
+  }),
+).max(15, "Mỗi bài chỉ được có tối đa 15 câu dịch.");
 
 const grammarSchema = z.array(
   z.object({
@@ -83,12 +95,16 @@ export async function applyPublishedLessonHotfix(
   }
 
   let dictations;
+  let translations;
   let grammar;
   let grammarExercises;
   let removedVocabularyIds;
   try {
     dictations = dictationsSchema.parse(
       JSON.parse(parsed.data.dictationsJson || "[]"),
+    );
+    translations = translationsSchema.parse(
+      JSON.parse(parsed.data.translationsJson || "[]"),
     );
     grammar = grammarSchema.parse(JSON.parse(parsed.data.grammarJson || "[]"));
     grammarExercises = grammarExercisesSchema.parse(
@@ -100,9 +116,10 @@ export async function applyPublishedLessonHotfix(
   } catch {
     return {
       status: "error",
-      message: "Nội dung chính tả hoặc ngữ pháp chưa hợp lệ. Hãy kiểm tra các trường còn trống, đáp án và URL audio.",
+      message: "Nội dung chính tả, dịch câu hoặc ngữ pháp chưa hợp lệ. Hãy kiểm tra các trường còn trống, đáp án và URL audio.",
       fields: {
         dictationsJson: ["Hãy kiểm tra lại từng câu chính tả."],
+        translationsJson: ["Mỗi câu dịch cần đủ câu tiếng Việt và tiếng Hàn."],
         grammarJson: ["Mỗi điểm ngữ pháp cần đủ cấu trúc, giải thích và ít nhất một ví dụ."],
         grammarExercisesJson: ["Mỗi câu luyện tập cần đủ đề bài, gợi ý và đáp án."],
       },
@@ -157,8 +174,11 @@ export async function applyPublishedLessonHotfix(
       example.audio_url as string | null,
     ]),
   );
-  const nonDictationExercises = current.data.exercises.filter(
-    (exercise) => exercise.type !== "dictation" && exercise.type !== "fill-blank",
+  const retainedExercises = current.data.exercises.filter(
+    (exercise) =>
+      exercise.type !== "dictation" &&
+      exercise.type !== "translation" &&
+      exercise.type !== "fill-blank",
   );
   const nextLesson = lessonSchema.safeParse({
     ...current.data,
@@ -186,8 +206,12 @@ export async function applyPublishedLessonHotfix(
       };
     }),
     exercises: [
-      ...nonDictationExercises,
+      ...retainedExercises,
       ...dictations.map((item) => ({ ...item, type: "dictation" as const })),
+      ...translations.map((item) => ({
+        ...item,
+        type: "translation" as const,
+      })),
       ...grammarExercises.map((item) => ({
         ...item,
         type: "fill-blank" as const,
@@ -237,6 +261,7 @@ export async function applyPublishedLessonHotfix(
       previous_title: current.data.title,
       next_title: nextLesson.data.title,
       dictation_audio_count: dictations.filter((item) => item.audioUrl).length,
+      translation_count: translations.length,
       grammar_point_count: grammar.length,
       grammar_exercise_count: grammarExercises.length,
       removed_vocabulary_count:
@@ -250,9 +275,10 @@ export async function applyPublishedLessonHotfix(
     },
   });
 
-  revalidatePath("/quan-tri/hotfix");
-  revalidatePath("/quan-tri/noi-dung");
-  revalidatePath(`/quan-tri/hotfix/${parsed.data.contentId}`);
+  revalidatePath("/quan-tri", "layout");
+  revalidatePath("/bien-tap", "layout");
+  revalidatePath("/xem-truoc", "layout");
   revalidatePath("/courses", "layout");
+  revalidatePath("/", "layout");
   redirect(`/quan-tri/hotfix/${parsed.data.contentId}?saved=1`);
 }

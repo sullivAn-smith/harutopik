@@ -15,6 +15,8 @@ import {
 const fieldClass =
   "mt-2 w-full rounded-2xl border-2 border-slate-200 bg-white px-4 py-3 font-semibold outline-none focus:border-violet-500";
 const VOCABULARY_PAGE_SIZE = 30;
+const MAX_DICTATION_COUNT = 15;
+const MAX_TRANSLATION_COUNT = 15;
 
 export function PublishedLessonHotfixForm({ lesson }: { lesson: Lesson }) {
   const [state, action, pending] = useActionState(
@@ -32,6 +34,20 @@ export function PublishedLessonHotfixForm({ lesson }: { lesson: Lesson }) {
         points: exercise.points,
       })),
   );
+  const [translations, setTranslations] = useState(
+    lesson.exercises
+      .filter((exercise) => exercise.type === "translation")
+      .map((exercise) => ({
+        id: exercise.id,
+        vietnamese: exercise.vietnamese,
+        korean: exercise.korean,
+        acceptedVietnameseAnswers: exercise.acceptedVietnameseAnswers,
+        acceptedKoreanAnswers: exercise.acceptedKoreanAnswers,
+        points: exercise.points,
+      })),
+  );
+  const [dictationExpanded, setDictationExpanded] = useState(false);
+  const [translationExpanded, setTranslationExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<"vocabulary" | "grammar">(
     "vocabulary",
   );
@@ -91,6 +107,11 @@ export function PublishedLessonHotfixForm({ lesson }: { lesson: Lesson }) {
         type="hidden"
         name="dictationsJson"
         value={JSON.stringify(dictations)}
+      />
+      <input
+        type="hidden"
+        name="translationsJson"
+        value={JSON.stringify(translations)}
       />
       <input type="hidden" name="grammarJson" value={JSON.stringify(grammar)} />
       <input
@@ -163,17 +184,85 @@ export function PublishedLessonHotfixForm({ lesson }: { lesson: Lesson }) {
       </section>
 
       <section className="rounded-3xl border border-violet-200 bg-violet-50 p-6">
-        <h2 className="text-2xl font-black">Audio câu chính tả</h2>
-        <p className="mt-2 text-sm leading-6 text-ink-600">
-          Tạo audio Azure một lần cho từng câu. File được cache trên Supabase CDN
-          và chỉ được đưa tới learner sau khi áp dụng hotfix.
-        </p>
-        <div className="mt-5 space-y-3">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-black">Audio câu chính tả</h2>
+            <p className="mt-2 text-sm leading-6 text-ink-600">
+              Tạo audio Azure một lần cho từng câu. File được cache trên Supabase CDN
+              và chỉ được đưa tới learner sau khi áp dụng hotfix.
+            </p>
+            {dictations.length === MAX_DICTATION_COUNT && (
+              <span className="mt-3 inline-flex rounded-full bg-violet-600 px-3 py-1 text-xs font-black text-white">
+                Đã đủ 15/15
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {dictationExpanded && (
+              <button
+                type="button"
+                disabled={dictations.length >= MAX_DICTATION_COUNT}
+                onClick={() =>
+                  setDictations((items) => [
+                    ...items,
+                    {
+                      id: `${lesson.id}-dictation-hotfix-${crypto.randomUUID()}`,
+                      sentence: "",
+                      audioUrl: undefined,
+                      acceptedAnswers: [],
+                      points: 1,
+                    },
+                  ])
+                }
+                className="rounded-full bg-violet-600 px-5 py-3 font-black text-white shadow-md transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                + Thêm câu chính tả
+              </button>
+            )}
+            <button
+              type="button"
+              aria-expanded={dictationExpanded}
+              onClick={() => setDictationExpanded((value) => !value)}
+              className="rounded-full border border-violet-300 bg-white px-5 py-3 font-black text-violet-800 hover:bg-violet-100"
+            >
+              {dictationExpanded ? "Thu gọn ↑" : `Mở rộng (${dictations.length}) ↓`}
+            </button>
+          </div>
+        </div>
+        {dictationExpanded && <div>
+          <p className="mt-2 text-sm leading-6 text-ink-600">
+            {dictations.length === MAX_DICTATION_COUNT
+              ? "Đã đủ 15/15"
+              : `${dictations.length}/${MAX_DICTATION_COUNT} câu chính tả`}
+          </p>
+          <div className="mt-5 space-y-3">
+          {dictations.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-violet-300 bg-white/80 p-6 text-center">
+              <p className="font-black text-ink-900">Chưa có câu chính tả</p>
+              <p className="mt-1 text-sm text-ink-600">
+                Bấm “Thêm câu chính tả” để tạo câu đầu tiên cho bài này.
+              </p>
+            </div>
+          )}
           {dictations.map((exercise, index) => (
             <article key={exercise.id} className="rounded-2xl border bg-white p-4">
-              <p className="text-xs font-black uppercase text-violet-600">
-                Câu {index + 1}
-              </p>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-black uppercase text-violet-600">
+                  Câu {index + 1}
+                </p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setDictations((items) =>
+                      items.filter((_, itemIndex) => itemIndex !== index),
+                    )
+                  }
+                  className="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-black text-red-700 hover:bg-red-100"
+                  aria-label={`Xóa câu chính tả ${index + 1}`}
+                >
+                  Xóa câu
+                </button>
+              </div>
               <input
                 lang="ko"
                 value={exercise.sentence}
@@ -227,7 +316,182 @@ export function PublishedLessonHotfixForm({ lesson }: { lesson: Lesson }) {
               </div>
             </article>
           ))}
+          </div>
         </div>
+        }
+      </section>
+
+      <section className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-black">Dịch câu</h2>
+            <p className="mt-2 text-sm leading-6 text-ink-600">
+              Chỉnh câu tiếng Việt, câu tiếng Hàn và đáp án được chấp nhận theo cả hai chiều.
+            </p>
+            {translations.length === MAX_TRANSLATION_COUNT && (
+              <span className="mt-3 inline-flex rounded-full bg-emerald-600 px-3 py-1 text-xs font-black text-white">
+                Đã đủ 15/15
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {translationExpanded && (
+              <button
+                type="button"
+                disabled={translations.length >= MAX_TRANSLATION_COUNT}
+                onClick={() =>
+                  setTranslations((items) => [
+                    ...items,
+                    {
+                      id: `${lesson.id}-translation-hotfix-${crypto.randomUUID()}`,
+                      vietnamese: "",
+                      korean: "",
+                      acceptedVietnameseAnswers: [],
+                      acceptedKoreanAnswers: [],
+                      points: 1,
+                    },
+                  ])
+                }
+                className="rounded-full bg-emerald-600 px-5 py-3 font-black text-white shadow-md transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                + Thêm câu dịch
+              </button>
+            )}
+            <button
+              type="button"
+              aria-expanded={translationExpanded}
+              onClick={() => setTranslationExpanded((value) => !value)}
+              className="rounded-full border border-emerald-300 bg-white px-5 py-3 font-black text-emerald-800 hover:bg-emerald-100"
+            >
+              {translationExpanded ? "Thu gọn ↑" : `Mở rộng (${translations.length}) ↓`}
+            </button>
+          </div>
+        </div>
+
+        {translationExpanded && (
+          <div>
+            <p className="mt-2 text-sm leading-6 text-ink-600">
+              {translations.length === MAX_TRANSLATION_COUNT
+                ? "Đã đủ 15/15"
+                : `${translations.length}/${MAX_TRANSLATION_COUNT} câu dịch`}
+            </p>
+            <div className="mt-5 space-y-3">
+              {translations.length === 0 && (
+                <div className="rounded-2xl border border-dashed border-emerald-300 bg-white/80 p-6 text-center">
+                  <p className="font-black text-ink-900">Chưa có câu dịch</p>
+                  <p className="mt-1 text-sm text-ink-600">
+                    Bấm “Thêm câu dịch” để tạo câu đầu tiên cho chế độ Dịch câu.
+                  </p>
+                </div>
+              )}
+              {translations.map((exercise, index) => (
+                <article key={exercise.id} className="rounded-2xl border bg-white p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-black uppercase text-emerald-700">
+                      Câu {index + 1}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setTranslations((items) =>
+                          items.filter((_, itemIndex) => itemIndex !== index),
+                        )
+                      }
+                      className="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-black text-red-700 hover:bg-red-100"
+                      aria-label={`Xóa câu dịch ${index + 1}`}
+                    >
+                      Xóa câu
+                    </button>
+                  </div>
+                  <div className="mt-3 grid gap-4 md:grid-cols-2">
+                    <label className="text-sm font-black">
+                      Câu tiếng Việt
+                      <textarea
+                        rows={2}
+                        value={exercise.vietnamese}
+                        onChange={(event) =>
+                          setTranslations((items) =>
+                            items.map((item, itemIndex) =>
+                              itemIndex === index
+                                ? { ...item, vietnamese: event.target.value }
+                                : item,
+                            ),
+                          )
+                        }
+                        className={fieldClass}
+                      />
+                    </label>
+                    <label className="text-sm font-black">
+                      Câu tiếng Hàn
+                      <textarea
+                        lang="ko"
+                        rows={2}
+                        value={exercise.korean}
+                        onChange={(event) =>
+                          setTranslations((items) =>
+                            items.map((item, itemIndex) =>
+                              itemIndex === index
+                                ? { ...item, korean: event.target.value }
+                                : item,
+                            ),
+                          )
+                        }
+                        className={fieldClass}
+                      />
+                    </label>
+                    <label className="text-sm font-black">
+                      Đáp án tiếng Việt khác — mỗi dòng một đáp án
+                      <textarea
+                        rows={2}
+                        value={exercise.acceptedVietnameseAnswers.join("\n")}
+                        onChange={(event) =>
+                          setTranslations((items) =>
+                            items.map((item, itemIndex) =>
+                              itemIndex === index
+                                ? {
+                                    ...item,
+                                    acceptedVietnameseAnswers: event.target.value
+                                      .split("\n")
+                                      .map((answer) => answer.trim())
+                                      .filter(Boolean),
+                                  }
+                                : item,
+                            ),
+                          )
+                        }
+                        className={fieldClass}
+                      />
+                    </label>
+                    <label className="text-sm font-black">
+                      Đáp án tiếng Hàn khác — mỗi dòng một đáp án
+                      <textarea
+                        lang="ko"
+                        rows={2}
+                        value={exercise.acceptedKoreanAnswers.join("\n")}
+                        onChange={(event) =>
+                          setTranslations((items) =>
+                            items.map((item, itemIndex) =>
+                              itemIndex === index
+                                ? {
+                                    ...item,
+                                    acceptedKoreanAnswers: event.target.value
+                                      .split("\n")
+                                      .map((answer) => answer.trim())
+                                      .filter(Boolean),
+                                  }
+                                : item,
+                            ),
+                          )
+                        }
+                        className={fieldClass}
+                      />
+                    </label>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="rounded-3xl border border-sky-200 bg-sky-50 p-6">
