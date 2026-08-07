@@ -125,11 +125,11 @@ const volumeBadgeThemes = [
   "bg-[#7a4fb2]",
 ];
 
-function ShelfStatus({ count }: { count: number }) {
+function ShelfStatus({ count, total = 6 }: { count: number; total?: number }) {
   return (
     <div className="flex w-full items-center justify-end rounded-2xl border border-white/80 bg-white/75 px-5 py-2.5 shadow-[0_8px_20px_rgba(16,36,62,0.1)] backdrop-blur">
       <span className="rounded-full bg-[#e7f4ff] px-4 py-2 text-xs font-black tracking-wide text-[#245d93] sm:text-sm">
-        {count}/6 giáo trình TOPIK đang mở
+        {count}/{total} giáo trình TOPIK đang mở
       </span>
     </div>
   );
@@ -145,7 +145,7 @@ function UpcomingBookCover({
   const coverSrc = series === "vocabulary"
     ? "/covers/harutopik-color-series-v2.png"
     : "/covers/harutopik-geometry-series.png";
-  const badgeTheme = volumeBadgeThemes[index] ?? volumeBadgeThemes[0];
+  const badgeTheme = volumeBadgeThemes[index % volumeBadgeThemes.length] ?? volumeBadgeThemes[0];
   const coverTheme = bookThemes[index % bookThemes.length] ?? bookThemes[0];
   return (
     <div className={`relative aspect-[3/4] overflow-hidden rounded-2xl border-2 border-white/70 bg-gradient-to-br ${coverTheme} shadow-[0_14px_28px_rgba(16,36,62,0.2)] ring-1 ring-[#10243e]/20`}>
@@ -348,9 +348,9 @@ export function HomeClient({
 
         {(["vocabulary", "grammar"] as const).map((series) => (
           <section key={series} className="mt-9" aria-label={series === "vocabulary" ? "Bộ giáo trình từ vựng sắp ra mắt" : "Bộ giáo trình ngữ pháp sắp ra mắt"}>
-            <ShelfStatus count={0} />
+            <ShelfStatus count={0} total={series === "grammar" ? 8 : 6} />
             <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6 lg:gap-5">
-              {Array.from({ length: 6 }, (_, index) => (
+              {Array.from({ length: series === "grammar" ? 8 : 6 }, (_, index) => (
                 <button
                   type="button"
                   key={`${series}-${index + 1}`}
