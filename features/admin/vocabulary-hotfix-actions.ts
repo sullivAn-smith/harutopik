@@ -51,8 +51,9 @@ const schema = z.object({
   reason: z
     .string()
     .trim()
-    .min(5, "Hãy nhập ít nhất 5 ký tự.")
-    .max(500, "Tối đa 500 ký tự."),
+    .max(500, "Tối đa 500 ký tự.")
+    .optional()
+    .default("Chỉnh sửa trực tiếp từ trang quản trị."),
 });
 
 const examplesSchema = z.array(
@@ -93,7 +94,6 @@ const fieldLabels: Record<string, string> = {
   acceptedVi: "Đáp án tiếng Việt",
   acceptedKo: "Đáp án tiếng Hàn",
   imageUrl: "Ảnh minh họa",
-  reason: "Lý do chỉnh sửa",
 };
 
 function parseAnswerLines(value: string) {

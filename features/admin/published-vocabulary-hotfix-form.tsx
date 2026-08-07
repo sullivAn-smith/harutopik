@@ -50,7 +50,9 @@ export function PublishedVocabularyHotfixForm({
       <input type="hidden" name="vocabularyId" value={item.id} />
       <input type="hidden" name="examplesJson" value={JSON.stringify(examples)} />
       {state.message && <p role="alert" className="rounded-2xl bg-red-50 p-4 font-bold text-red-700">{state.message}</p>}
-      <section className="rounded-3xl border bg-white p-6">
+      <div className="grid items-start gap-5 xl:grid-cols-2">
+      <div className="space-y-4">
+      <section className="rounded-3xl border bg-white p-5">
         <h2 className="text-2xl font-black">Nội dung từ</h2>
         <div className="mt-5 grid gap-4 md:grid-cols-2">
           <label className="font-black">Tiếng Hàn
@@ -91,7 +93,7 @@ export function PublishedVocabularyHotfixForm({
           </label>
         </div>
       </section>
-      <section className="rounded-3xl border bg-slate-50 p-6">
+      <section className="rounded-3xl border bg-slate-50 p-5">
         <h2 className="text-2xl font-black">Đáp án được chấp nhận</h2>
         <p className="mt-2 text-sm leading-6 text-ink-600">
           Mỗi dòng là một cách trả lời đúng. Các đáp án này được dùng cho bài
@@ -121,16 +123,19 @@ export function PublishedVocabularyHotfixForm({
           </label>
         </div>
       </section>
-      <section className="rounded-3xl border border-sky-200 bg-sky-50 p-6">
+      </div>
+      <div className="space-y-4">
+      <section className="rounded-3xl border border-sky-200 bg-sky-50 p-5">
         <h2 className="text-2xl font-black">Ảnh minh họa</h2>
         <p className="mt-2 text-sm text-ink-600">Ảnh mới được tải lên Supabase Storage và phục vụ qua CDN.</p>
         <VocabularyImageUpload
           defaultValue={item.imageUrl}
+          previewLabel={item.hangul}
           onValueChange={() => setDirty(true)}
         />
         <FieldError state={state} name="imageUrl" />
       </section>
-      <section className="rounded-3xl border border-violet-200 bg-violet-50 p-6">
+      <section className="rounded-3xl border border-violet-200 bg-violet-50 p-5">
         <h2 className="text-2xl font-black">Câu ví dụ và audio Azure</h2>
         <p className="mt-2 text-sm leading-6 text-ink-600">
           Nút loa bên dưới thẻ từ của learner dùng audio này. Khi sửa câu,
@@ -196,15 +201,12 @@ export function PublishedVocabularyHotfixForm({
           ))}
         </div>
       </section>
+      </div>
+      </div>
       {dirty ? (
         <>
-          <label className="block rounded-3xl border border-amber-200 bg-amber-50 p-6 font-black">
-            Lý do chỉnh sửa
-            <textarea name="reason" required rows={2} placeholder="Ví dụ: Thay ảnh minh họa bị sai." className={fieldClass} />
-            <FieldError state={state} name="reason" />
-          </label>
           <button disabled={pending} className="w-full rounded-2xl bg-violet-700 px-6 py-4 text-lg font-black text-white disabled:opacity-60">
-            {pending ? "Đang lưu…" : "Lưu thay đổi"}
+            {pending ? "Đang lưu…" : "Lưu"}
           </button>
           <p className="text-center text-sm font-bold text-amber-700">
             Hãy lưu thay đổi trước khi chuyển sang từ tiếp theo.

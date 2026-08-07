@@ -279,8 +279,18 @@ export function VocabularyImageUpload({
       </div>
 
       {imageUrl && previewOpen && (
-        <div role="dialog" aria-label="Xem trước flashcard học viên" className="lg:col-span-2 rounded-3xl border border-sky-200 bg-[#cbe6ff] p-5 shadow-inner">
-          <p className="mb-4 text-center text-sm font-black uppercase tracking-wider text-sky-900/60">Mặt trước flashcard học viên</p>
+        <div role="dialog" aria-label="Xem trước flashcard học viên" className="fixed inset-x-4 top-20 z-50 max-h-[calc(100vh-6rem)] overflow-auto rounded-3xl border border-sky-200 bg-[#cbe6ff] p-5 shadow-[0_24px_70px_rgba(16,36,62,.3)] lg:bottom-6 lg:left-auto lg:right-6 lg:top-24 lg:w-[430px]">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <p className="text-sm font-black uppercase tracking-wider text-sky-900/60">Mặt trước flashcard học viên</p>
+            <button
+              type="button"
+              onClick={() => setPreviewOpen(false)}
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/85 text-lg font-black text-[#10243e] shadow-sm hover:bg-white"
+              aria-label="Đóng xem trước flashcard"
+            >
+              ×
+            </button>
+          </div>
           <div className="flex min-h-[360px] flex-col items-center justify-center rounded-3xl bg-gradient-to-br from-[#8ec5ff] to-[#cbe6ff] p-6 text-center">
             <div
               aria-hidden="true"

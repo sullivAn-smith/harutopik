@@ -215,6 +215,88 @@ export async function getPublishedLessonsForHotfix() {
   });
 }
 
+export type VocabularyDuplicateLocation = {
+  vocabularyId: string;
+  meaningVi: string;
+  courseNumber: number | null;
+  courseTitle: string;
+  lessonNumber: number | null;
+  lessonTitle: string;
+};
+
+function localizedTitle(value: unknown, fallback: string) {
+  return typeof value === "object" && value && "vi" in value
+    ? String((value as { vi?: unknown }).vi ?? fallback)
+    : fallback;
+}
+
+export async function getVocabularyDuplicateLocations(vocabularyId: string) {
+  await requirePermission("content:publish");
+  const supabase = await createClient();
+  const { data: current, error: currentError } = await supabase
+    .from("vocabulary_items")
+    .select("normalized_hangul")
+    .eq("id", vocabularyId)
+    .maybeSingle();
+  if (currentError || !current) return [];
+
+  const { data: matches, error: matchesError } = await supabase
+    .from("vocabulary_items")
+    .select("id,primary_meaning_vi")
+    .eq("normalized_hangul", current.normalized_hangul)
+    .neq("id", vocabularyId);
+  if (matchesError || !matches?.length) return [];
+
+  const duplicateIds = matches.map((item) => item.id);
+  const [{ data: relations }, { data: entries }] = await Promise.all([
+    supabase
+      .from("lesson_vocabulary")
+      .select("lesson_id,vocabulary_id")
+      .in("vocabulary_id", duplicateIds),
+    supabase
+      .from("content_entries")
+      .select("id,parent_id,content_type,title,sort_order"),
+  ]);
+  const entryMap = new Map((entries ?? []).map((entry) => [entry.id, entry]));
+  const meaningMap = new Map(
+    matches.map((item) => [item.id, item.primary_meaning_vi]),
+  );
+  const locations: VocabularyDuplicateLocation[] = [];
+
+  for (const relation of relations ?? []) {
+    const lesson = entryMap.get(relation.lesson_id);
+    if (!lesson) continue;
+    let parent = lesson.parent_id ? entryMap.get(lesson.parent_id) : undefined;
+    let course = parent?.content_type === "course" ? parent : undefined;
+    while (parent && !course) {
+      parent = parent.parent_id ? entryMap.get(parent.parent_id) : undefined;
+      if (parent?.content_type === "course") course = parent;
+    }
+    locations.push({
+      vocabularyId: relation.vocabulary_id,
+      meaningVi: meaningMap.get(relation.vocabulary_id) ?? "",
+      courseNumber: course?.sort_order ?? null,
+      courseTitle: course ? localizedTitle(course.title, course.id) : "Chưa xác định quyển",
+      lessonNumber: lesson.sort_order ?? null,
+      lessonTitle: localizedTitle(lesson.title, lesson.id),
+    });
+  }
+
+  for (const match of matches) {
+    if (!locations.some((location) => location.vocabularyId === match.id)) {
+      locations.push({
+        vocabularyId: match.id,
+        meaningVi: match.primary_meaning_vi,
+        courseNumber: null,
+        courseTitle: "Trong thư viện",
+        lessonNumber: null,
+        lessonTitle: "Chưa gắn vào bài học",
+      });
+    }
+  }
+  return locations;
+}
+
 export async function getPublishedLessonForHotfix(contentId: string) {
   await requirePermission("content:publish");
   const supabase = await createClient();
