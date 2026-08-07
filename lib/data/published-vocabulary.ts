@@ -2,10 +2,7 @@ import "server-only";
 
 import { createClient } from "@supabase/supabase-js";
 import type { VocabularyItem } from "@/content/schema";
-import {
-  getSupabaseConfig,
-  isSupabaseConfigured,
-} from "@/lib/supabase/config";
+import { getSupabaseConfig, isSupabaseConfigured } from "@/lib/supabase/config";
 import {
   toRuntimeVocabulary,
   vocabularyMasterSchema,

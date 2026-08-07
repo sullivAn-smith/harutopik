@@ -33,5 +33,6 @@ describe("vocabulary domain", () => {
     });
     expect(item.korean).toBe("안녕하세요");
     expect(item.audioUrl).toContain("audio.mp3");
+    expect(item.imageUrl).toBeUndefined();
   });
 });

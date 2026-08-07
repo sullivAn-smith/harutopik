@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     template: "%s | Harutopik",
   },
   description:
-    "Học tiếng Hàn dành cho người Việt với lộ trình rõ ràng, bài học thực hành và phương pháp ôn tập thông minh.",
+    "Học từ vựng tiếng Hàn nhớ lâu, hiểu ngữ pháp dễ dàng và luyện tập theo lộ trình TOPIK dành cho người Việt.",
   applicationName: "Harutopik",
   alternates: { canonical: "/" },
   keywords: [
@@ -50,14 +50,14 @@ export const metadata: Metadata = {
     siteName: "Harutopik",
     title: "Harutopik — Học tiếng Hàn có lộ trình",
     description:
-      "Học từ vựng, nắm chắc ngữ pháp và tiến bộ mỗi ngày với lộ trình dành riêng cho người Việt.",
+      "Học từ vựng nhớ lâu, hiểu ngữ pháp dễ dàng và tiến bộ mỗi ngày cùng Harutopik.",
     images: [{ url: "/og.png", width: 1200, height: 630, alt: "Harutopik — Học tiếng Hàn có lộ trình" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Harutopik — Học tiếng Hàn có lộ trình",
     description:
-      "Học từ vựng, nắm chắc ngữ pháp và tiến bộ mỗi ngày với lộ trình dành riêng cho người Việt.",
+      "Học từ vựng nhớ lâu, hiểu ngữ pháp dễ dàng và tiến bộ mỗi ngày cùng Harutopik.",
     images: ["/og.png"],
   },
 };

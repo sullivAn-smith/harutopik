@@ -763,6 +763,8 @@ async function transitionRevision(
   }
   revalidatePath(destination);
   revalidatePath("/thong-bao");
+  revalidatePath("/");
+  revalidatePath("/tieng-han-th");
   revalidatePath("/courses/[courseSlug]", "page");
   revalidatePath("/api/v1/catalog");
   redirect(`${destination}?workflow=${targetStatus}`);
@@ -882,6 +884,8 @@ export async function unpublishRevision(formData: FormData) {
   }
 
   revalidatePath("/quan-tri/phat-hanh");
+  revalidatePath("/");
+  revalidatePath("/tieng-han-th");
   revalidatePath("/courses/[courseSlug]", "page");
   revalidatePath("/api/v1/catalog");
   redirect("/quan-tri/phat-hanh?release=unpublished");

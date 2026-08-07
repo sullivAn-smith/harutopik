@@ -2,6 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Keep Turbopack scoped to this app when a parent workspace has another lockfile.
+  turbopack: {
+    root: process.cwd(),
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: "5mb",

@@ -90,15 +90,6 @@ const specificExamples: Record<string, readonly [string, string]> = {
   한국어과: ["한국어과에서 한국 문화도 함께 배워요.", "Ở khoa tiếng Hàn, chúng tôi còn học cả văn hóa Hàn Quốc."],
 };
 
-function artworkFor(index: number) {
-  if (index === 3) return "/flag-japan.svg";
-  if (index === 9) return "/flag-indonesia.svg";
-  if (index < 16) return `/vocab-country-${index}.png?v=3`;
-  if (index < 26) return `/vocab-job-${index - 16}.png?v=3`;
-  if (index < 31) return `/vocab-greeting-${index - 26}.png?v=3`;
-  return `/vocab-new-${index - 31}.png?v=3`;
-}
-
 function generatedExample(
   korean: string,
   vietnamese: string,
@@ -250,7 +241,6 @@ export const lessonOne = defineLesson({
         vietnamese,
         category,
         romanization,
-        imageUrl: artworkFor(index),
         examples: [
           {
             id: `vocabulary-01-${String(index + 1).padStart(2, "0")}-example-01`,

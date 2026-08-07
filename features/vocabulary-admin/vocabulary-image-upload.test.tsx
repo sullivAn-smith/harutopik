@@ -25,4 +25,25 @@ describe("VocabularyImageUpload", () => {
     ).toBe("");
     expect(screen.getByText("Ảnh xem trước sẽ xuất hiện ở đây")).toBeTruthy();
   });
+
+  it("cho chỉnh kích thước và xem trước giống flashcard học viên", () => {
+    render(
+      <VocabularyImageUpload
+        defaultValue="https://cdn.example.com/vocabulary.png"
+        previewLabel="학교"
+      />,
+    );
+
+    const slider = screen.getByRole("slider", { name: "Kích thước ảnh" });
+    fireEvent.change(slider, { target: { value: "75" } });
+    expect(screen.getByText("75%")).toBeTruthy();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Xem trước như học viên" }),
+    );
+    expect(
+      screen.getByRole("dialog", { name: "Xem trước flashcard học viên" }),
+    ).toBeTruthy();
+    expect(screen.getByText("학교")).toBeTruthy();
+  });
 });

@@ -193,7 +193,10 @@ export function VocabularyForm({
           Chọn ảnh từ máy. Hệ thống sẽ tải trực tiếp lên Supabase Storage và
           người học xem ảnh qua CDN; bạn không cần tự tạo hoặc dán URL.
         </p>
-        <VocabularyImageUpload defaultValue={defaults?.imageUrl} />
+        <VocabularyImageUpload
+          defaultValue={defaults?.imageUrl}
+          previewLabel={hangul}
+        />
         <ErrorText state={state} name="imageUrl" />
       </section>
 

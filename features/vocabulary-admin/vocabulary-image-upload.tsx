@@ -11,24 +11,95 @@ const acceptedImageTypes = new Set([
   "image/webp",
 ]);
 
-function extensionFor(file: File) {
-  if (file.type === "image/webp") return "webp";
-  if (file.type === "image/png") return "png";
-  return "jpg";
+const outputWidth = 1120;
+const outputHeight = 800;
+
+async function resizeForFlashcard(source: Blob, scale: number) {
+  const bitmap = await createImageBitmap(source);
+  const canvas = document.createElement("canvas");
+  canvas.width = outputWidth;
+  canvas.height = outputHeight;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    bitmap.close();
+    throw new Error("Trình duyệt không thể xử lý ảnh này.");
+  }
+
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, outputWidth, outputHeight);
+  const ratio = Math.min(
+    outputWidth / bitmap.width,
+    outputHeight / bitmap.height,
+  ) * (scale / 100);
+  const width = bitmap.width * ratio;
+  const height = bitmap.height * ratio;
+  context.drawImage(
+    bitmap,
+    (outputWidth - width) / 2,
+    (outputHeight - height) / 2,
+    width,
+    height,
+  );
+  bitmap.close();
+
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => blob ? resolve(blob) : reject(new Error("Không thể tạo ảnh WebP.")),
+      "image/webp",
+      0.9,
+    );
+  });
 }
 
 export function VocabularyImageUpload({
   defaultValue,
   onValueChange,
+  previewLabel,
 }: {
   defaultValue?: string | null;
   onValueChange?: (imageUrl: string) => void;
+  previewLabel?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [imageUrl, setImageUrl] = useState(defaultValue ?? "");
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
   const [uploadedPath, setUploadedPath] = useState("");
+  const [sourceImage, setSourceImage] = useState<Blob | null>(null);
+  const [imageScale, setImageScale] = useState(100);
+  const [previewOpen, setPreviewOpen] = useState(false);
+
+  async function uploadImage(source: Blob, scale: number) {
+    setUploading(true);
+    setMessage("Đang căn ảnh và tải lên kho lưu trữ...");
+    const supabase = createClient();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+    if (userError || !user) throw new Error("Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.");
+
+    const processedImage = await resizeForFlashcard(source, scale);
+    const storagePath = `${user.id}/${crypto.randomUUID()}.webp`;
+    const { error: uploadError } = await supabase.storage
+      .from(imageBucket)
+      .upload(storagePath, processedImage, {
+        cacheControl: "31536000",
+        contentType: "image/webp",
+        upsert: false,
+      });
+    if (uploadError) throw new Error(`Chưa thể tải ảnh lên: ${uploadError.message}`);
+
+    const previousUploadedPath = uploadedPath;
+    const { data } = supabase.storage.from(imageBucket).getPublicUrl(storagePath);
+    setImageUrl(data.publicUrl);
+    onValueChange?.(data.publicUrl);
+    setUploadedPath(storagePath);
+    setImageScale(100);
+    if (previousUploadedPath) {
+      await supabase.storage.from(imageBucket).remove([previousUploadedPath]);
+    }
+  }
 
   async function chooseImage(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -44,41 +115,34 @@ export function VocabularyImageUpload({
       return;
     }
 
-    setUploading(true);
-    setMessage("Đang tải ảnh lên kho lưu trữ...");
-    const supabase = createClient();
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-    if (userError || !user) {
+    setSourceImage(file);
+    try {
+      await uploadImage(file, 100);
+      setMessage("Ảnh đã được căn theo khung flashcard. Hãy lưu từ vựng để hoàn tất.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Không thể xử lý ảnh.");
+    } finally {
       setUploading(false);
-      setMessage("Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.");
-      return;
     }
+  }
 
-    const storagePath = `${user.id}/${crypto.randomUUID()}.${extensionFor(file)}`;
-    const { error: uploadError } = await supabase.storage
-      .from(imageBucket)
-      .upload(storagePath, file, {
-        cacheControl: "31536000",
-        contentType: file.type,
-        upsert: false,
-      });
-    if (uploadError) {
+  async function applyImageScale() {
+    if (!imageUrl || imageScale === 100) return;
+    try {
+      let source = sourceImage;
+      if (!source) {
+        const response = await fetch(imageUrl);
+        if (!response.ok) throw new Error("Không thể tải ảnh hiện tại để chỉnh kích thước.");
+        source = await response.blob();
+        setSourceImage(source);
+      }
+      await uploadImage(source, imageScale);
+      setMessage("Đã áp dụng kích thước mới. Hãy lưu từ vựng để hoàn tất.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Không thể chỉnh kích thước ảnh.");
+    } finally {
       setUploading(false);
-      setMessage(`Chưa thể tải ảnh lên: ${uploadError.message}`);
-      return;
     }
-
-    const { data } = supabase.storage
-      .from(imageBucket)
-      .getPublicUrl(storagePath);
-    setImageUrl(data.publicUrl);
-    onValueChange?.(data.publicUrl);
-    setUploadedPath(storagePath);
-    setUploading(false);
-    setMessage("Ảnh đã được tải lên CDN. Hãy lưu từ vựng để hoàn tất.");
   }
 
   async function removeImage() {
@@ -89,11 +153,14 @@ export function VocabularyImageUpload({
     setImageUrl("");
     onValueChange?.("");
     setUploadedPath("");
+    setSourceImage(null);
+    setImageScale(100);
+    setPreviewOpen(false);
     setMessage("Đã bỏ ảnh khỏi biểu mẫu.");
   }
 
   return (
-    <div className="mt-4 grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px]">
+    <div className="mt-4 grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
       <div>
         <input type="hidden" name="imageUrl" value={imageUrl} />
         <input
@@ -137,14 +204,52 @@ export function VocabularyImageUpload({
         >
           {message}
         </p>
+
+        {imageUrl && (
+          <div className="mt-5 rounded-2xl border border-sky-200 bg-white/80 p-4">
+            <div className="flex items-center justify-between gap-4">
+              <label htmlFor="vocabulary-image-scale" className="font-black text-ink-800">
+                Kích thước ảnh
+              </label>
+              <output htmlFor="vocabulary-image-scale" className="rounded-lg bg-sky-100 px-3 py-1 text-sm font-black text-sky-800">
+                {imageScale}%
+              </output>
+            </div>
+            <input
+              id="vocabulary-image-scale"
+              type="range"
+              min="45"
+              max="125"
+              step="5"
+              value={imageScale}
+              disabled={uploading}
+              onChange={(event) => setImageScale(Number(event.target.value))}
+              className="mt-3 w-full accent-sky-600"
+            />
+            <div className="mt-1 flex justify-between text-xs font-bold text-ink-500">
+              <span>Nhỏ</span><span>Lớn</span>
+            </div>
+            <button
+              type="button"
+              disabled={uploading || imageScale === 100}
+              onClick={() => void applyImageScale()}
+              className="mt-4 w-full rounded-xl bg-sky-700 px-4 py-2.5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Áp dụng kích thước
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="rounded-3xl border border-white/80 bg-white p-3 shadow-sm">
         <div
           role="img"
           aria-label="Xem trước ảnh minh họa"
-          className="aspect-square overflow-hidden rounded-2xl bg-slate-100 bg-cover bg-center"
-          style={imageUrl ? { backgroundImage: `url("${imageUrl}")` } : undefined}
+          className="aspect-[7/5] overflow-hidden rounded-2xl bg-slate-100 bg-center bg-no-repeat"
+          style={imageUrl ? {
+            backgroundImage: `url("${imageUrl}")`,
+            backgroundSize: `${imageScale}% auto`,
+          } : undefined}
         >
           {!imageUrl && (
             <div className="flex h-full items-center justify-center px-5 text-center text-sm font-bold text-slate-400">
@@ -153,16 +258,45 @@ export function VocabularyImageUpload({
           )}
         </div>
         {imageUrl && (
-          <button
-            type="button"
-            disabled={uploading}
-            onClick={() => void removeImage()}
-            className="mt-3 w-full rounded-xl border border-red-200 px-4 py-2.5 text-sm font-black text-red-600 hover:bg-red-50 disabled:opacity-50"
-          >
-            Bỏ ảnh
-          </button>
+          <div className="mt-3 grid gap-2">
+            <button
+              type="button"
+              onClick={() => setPreviewOpen((open) => !open)}
+              className="w-full rounded-xl border border-sky-200 px-4 py-2.5 text-sm font-black text-sky-700 hover:bg-sky-50"
+            >
+              {previewOpen ? "Đóng xem trước" : "Xem trước như học viên"}
+            </button>
+            <button
+              type="button"
+              disabled={uploading}
+              onClick={() => void removeImage()}
+              className="w-full rounded-xl border border-red-200 px-4 py-2.5 text-sm font-black text-red-600 hover:bg-red-50 disabled:opacity-50"
+            >
+              Bỏ ảnh
+            </button>
+          </div>
         )}
       </div>
+
+      {imageUrl && previewOpen && (
+        <div role="dialog" aria-label="Xem trước flashcard học viên" className="lg:col-span-2 rounded-3xl border border-sky-200 bg-[#cbe6ff] p-5 shadow-inner">
+          <p className="mb-4 text-center text-sm font-black uppercase tracking-wider text-sky-900/60">Mặt trước flashcard học viên</p>
+          <div className="flex min-h-[360px] flex-col items-center justify-center rounded-3xl bg-gradient-to-br from-[#8ec5ff] to-[#cbe6ff] p-6 text-center">
+            <div
+              aria-hidden="true"
+              className="h-40 w-56 overflow-hidden rounded-2xl border border-white/80 bg-white bg-center bg-no-repeat shadow-[0_10px_24px_rgba(16,36,62,0.14)]"
+              style={{
+                backgroundImage: `url("${imageUrl}")`,
+                backgroundSize: `${imageScale}% auto`,
+              }}
+            />
+            <strong lang="ko" className="font-korean mt-4 text-5xl font-black leading-tight text-[#10243e]">
+              {previewLabel?.trim() || "한국어"}
+            </strong>
+            <span className="mt-4 text-sm font-semibold text-[#10243e]/55">Nhấn để xem nghĩa tiếng Việt</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

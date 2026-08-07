@@ -27,10 +27,10 @@ describe("lessonOne content", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("mỗi từ có phiên âm, hình ảnh và ví dụ", () => {
+  it("mỗi từ có phiên âm, không có ảnh fallback và có ví dụ", () => {
     for (const item of lessonOne.vocabulary) {
       expect(item.romanization.length).toBeGreaterThan(0);
-      expect(item.imageUrl?.length).toBeGreaterThan(0);
+      expect(item.imageUrl).toBeUndefined();
       expect(item.examples.length).toBeGreaterThan(0);
     }
   });
