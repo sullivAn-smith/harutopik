@@ -61,4 +61,15 @@ describe("audio playback queue", () => {
     AudioMock.instances[1].onended?.();
     await second;
   });
+
+  it("không dùng giọng thiết bị khi chưa có audio Azure", async () => {
+    const speechSynthesis = { speak: vi.fn() };
+    vi.stubGlobal("speechSynthesis", speechSynthesis);
+    const { enqueueAudioPlayback } = await import("./playback-queue");
+
+    await enqueueAudioPlayback({});
+
+    expect(AudioMock.instances).toHaveLength(0);
+    expect(speechSynthesis.speak).not.toHaveBeenCalled();
+  });
 });

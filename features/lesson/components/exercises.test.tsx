@@ -20,6 +20,7 @@ describe("FlashcardExercise", () => {
     romanization: "han-guk",
     category: "Quốc gia",
     imageUrl: "/vocab-country-0.png",
+    audioUrl: "https://cdn.example/azure-word.mp3",
     examples: [],
   };
 

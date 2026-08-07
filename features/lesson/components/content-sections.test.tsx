@@ -156,9 +156,24 @@ describe("GrammarSection", () => {
 
   it("gọi phát âm đúng ví dụ được chọn", () => {
     const onSpeak = vi.fn();
+    const grammar = lessonOne.grammar.map((item, index) =>
+      index === 0
+        ? {
+            ...item,
+            examples: item.examples.map((example, exampleIndex) =>
+              exampleIndex === 0
+                ? {
+                    ...example,
+                    audioUrl: "https://cdn.example/azure-grammar.mp3",
+                  }
+                : example,
+            ),
+          }
+        : item,
+    );
     render(
       <GrammarSection
-        grammar={lessonOne.grammar}
+        grammar={grammar}
         exercises={exercises}
         onSpeak={onSpeak}
         onFeedback={vi.fn()}
@@ -171,7 +186,7 @@ describe("GrammarSection", () => {
 
     expect(onSpeak).toHaveBeenCalledWith(
       "저는 민수입니다.",
-      lessonOne.grammar[0].examples[0].audioUrl,
+      "https://cdn.example/azure-grammar.mp3",
     );
   });
 });

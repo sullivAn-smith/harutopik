@@ -14,6 +14,16 @@ type LessonVocabularyRow = {
   position: number;
 };
 
+const queryBatchSize = 100;
+
+function splitIntoBatches<T>(values: readonly T[]) {
+  const batches: T[][] = [];
+  for (let index = 0; index < values.length; index += queryBatchSize) {
+    batches.push(values.slice(index, index + queryBatchSize));
+  }
+  return batches;
+}
+
 export async function getPublishedVocabularyByLesson(
   lessonIds: readonly string[],
 ): Promise<Map<string, VocabularyItem[]>> {
@@ -25,41 +35,67 @@ export async function getPublishedVocabularyByLesson(
   const supabase = createClient(supabaseUrl, supabasePublishableKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const { data: relations, error: relationError } = await supabase
-    .from("lesson_vocabulary")
-    .select("lesson_id,vocabulary_id,position")
-    .in("lesson_id", [...lessonIds])
-    .order("position");
-  if (relationError || !relations?.length) return result;
+  const relationResponses = await Promise.all(
+    splitIntoBatches(lessonIds).map((ids) =>
+      supabase
+        .from("lesson_vocabulary")
+        .select("lesson_id,vocabulary_id,position")
+        .in("lesson_id", ids)
+        .order("position"),
+    ),
+  );
+  if (relationResponses.some((response) => response.error)) return result;
+  const relations = relationResponses.flatMap((response) => response.data ?? []);
+  if (!relations.length) return result;
 
   const relationRows = relations as LessonVocabularyRow[];
   const vocabularyIds = [
     ...new Set(relationRows.map((relation) => relation.vocabulary_id)),
   ];
-  const [
-    { data: items, error: itemError },
-    { data: examples },
-    { data: acceptedAnswers },
-  ] =
+  const vocabularyBatches = splitIntoBatches(vocabularyIds);
+  const [itemResponses, exampleResponses, acceptedAnswerResponses] =
     await Promise.all([
-      supabase
-        .from("vocabulary_items")
-        .select(
-          "id,hangul,normalized_hangul,romanization,primary_meaning_vi,part_of_speech,level,category,audio_url,image_url,status",
-        )
-        .in("id", vocabularyIds)
-        .eq("status", "published"),
-      supabase
-        .from("vocabulary_examples")
-        .select("id,vocabulary_id,korean,vietnamese,audio_url,position")
-        .in("vocabulary_id", vocabularyIds)
-        .order("position"),
-      supabase
-        .from("vocabulary_accepted_answers")
-        .select("vocabulary_id,direction,answer")
-        .in("vocabulary_id", vocabularyIds),
+      Promise.all(
+        vocabularyBatches.map((ids) =>
+          supabase
+            .from("vocabulary_items")
+            .select(
+              "id,hangul,normalized_hangul,romanization,primary_meaning_vi,part_of_speech,level,category,audio_url,image_url,status",
+            )
+            .in("id", ids)
+            .eq("status", "published"),
+        ),
+      ),
+      Promise.all(
+        vocabularyBatches.map((ids) =>
+          supabase
+            .from("vocabulary_examples")
+            .select("id,vocabulary_id,korean,vietnamese,audio_url,position")
+            .in("vocabulary_id", ids)
+            .order("position"),
+        ),
+      ),
+      Promise.all(
+        vocabularyBatches.map((ids) =>
+          supabase
+            .from("vocabulary_accepted_answers")
+            .select("vocabulary_id,direction,answer")
+            .in("vocabulary_id", ids),
+        ),
+      ),
     ]);
-  if (itemError || !items) return result;
+  if (
+    itemResponses.some((response) => response.error) ||
+    exampleResponses.some((response) => response.error) ||
+    acceptedAnswerResponses.some((response) => response.error)
+  ) {
+    return result;
+  }
+  const items = itemResponses.flatMap((response) => response.data ?? []);
+  const examples = exampleResponses.flatMap((response) => response.data ?? []);
+  const acceptedAnswers = acceptedAnswerResponses.flatMap(
+    (response) => response.data ?? [],
+  );
 
   const masters = new Map(
     items.flatMap((item) => {

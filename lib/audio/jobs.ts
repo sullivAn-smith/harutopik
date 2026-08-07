@@ -10,6 +10,7 @@ import {
   getAudioUrl,
   uploadAudio,
 } from "./storage";
+import { syncPublishedVocabularyAudio } from "@/lib/vocabulary/sync-published-audio";
 
 export { audioBucket };
 
@@ -181,24 +182,31 @@ export async function processAudioJob(
   }
   const publicUrl = getAudioUrl(admin, storagePath);
   const now = new Date().toISOString();
-  const [{ error: jobError }, { error: vocabularyError }] = await Promise.all([
-    admin
-      .from("audio_generation_jobs")
-      .update({
-        status: "completed",
-        storage_path: storagePath,
-        error_message: null,
-        completed_at: now,
-      })
-      .eq("id", job.id),
-    admin
-      .from("vocabulary_items")
-      .update({ audio_url: publicUrl, updated_at: now })
-      .eq("id", job.vocabulary_id),
-  ]);
-  if (jobError || vocabularyError) {
-    throw jobError ?? vocabularyError ?? new Error("Không thể lưu URL audio.");
+  const { error: vocabularyError } = await admin
+    .from("vocabulary_items")
+    .update({ audio_url: publicUrl, updated_at: now })
+    .eq("id", job.vocabulary_id);
+  if (vocabularyError) {
+    throw vocabularyError;
   }
+  const snapshotsSynced = await syncPublishedVocabularyAudio(
+    admin,
+    job.vocabulary_id,
+    publicUrl,
+  );
+  if (!snapshotsSynced) {
+    throw new Error("Audio đã tạo nhưng chưa đồng bộ được sang bài học.");
+  }
+  const { error: jobError } = await admin
+    .from("audio_generation_jobs")
+    .update({
+      status: "completed",
+      storage_path: storagePath,
+      error_message: null,
+      completed_at: now,
+    })
+    .eq("id", job.id);
+  if (jobError) throw jobError;
   return {
     vocabularyId: job.vocabulary_id,
     publicUrl,

@@ -37,24 +37,25 @@ describe("vocabulary eligibility", () => {
     expect(result.availableModes).not.toContain("matching");
   });
 
-  it("vẫn bật chính tả bằng giọng thiết bị khi chưa có audio CDN", () => {
+  it("chỉ bật chính tả khi có audio Azure", () => {
     const withoutAudio = report([word(1)]);
     const withAudio = report([
       word(1, { audioUrl: "https://cdn.example/word.mp3" }),
     ]);
-    expect(withoutAudio.availableModes).toContain("dictation");
+    expect(withoutAudio.availableModes).not.toContain("dictation");
     expect(
       withoutAudio.modes.find((mode) => mode.mode === "dictation")?.missing,
-    ).toEqual([expect.stringContaining("giọng đọc dự phòng")]);
+    ).toEqual([expect.stringContaining("Chưa có audio Azure")]);
     expect(withAudio.availableModes).toContain("dictation");
   });
 
-  it("chấp nhận bài chính tả được biên soạn dù từ chưa có audio", () => {
+  it("chỉ chấp nhận bài chính tả được biên soạn khi có audio Azure", () => {
     const result = report([word(1)], [
       {
         id: "dictation-1",
         type: "dictation",
         sentence: "안녕하세요",
+        audioUrl: "https://cdn.example/dictation.mp3",
         acceptedAnswers: [],
         points: 1,
       },

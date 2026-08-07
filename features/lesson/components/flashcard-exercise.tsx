@@ -74,8 +74,9 @@ export function FlashcardExercise({
             <button
               type="button"
               onClick={onSpeak}
-              className="rounded-xl border-2 border-[#10243e] bg-white px-3 py-2 font-black hover:bg-blue-50"
-              aria-label={`Phát âm ${word.korean}`}
+              disabled={!word.audioUrl}
+              className="rounded-xl border-2 border-[#10243e] bg-white px-3 py-2 font-black hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-35"
+              aria-label={word.audioUrl ? `Phát âm ${word.korean}` : `Chưa có audio Azure cho ${word.korean}`}
             >
               🔊
             </button>

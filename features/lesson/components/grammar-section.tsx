@@ -125,7 +125,9 @@ export function GrammarSection({
                     <button
                       type="button"
                       onClick={() => onSpeak(example.korean, example.audioUrl)}
-                      aria-label={`Phát âm ${example.korean}`}
+                      disabled={!example.audioUrl}
+                      aria-label={example.audioUrl ? `Phát âm ${example.korean}` : `Chưa có audio Azure cho ${example.korean}`}
+                      className="disabled:cursor-not-allowed disabled:opacity-35"
                     >
                       🔊
                     </button>

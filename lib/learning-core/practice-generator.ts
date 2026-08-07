@@ -214,7 +214,9 @@ export function generateLessonPractice(lesson: Lesson): PracticeBundle {
       source: "authored" as const,
     }));
 
-  const vocabularyDictations: GeneratedDictation[] = vocabulary.map((item) => ({
+  const vocabularyDictations: GeneratedDictation[] = vocabulary
+    .filter((item) => Boolean(item.audioUrl))
+    .map((item) => ({
       id: `${lesson.id}-dictation-${item.id}`,
       vocabularyId: item.id,
       sentence: item.korean,
@@ -222,18 +224,23 @@ export function generateLessonPractice(lesson: Lesson): PracticeBundle {
       acceptedAnswers: [item.korean, ...(item.acceptedKoreanAnswers ?? [])],
       source: "vocabulary" as const,
     }));
-  const authoredDictations: GeneratedDictation[] = lesson.exercises
-    .filter((exercise) => exercise.type === "dictation")
-    .map((exercise) => ({
-      id: exercise.id,
-      sentence: exercise.sentence,
-      audioUrl: exercise.audioUrl,
-      acceptedAnswers: [
-        exercise.sentence,
-        ...(exercise.acceptedAnswers ?? []),
-      ],
-      source: "authored" as const,
-    }));
+  const authoredDictations: GeneratedDictation[] = lesson.exercises.flatMap(
+    (exercise) =>
+      exercise.type === "dictation" && exercise.audioUrl
+        ? [
+            {
+              id: exercise.id,
+              sentence: exercise.sentence,
+              audioUrl: exercise.audioUrl,
+              acceptedAnswers: [
+                exercise.sentence,
+                ...(exercise.acceptedAnswers ?? []),
+              ],
+              source: "authored" as const,
+            },
+          ]
+        : [],
+  );
 
   return {
     flashcards: [...vocabulary],

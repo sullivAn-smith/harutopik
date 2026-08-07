@@ -105,8 +105,9 @@ export function VocabularyList({
                     <button
                       type="button"
                       onClick={() => onSpeak(item.korean, item.audioUrl)}
-                      aria-label={`Phát âm ${item.korean}`}
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-sky-200 bg-white/90 text-lg text-[#087eba] shadow-[0_6px_14px_rgba(16,36,62,0.12)] transition hover:-translate-y-0.5 hover:border-sky-400 hover:bg-sky-50"
+                      disabled={!item.audioUrl}
+                      aria-label={item.audioUrl ? `Phát âm ${item.korean}` : `Chưa có audio Azure cho ${item.korean}`}
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-sky-200 bg-white/90 text-lg text-[#087eba] shadow-[0_6px_14px_rgba(16,36,62,0.12)] transition hover:-translate-y-0.5 hover:border-sky-400 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-35"
                     >
                       🔊
                     </button>
@@ -131,8 +132,9 @@ export function VocabularyList({
                       onClick={() =>
                         onSpeak(example.korean, example.audioUrl)
                       }
-                      aria-label={`Phát âm ví dụ ${item.korean}`}
-                      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-sky-200 bg-white/90 text-base text-[#087eba] shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-50"
+                      disabled={!example.audioUrl}
+                      aria-label={example.audioUrl ? `Phát âm ví dụ ${item.korean}` : `Ví dụ ${item.korean} chưa có audio Azure`}
+                      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-sky-200 bg-white/90 text-base text-[#087eba] shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-35"
                     >
                       🔊
                     </button>

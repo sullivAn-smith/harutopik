@@ -21,7 +21,7 @@ export function ReferenceAudioButton({
       onClick={async () => {
         setPlaying(true);
         try {
-          await enqueueAudioPlayback({ audioUrl, fallbackText: text });
+          await enqueueAudioPlayback({ audioUrl });
         } finally {
           setPlaying(false);
         }

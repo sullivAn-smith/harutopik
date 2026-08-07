@@ -440,7 +440,9 @@ function LessonContent({
   }
 
   function playAudioOrSpeak(audioUrl: string | undefined, text: string) {
-    void enqueueAudioPlayback({ audioUrl, fallbackText: text });
+    void text;
+    if (!audioUrl) return;
+    void enqueueAudioPlayback({ audioUrl });
   }
 
   function playFeedback(correct: boolean) {

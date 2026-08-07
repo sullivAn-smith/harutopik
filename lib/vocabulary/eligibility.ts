@@ -64,7 +64,7 @@ export function evaluateLessonEligibility(
   const vocabulary = lesson.vocabulary as EligibilityVocabulary[];
   const total = vocabulary.length;
   const authoredDictation = lesson.exercises.filter(
-    (exercise) => exercise.type === "dictation",
+    (exercise) => exercise.type === "dictation" && Boolean(exercise.audioUrl),
   ).length;
   const authoredTranslation = lesson.exercises.filter(
     (exercise) => exercise.type === "translation",
@@ -160,14 +160,14 @@ export function evaluateLessonEligibility(
     {
       mode: "dictation",
       label: labels.dictation,
-      eligibleCount: authoredDictation || total,
+      eligibleCount: authoredDictation || audioCount,
       totalCount: authoredDictation || total,
-      available: authoredDictation > 0 || total > 0,
+      available: authoredDictation > 0 || audioCount > 0,
       source: authoredDictation > 0 ? "authored_exercise" : "vocabulary",
-      requirement: "Dùng audio CDN nếu có, nếu chưa có sẽ dùng giọng đọc của thiết bị.",
+      requirement: "Chỉ dùng audio Azure đã lưu trên CDN.",
       missing:
-        audioCount < total && authoredDictation === 0
-          ? [`${total - audioCount} từ đang dùng giọng đọc dự phòng của thiết bị.`]
+        audioCount === 0 && authoredDictation === 0
+          ? ["Chưa có audio Azure cho bài chính tả."]
           : [],
     },
   ];

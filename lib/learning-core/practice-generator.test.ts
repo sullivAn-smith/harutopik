@@ -68,15 +68,14 @@ describe("practice generator", () => {
     expect(bundle.translations[0].acceptedKoreanAnswers).toContain("단어 일");
   });
 
-  it("sinh chính tả cho mọi từ và dùng audio CDN khi có", () => {
+  it("chỉ sinh chính tả cho từ có audio Azure", () => {
     const bundle = generateLessonPractice(
       lesson([
         word(1),
         word(2, { audioUrl: "https://cdn.example/word-2.mp3" }),
       ]),
     );
-    expect(bundle.dictations).toHaveLength(2);
-    expect(bundle.dictations[0].audioUrl).toBeUndefined();
+    expect(bundle.dictations).toHaveLength(1);
     expect(bundle.dictations.map((item) => item.vocabularyId)).toContain("word-2");
   });
 
@@ -96,6 +95,7 @@ describe("practice generator", () => {
         id: "dictation-sentence-1",
         type: "dictation",
         sentence: "오늘 학교에서 친구를 만났어요.",
+        audioUrl: "https://cdn.example/authored.mp3",
         acceptedAnswers: ["오늘 학교에서 친구 만났어요."],
         points: 1,
       },
