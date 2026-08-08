@@ -11,6 +11,7 @@ import { SentenceAudioButton } from "./sentence-audio-button";
 
 const fieldClass =
   "mt-2 w-full rounded-2xl border-2 border-slate-200 bg-white px-4 py-3 font-semibold outline-none focus:border-violet-500";
+const preservePartOfSpeechValue = "__preserve__";
 
 function FieldError({
   state,
@@ -69,11 +70,22 @@ export function PublishedVocabularyHotfixForm({
             <FieldError state={state} name="romanization" />
           </label>
           <label className="font-black">Từ loại
-            <select name="partOfSpeech" defaultValue={item.partOfSpeech ?? ""} className={fieldClass}>
-              <option value="">Chưa xác định</option>
+            <select
+              name="partOfSpeech"
+              defaultValue={
+                item.partOfSpeech ?? preservePartOfSpeechValue
+              }
+              className={fieldClass}
+            >
+              <option
+                value={item.partOfSpeech ? "" : preservePartOfSpeechValue}
+              >
+                Chưa xác định
+              </option>
               <option>Danh từ</option>
               <option>Động từ</option>
               <option>Tính từ</option>
+              <option>Phó từ</option>
               <option>Trạng từ</option>
               <option>Đại từ</option>
               <option>Biểu hiện</option>

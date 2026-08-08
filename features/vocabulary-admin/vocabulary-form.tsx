@@ -99,7 +99,7 @@ export function VocabularyForm({
             <select name="partOfSpeech" defaultValue={defaults?.partOfSpeech ?? ""} className={inputClass}>
               <option value="">Chưa xác định</option>
               <option>Danh từ</option><option>Động từ</option><option>Tính từ</option>
-              <option>Trạng từ</option><option>Đại từ</option><option>Biểu hiện</option>
+              <option>Phó từ</option><option>Trạng từ</option><option>Đại từ</option><option>Biểu hiện</option>
             </select>
           </label>
           <label className="font-bold">Trình độ

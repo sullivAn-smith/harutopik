@@ -75,4 +75,52 @@ describe("buildPublishedCourses", () => {
 
     expect(buildPublishedCourses(rows)).toEqual([]);
   });
+
+  it("giữ từ loại trong bản phát hành cho tới khi admin chọn giá trị mới", () => {
+    const courseRow: PublishedCatalogRow = {
+      content_id: "course-topik-2",
+      content_type: "course",
+      parent_id: null,
+      payload: {
+        id: "course-topik-2",
+        slug: "topik-2",
+        title: { ko: "한국어 초급 2", vi: "Tiếng Hàn sơ cấp 2" },
+        summary: "Lộ trình tiếp nối dành cho người học sơ cấp.",
+      },
+    };
+    const snapshotWord = {
+      id: "vocabulary-adverb",
+      korean: "매우",
+      vietnamese: "Rất",
+      romanization: "maeu",
+      category: "daily-life",
+      partOfSpeech: "Trạng từ",
+      examples: [],
+    };
+    const rows: PublishedCatalogRow[] = [
+      courseRow,
+      {
+        content_id: lesson.id,
+        content_type: "lesson",
+        parent_id: lesson.moduleId,
+        payload: { ...lesson, vocabulary: [snapshotWord] },
+      },
+    ];
+
+    const withoutAdminValue = buildPublishedCourses(
+      rows,
+      new Map([[lesson.id, [{ ...snapshotWord, partOfSpeech: undefined }]]]),
+    );
+    const withAdminValue = buildPublishedCourses(
+      rows,
+      new Map([[lesson.id, [{ ...snapshotWord, partOfSpeech: "Phó từ" }]]]),
+    );
+
+    expect(withoutAdminValue[0].lessons[0].vocabulary[0].partOfSpeech).toBe(
+      "Trạng từ",
+    );
+    expect(withAdminValue[0].lessons[0].vocabulary[0].partOfSpeech).toBe(
+      "Phó từ",
+    );
+  });
 });

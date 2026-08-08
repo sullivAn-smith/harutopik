@@ -59,8 +59,17 @@ export function buildPublishedCourses(
     if (!parsed.success || parsed.data.status !== "published") continue;
 
     const vocabulary = normalizedVocabulary.get(parsed.data.id);
-    const lesson = vocabulary?.length
-      ? { ...parsed.data, vocabulary }
+    const snapshotVocabularyById = new Map(
+      parsed.data.vocabulary.map((item) => [item.id, item]),
+    );
+    const mergedVocabulary = vocabulary?.map((item) => {
+      const snapshot = snapshotVocabularyById.get(item.id);
+      return !item.partOfSpeech && snapshot?.partOfSpeech
+        ? { ...item, partOfSpeech: snapshot.partOfSpeech }
+        : item;
+    });
+    const lesson = mergedVocabulary?.length
+      ? { ...parsed.data, vocabulary: mergedVocabulary }
       : parsed.data;
     const moduleId = row.parent_id ?? lesson.moduleId;
     const courseId = modules.get(moduleId)?.courseId ?? lesson.courseId;

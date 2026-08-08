@@ -150,7 +150,7 @@ type VocabularySnapshotUpdate = {
   romanization: string;
   category: string;
   level: string;
-  partOfSpeech: string | null;
+  partOfSpeech?: string | null;
   audioUrl: string | null;
   imageUrl: string | null;
   acceptedVietnameseAnswers: string[];
@@ -178,8 +178,10 @@ function applyVocabularySnapshotUpdate(
     acceptedKoreanAnswers: update.acceptedKoreanAnswers,
     examples: update.examples,
   };
-  if (update.partOfSpeech) next.partOfSpeech = update.partOfSpeech;
-  else delete next.partOfSpeech;
+  if (update.partOfSpeech !== undefined) {
+    if (update.partOfSpeech) next.partOfSpeech = update.partOfSpeech;
+    else delete next.partOfSpeech;
+  }
   if (update.audioUrl) next.audioUrl = update.audioUrl;
   else delete next.audioUrl;
   if (update.imageUrl) next.imageUrl = update.imageUrl;
@@ -371,6 +373,10 @@ export async function applyVocabularyHotfix(
 
   const hangulChanged =
     normalizeKorean(current.hangul) !== normalizeKorean(parsed.data.hangul);
+  const partOfSpeech =
+    parsed.data.partOfSpeech === "__preserve__"
+      ? undefined
+      : parsed.data.partOfSpeech || null;
   const { error } = await admin
     .from("vocabulary_items")
     .update({
@@ -378,7 +384,9 @@ export async function applyVocabularyHotfix(
       normalized_hangul: normalizeKorean(parsed.data.hangul),
       primary_meaning_vi: parsed.data.meaningVi,
       romanization: parsed.data.romanization,
-      part_of_speech: parsed.data.partOfSpeech || null,
+      ...(partOfSpeech !== undefined
+        ? { part_of_speech: partOfSpeech }
+        : {}),
       level: parsed.data.level,
       category: parsed.data.category,
       image_url: parsed.data.imageUrl || null,
@@ -468,7 +476,7 @@ export async function applyVocabularyHotfix(
     romanization: parsed.data.romanization,
     category: parsed.data.category,
     level: parsed.data.level,
-    partOfSpeech: parsed.data.partOfSpeech || null,
+    partOfSpeech,
     audioUrl: hangulChanged ? null : current.audio_url,
     imageUrl: parsed.data.imageUrl || null,
     acceptedVietnameseAnswers: acceptedAnswers
