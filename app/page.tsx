@@ -1,10 +1,16 @@
 import { HomeClient, type CourseSummary } from "@/features/home/home-client";
 import { getPublishedCourses } from "@/lib/data/published-catalog";
+import { getHomeStreakData } from "@/lib/data/streaks";
+import { getHomeNotificationSummary } from "@/lib/data/notifications";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const courses = await getPublishedCourses();
+  const [courses, streakData, notificationSummary] = await Promise.all([
+    getPublishedCourses(),
+    getHomeStreakData(),
+    getHomeNotificationSummary(),
+  ]);
   const initialCourses: CourseSummary[] = courses.map((course) => ({
     id: course.id,
     slug: course.slug,
@@ -19,5 +25,11 @@ export default async function HomePage() {
     })),
   }));
 
-  return <HomeClient initialCourses={initialCourses} />;
+  return (
+    <HomeClient
+      initialCourses={initialCourses}
+      initialStreakData={streakData}
+      initialNotificationSummary={notificationSummary}
+    />
+  );
 }

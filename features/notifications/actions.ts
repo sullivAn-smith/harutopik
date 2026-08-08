@@ -33,6 +33,35 @@ export async function markAllNotificationsRead() {
   revalidatePath("/thong-bao");
 }
 
+export async function acknowledgeNotification(notificationId: string) {
+  const actor = await getCurrentActor();
+  if (!actor) return { ok: false as const, error: "Bạn cần đăng nhập." };
+  if (!/^[0-9a-f-]{36}$/i.test(notificationId)) {
+    return { ok: false as const, error: "Thông báo không hợp lệ." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("notifications")
+    .update({ read_at: new Date().toISOString() })
+    .eq("id", notificationId)
+    .eq("user_id", actor.id)
+    .is("read_at", null);
+
+  if (error) {
+    console.error("[notifications] Could not acknowledge notification", {
+      notificationId,
+      userId: actor.id,
+      message: error.message,
+    });
+    return { ok: false as const, error: "Chưa thể cập nhật thông báo." };
+  }
+
+  revalidatePath("/");
+  revalidatePath("/thong-bao");
+  return { ok: true as const };
+}
+
 export async function clearAllNotifications() {
   const actor = await getCurrentActor();
   if (!actor) redirect("/dang-nhap");

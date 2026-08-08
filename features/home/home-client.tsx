@@ -8,6 +8,13 @@ import {
   buildTopikShelf,
 } from "@/lib/catalog/course-shelf";
 import { createClient } from "@/lib/supabase/client";
+import { StreakBanner } from "@/features/streak/streak-banner";
+import type {
+  LearnerStreak,
+  LearnerStreakRules,
+} from "@/lib/data/streaks";
+import type { HomeNotificationSummary } from "@/lib/data/notifications";
+import { LearnerStreakReminderPopup } from "@/features/notifications/learner-streak-reminder-popup";
 
 const bookThemes = [
   "from-[#15a7d8] via-[#087eba] to-[#123f72]",
@@ -265,8 +272,16 @@ function UpcomingBookCover({
 
 export function HomeClient({
   initialCourses,
+  initialStreakData,
+  initialNotificationSummary,
 }: {
   initialCourses: CourseSummary[];
+  initialStreakData: {
+    streak: LearnerStreak | null;
+    rules: LearnerStreakRules;
+    period: "day" | "night";
+  };
+  initialNotificationSummary: HomeNotificationSummary;
 }) {
   const [showBooks, setShowBooks] = useState(false);
   const [comingSoon, setComingSoon] = useState(false);
@@ -302,6 +317,14 @@ export function HomeClient({
           Harutopik
         </Link>
         <nav aria-label="Điều hướng di động" className="flex items-center gap-2 text-sm font-bold">
+          <Link href="/thong-bao" aria-label={`Thông báo${initialNotificationSummary.unreadCount ? `, ${initialNotificationSummary.unreadCount} chưa đọc` : ""}`} className="relative grid h-10 w-10 place-items-center rounded-xl border border-white/80 bg-white/70 text-[#087eba] shadow-sm">
+            <span aria-hidden="true">●</span>
+            {initialNotificationSummary.unreadCount > 0 && (
+              <span className="absolute -right-1 -top-1 grid min-h-5 min-w-5 place-items-center rounded-full bg-amber-300 px-1 text-[.62rem] font-black text-amber-950">
+                {initialNotificationSummary.unreadCount > 9 ? "9+" : initialNotificationSummary.unreadCount}
+              </span>
+            )}
+          </Link>
           <Link href="/nang-cap" className="rounded-xl bg-amber-300 px-3 py-2 text-amber-950">Pro</Link>
           <AccountLink user={user} compact />
         </nav>
@@ -318,12 +341,21 @@ export function HomeClient({
           <Link href="/tu-cua-toi" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-cyan-100 text-[#087eba]"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-none stroke-current" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="3" /><path d="M7 9h10M7 13h6" /><path d="M17.5 12.5v4M15.5 14.5h4" /></svg></span><span>Quản lý bộ từ</span></Link>
           <Link href="/luyen-de" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-[#087eba]">✎</span><span>Luyện đề</span></Link>
           <Link href="/tro-ly" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-[#087eba]">✦</span><span>Trợ lý Haru AI</span></Link>
+          <Link href="/thong-bao" className="flex items-center justify-between gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75">
+            <span className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-700">●</span><span>Thông báo</span></span>
+            {initialNotificationSummary.unreadCount > 0 && (
+              <span className="grid min-h-6 min-w-6 place-items-center rounded-full bg-amber-300 px-1.5 text-xs font-black text-amber-950">
+                {initialNotificationSummary.unreadCount > 99 ? "99+" : initialNotificationSummary.unreadCount}
+              </span>
+            )}
+          </Link>
         </nav>
         <div className="mt-auto space-y-3">
           <Link href="/nang-cap" className="sidebar-upgrade flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-center font-black">♕ <span>Nâng cấp</span></Link>
           <AccountLink user={user} />
         </div>
       </aside>
+      <LearnerStreakReminderPopup reminder={initialNotificationSummary.streakReminder} />
       {comingSoon && <div className="fixed bottom-8 left-1/2 z-50 -translate-x-1/2 rounded-full border border-white/80 bg-[#10243e] px-6 py-3 text-base font-black text-white shadow-[0_14px_30px_rgba(16,36,62,0.28)]">Khóa học chưa phát hành</div>}
       <div className="home-grid-glow pointer-events-none absolute inset-0" />
       <div className="home-aurora home-aurora-one pointer-events-none absolute" />
@@ -331,30 +363,31 @@ export function HomeClient({
       <div className="home-aurora home-aurora-three pointer-events-none absolute" />
 
       <section className="relative mx-auto max-w-[1500px] px-6 py-5 md:px-8 lg:ml-64">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div className="border-l-4 border-[#087eba] pl-4">
+        <div className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,1.08fr)_minmax(0,.92fr)]">
+          <div className="flex min-h-[8.5rem] min-w-0 flex-col justify-center rounded-3xl border border-white/60 bg-white/38 px-5 py-3.5 shadow-[0_12px_28px_rgba(16,36,62,.08)] backdrop-blur">
+            <div className="border-l-4 border-[#087eba] pl-4">
             <p className="text-xs font-black uppercase tracking-[0.16em] text-[#087eba]">
               {user ? `Chào ${viewerName(user)}` : "Lộ trình học tiếng Hàn"}
             </p>
-            <h1 className="mt-1 text-2xl font-black tracking-tight md:text-4xl">
+            <h1 className="mt-0.5 text-2xl font-black tracking-tight md:text-3xl xl:whitespace-nowrap">
               Hôm nay bạn muốn học gì?
             </h1>
             <p className="mt-1 text-sm font-medium text-[#10243e]/65">
               Bắt đầu một bài ngắn, Haru sẽ lưu tiến độ cho bạn.
             </p>
+            </div>
+            {user && (
+              <Link href="/tai-khoan" className="mt-2.5 w-fit rounded-full border border-white/80 bg-white/65 px-4 py-1.5 text-sm font-black text-[#087eba] shadow-sm transition hover:bg-white">
+                Xem tiến độ →
+              </Link>
+            )}
           </div>
-          {user && (
-            <Link
-              href="/tai-khoan"
-              className="rounded-full border border-white/80 bg-white/65 px-4 py-2 text-sm font-black text-[#087eba] shadow-sm backdrop-blur transition hover:bg-white"
-            >
-              Xem tiến độ →
-            </Link>
-          )}
+          <StreakBanner {...initialStreakData} />
         </div>
 
-        <div className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Link
+            id="khoa-hoc-dang-mo"
             href={`/courses/${primaryCourse.slug}`}
             className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#087eba] via-[#168fd0] to-[#20a9d8] p-6 text-white shadow-[0_18px_38px_rgba(8,126,186,0.28)] transition hover:-translate-y-1 hover:shadow-[0_24px_46px_rgba(8,126,186,0.36)] md:col-span-2"
           >
@@ -392,7 +425,7 @@ export function HomeClient({
           ))}
         </div>
 
-        <div className="mt-9 flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-white/70 bg-white/65 px-5 py-4 shadow-[0_12px_28px_rgba(16,36,62,0.1)] backdrop-blur">
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-white/70 bg-white/65 px-5 py-3 shadow-[0_12px_28px_rgba(16,36,62,0.1)] backdrop-blur">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.16em] text-[#087eba]">
               Kho học liệu
@@ -447,4 +480,3 @@ export function HomeClient({
     </main>
   );
 }
-

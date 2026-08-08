@@ -7,6 +7,7 @@ import {
   type ReviewCard,
 } from "@/lib/learning-core/srs";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { recordStreakActivity } from "@/lib/streaks/record-activity";
 
 export async function POST(request: Request) {
   if (!isSupabaseConfigured()) {
@@ -49,6 +50,14 @@ export async function POST(request: Request) {
     });
 
   if (eventError?.code === "23505") {
+    if (event.eventType === "practice_completed") {
+      await recordStreakActivity({
+        userId: user.id,
+        completedAt: event.completedAt,
+        sourceType: event.mode === "flashcard" ? "review" : "lesson",
+        sourceId: event.lessonId,
+      });
+    }
     return apiSuccess({
       accepted: true,
       duplicate: true,
@@ -141,6 +150,15 @@ export async function POST(request: Request) {
       { onConflict: "user_id,content_id" },
     );
     if (error) return databaseError();
+  }
+
+  if (event.eventType === "practice_completed") {
+    await recordStreakActivity({
+      userId: user.id,
+      completedAt: event.completedAt,
+      sourceType: event.mode === "flashcard" ? "review" : "lesson",
+      sourceId: event.lessonId,
+    });
   }
 
   return apiSuccess({ accepted: true, eventId: event.eventId });

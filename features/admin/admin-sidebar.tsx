@@ -18,6 +18,7 @@ const sections = [
     items: [
       { icon: "≡", label: "Tất cả nội dung", href: "/quan-tri/noi-dung" },
       { icon: "♙", label: "Tài khoản & quyền", href: "/quan-tri/tai-khoan" },
+      { icon: "🔥", label: "Streak & phần thưởng", href: "/quan-tri/streak" },
     ],
   },
 ];
