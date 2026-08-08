@@ -46,8 +46,14 @@ export default async function EditorContentPage({
       )}
       {notice.delete === "archived" && (
         <p role="status" className="mt-6 rounded-2xl bg-emerald-50 px-5 py-4 font-bold text-emerald-800">
-          Đã đưa phiên bản vào kho lưu trữ và ẩn khỏi danh sách. Nội dung đang
-          phát hành, nếu có, vẫn được giữ nguyên cho người học.
+          Đã xóa bản nháp hoặc ẩn phiên bản khỏi danh sách. Nội dung đang phát
+          hành, nếu có, vẫn được giữ nguyên cho người học.
+        </p>
+      )}
+      {notice.delete === "deleted" && (
+        <p role="status" className="mt-6 rounded-2xl bg-emerald-50 px-5 py-4 font-bold text-emerald-800">
+          Đã xóa bài học. Kho từ vựng vẫn được giữ lại; các từ không còn được
+          bài nào sử dụng đã chuyển về Bản nháp để bạn sửa, tái sử dụng hoặc xóa.
         </p>
       )}
       {notice.delete === "error" && (
@@ -96,12 +102,19 @@ export default async function EditorContentPage({
                     <input type="hidden" name="returnTo" value="/bien-tap/noi-dung" />
                     <ConfirmSubmitButton
                       confirmation={
-                        `Ẩn phiên bản “${revision.title}” khỏi danh sách? ` +
-                        "Thao tác này không xóa nội dung đang phát hành."
+                        revision.status === "unpublished"
+                          ? `Xóa bài “${revision.title}”? Toàn bộ phiên bản của bài sẽ bị ẩn khỏi CMS. Kho từ vựng vẫn được giữ lại và có thể tái sử dụng.`
+                          : revision.status === "archived"
+                            ? `Ẩn phiên bản “${revision.title}” khỏi danh sách? Nội dung đang phát hành, nếu có, không bị ảnh hưởng.`
+                            : `Xóa bản nháp “${revision.title}”? Nội dung đang phát hành, nếu có, không bị ảnh hưởng.`
                       }
                       className="rounded-xl border border-red-300 px-4 py-2 text-sm font-black text-red-700"
                     >
-                      Ẩn khỏi danh sách
+                      {revision.status === "unpublished"
+                        ? "Xóa bài"
+                        : revision.status === "archived"
+                          ? "Ẩn phiên bản"
+                          : "Xóa bản nháp"}
                     </ConfirmSubmitButton>
                   </form>
                 )}

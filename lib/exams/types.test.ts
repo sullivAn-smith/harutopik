@@ -3,7 +3,7 @@ import { examDraftSchema, formatExamValidationError, getExamEligibility, type Ex
 
 const question = {
   position: 1, section: "listening", instruction: "Nghe và chọn.", prompt: "",
-  audioBlockKey: "", answerType: "text",
+  audioBlockKey: "", readingType: "standard", passageBlockKey: "", passage: "", answerType: "text",
   audioUrl: "https://cdn.example.com/q1.mp3", audioText: "안녕하세요", imageUrl: "",
   playLimit: 1, options: ["하나", "둘", "셋", "넷"], optionImages: ["", "", "", ""], correctOption: 1, explanation: "",
 } satisfies ExamQuestionInput;

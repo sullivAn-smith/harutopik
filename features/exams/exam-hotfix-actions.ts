@@ -11,8 +11,8 @@ export async function hotfixPublishedExam(examId: string, _state: { ok: boolean;
   const input = {
     code: String(formData.get("code") ?? ""), title: String(formData.get("title") ?? ""),
     level: String(formData.get("level") ?? "topik_i"),
-    answerReviewPolicy: String(formData.get("answerReviewPolicy") ?? "immediate"),
-    answerReviewAvailableAt: String(formData.get("answerReviewAvailableAt") ?? ""),
+    answerReviewPolicy: "immediate",
+    answerReviewAvailableAt: "",
     description: String(formData.get("description") ?? ""),
     listeningDurationMinutes: Number(formData.get("listeningDurationMinutes")),
     readingDurationMinutes: Number(formData.get("readingDurationMinutes")),
@@ -27,7 +27,7 @@ export async function hotfixPublishedExam(examId: string, _state: { ok: boolean;
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("hotfix_published_exam", {
     p_exam_id: examId,
-    p_exam: { code: parsed.data.code, title: parsed.data.title, level: parsed.data.level, answerReviewPolicy: parsed.data.answerReviewPolicy, answerReviewAvailableAt: parsed.data.answerReviewAvailableAt, description: parsed.data.description, listeningDurationMinutes: parsed.data.listeningDurationMinutes, readingDurationMinutes: parsed.data.readingDurationMinutes, instructions: parsed.data.instructions },
+    p_exam: { code: parsed.data.code, title: parsed.data.title, level: parsed.data.level, answerReviewPolicy: "immediate", answerReviewAvailableAt: "", description: parsed.data.description, listeningDurationMinutes: parsed.data.listeningDurationMinutes, readingDurationMinutes: parsed.data.readingDurationMinutes, instructions: parsed.data.instructions },
     p_questions: parsed.data.questions, p_reason: reason,
   });
   if (error) return { ok: false, message: error.message };

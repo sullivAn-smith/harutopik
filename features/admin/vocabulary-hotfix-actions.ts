@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -435,26 +436,69 @@ export async function applyVocabularyHotfix(
         "Thông tin từ đã lưu, nhưng đáp án luyện tập chưa cập nhật được. Hãy thử lại.",
     };
   }
-  const exampleResults = await Promise.all(
-    examples.map((example) =>
-      admin
-        .from("vocabulary_examples")
-        .update({
+  const { data: currentExamples, error: currentExamplesError } = await admin
+    .from("vocabulary_examples")
+    .select("id")
+    .eq("vocabulary_id", parsed.data.vocabularyId);
+  if (currentExamplesError) {
+    return {
+      status: "error",
+      message:
+        "Thông tin từ đã lưu, nhưng chưa kiểm tra được câu ví dụ. Hãy thử lại.",
+    };
+  }
+  const currentExampleIds = new Set(
+    (currentExamples ?? []).map((example) => example.id),
+  );
+  const submittedCurrentIds = new Set(
+    examples
+      .filter((example) => currentExampleIds.has(example.id))
+      .map((example) => example.id),
+  );
+  const removedExampleIds = [...currentExampleIds].filter(
+    (id) => !submittedCurrentIds.has(id),
+  );
+  if (removedExampleIds.length > 0) {
+    const { error: deleteExamplesError } = await admin
+      .from("vocabulary_examples")
+      .delete()
+      .eq("vocabulary_id", parsed.data.vocabularyId)
+      .in("id", removedExampleIds);
+    if (deleteExamplesError) {
+      return {
+        status: "error",
+        message:
+          "Thông tin từ đã lưu, nhưng chưa xóa được câu ví dụ. Hãy thử lại.",
+      };
+    }
+  }
+  const persistedExamples = examples.map((example) => ({
+    ...example,
+    id: currentExampleIds.has(example.id)
+      ? example.id
+      : `${parsed.data.vocabularyId}-example-${randomUUID()}`,
+  }));
+  if (persistedExamples.length > 0) {
+    const { error: upsertExamplesError } = await admin
+      .from("vocabulary_examples")
+      .upsert(
+        persistedExamples.map((example) => ({
+          id: example.id,
+          vocabulary_id: parsed.data.vocabularyId,
           korean: example.korean,
           vietnamese: example.vietnamese,
           audio_url: example.audioUrl ?? null,
           position: example.position,
-        })
-        .eq("id", example.id)
-        .eq("vocabulary_id", parsed.data.vocabularyId),
-    ),
-  );
-  if (exampleResults.some((result) => result.error)) {
-    return {
-      status: "error",
-      message:
-        "Thông tin từ đã lưu, nhưng câu ví dụ chưa lưu được. Hãy tải lại và thử lại.",
-    };
+        })),
+        { onConflict: "id" },
+      );
+    if (upsertExamplesError) {
+      return {
+        status: "error",
+        message:
+          "Thông tin từ đã lưu, nhưng câu ví dụ chưa lưu được. Hãy thử lại.",
+      };
+    }
   }
   const { error: meaningError } = await admin
     .from("vocabulary_meanings")
@@ -485,7 +529,7 @@ export async function applyVocabularyHotfix(
     acceptedKoreanAnswers: acceptedAnswers
       .filter((answer) => answer.direction === "vi_ko")
       .map((answer) => answer.answer),
-    examples: examples.map((example) => ({
+    examples: persistedExamples.map((example) => ({
       id: example.id,
       korean: example.korean,
       vietnamese: example.vietnamese,
@@ -510,7 +554,9 @@ export async function applyVocabularyHotfix(
       reason: parsed.data.reason,
       before: current,
       audio_cleared: hangulChanged,
-      example_audio_count: examples.filter((example) => example.audioUrl).length,
+      example_audio_count: persistedExamples.filter(
+        (example) => example.audioUrl,
+      ).length,
     },
   });
   revalidatePath(`/quan-tri/hotfix/${parsed.data.contentId}`);

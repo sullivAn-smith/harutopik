@@ -166,6 +166,11 @@ const domainErrors: Array<{
       "Bài đang chờ duyệt, đã duyệt hoặc đang phát hành nên không thể xóa. Hãy tạm gỡ hoặc đưa bài về trạng thái có thể chỉnh sửa trước.",
   },
   {
+    match: "lesson_must_be_unpublished_before_delete",
+    code: "LESSON_MUST_BE_UNPUBLISHED",
+    message: "Hãy tạm gỡ bài khỏi trang học trước khi xóa.",
+  },
+  {
     match: "revision_not_deletable",
     code: "REVISION_NOT_DELETABLE",
     message: "Không thể xóa bài ở trạng thái hiện tại.",

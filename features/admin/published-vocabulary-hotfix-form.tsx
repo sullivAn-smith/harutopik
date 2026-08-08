@@ -13,6 +13,24 @@ const fieldClass =
   "mt-2 w-full rounded-2xl border-2 border-slate-200 bg-white px-4 py-3 font-semibold outline-none focus:border-violet-500";
 const preservePartOfSpeechValue = "__preserve__";
 
+type VocabularyExample = NonNullable<VocabularyAdminItem["examples"]>[number];
+
+function createExample(vocabularyId: string, examples: VocabularyExample[]) {
+  const nextPosition =
+    examples.reduce(
+      (highest, example) => Math.max(highest, example.position),
+      0,
+    ) + 1;
+
+  return {
+    id: `${vocabularyId}-example-hotfix-${crypto.randomUUID()}`,
+    korean: "",
+    vietnamese: "",
+    audioUrl: null,
+    position: nextPosition,
+  } satisfies VocabularyExample;
+}
+
 function FieldError({
   state,
   name,
@@ -150,21 +168,68 @@ export function PublishedVocabularyHotfixForm({
         <FieldError state={state} name="imageUrl" />
       </section>
       <section className="rounded-3xl border border-violet-200 bg-violet-50 p-5">
-        <h2 className="text-2xl font-black">Câu ví dụ và audio Azure</h2>
-        <p className="mt-2 text-sm leading-6 text-ink-600">
-          Nút loa bên dưới thẻ từ của learner dùng audio này. Khi sửa câu,
-          audio cũ được bỏ để tránh phát sai và cần tạo lại Azure.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="max-w-2xl">
+            <h2 className="text-2xl font-black">Câu ví dụ và audio Azure</h2>
+            <p className="mt-2 text-sm leading-6 text-ink-600">
+              Thêm hoặc sửa câu mà người học sẽ thấy. Khi đổi câu tiếng Hàn,
+              audio cũ được bỏ để tránh phát sai và cần tạo lại Azure.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setExamples((items) => [
+                ...items,
+                createExample(item.id, items),
+              ]);
+              setDirty(true);
+            }}
+            className="inline-flex min-h-11 items-center rounded-xl bg-violet-700 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-violet-800"
+          >
+            + Thêm câu ví dụ
+          </button>
+        </div>
         <div className="mt-5 space-y-4">
+          {examples.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-violet-300 bg-white/70 px-5 py-8 text-center">
+              <p className="font-black text-slate-800">Chưa có câu ví dụ</p>
+              <p className="mt-1 text-sm font-semibold text-slate-500">
+                Bấm “Thêm câu ví dụ” để nhập câu tiếng Hàn, nghĩa tiếng Việt
+                và tạo audio Azure.
+              </p>
+            </div>
+          )}
           {examples.map((example, index) => (
             <article key={example.id} className="rounded-2xl border bg-white p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <p className="text-sm font-black uppercase tracking-wider text-violet-700">
+                  Ví dụ {index + 1}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExamples((items) =>
+                      items.filter((item) => item.id !== example.id),
+                    );
+                    setDirty(true);
+                  }}
+                  className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-black text-red-700 transition hover:bg-red-100"
+                  aria-label={`Xóa câu ví dụ ${index + 1}`}
+                >
+                  Xóa
+                </button>
+              </div>
               <div className="grid gap-3 md:grid-cols-2">
                 <label className="font-black">
                   Câu tiếng Hàn
                   <input
                     lang="ko"
+                    required
+                    maxLength={500}
                     value={example.korean}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      setDirty(true);
                       setExamples((items) =>
                         items.map((item, itemIndex) =>
                           itemIndex === index
@@ -175,24 +240,30 @@ export function PublishedVocabularyHotfixForm({
                               }
                             : item,
                         ),
-                      )
-                    }
+                      );
+                    }}
                     className={fieldClass}
                   />
+                  <span className="mt-1 block text-xs font-semibold text-slate-500">
+                    Đổi nội dung sẽ xóa liên kết audio cũ.
+                  </span>
                 </label>
                 <label className="font-black">
                   Nghĩa tiếng Việt
                   <input
+                    required
+                    maxLength={1000}
                     value={example.vietnamese}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      setDirty(true);
                       setExamples((items) =>
                         items.map((item, itemIndex) =>
                           itemIndex === index
                             ? { ...item, vietnamese: event.target.value }
                             : item,
                         ),
-                      )
-                    }
+                      );
+                    }}
                     className={fieldClass}
                   />
                 </label>

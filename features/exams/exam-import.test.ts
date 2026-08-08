@@ -17,6 +17,41 @@ describe("parseExamImportRows", () => {
   it("từ chối section không hợp lệ", () => {
     expect(() => parseExamImportRows([headers, ["writing", 1, "", "", "1", "2", "3", "4", 1, "", "", ""]])).toThrow("section");
   });
+
+  it("dùng chung đoạn đọc và ảnh cho nhóm nhiều câu", () => {
+    const readingHeaders = [
+      ...headers,
+      "reading_type",
+      "passage_group",
+      "passage",
+    ];
+    const result = parseExamImportRows([
+      readingHeaders,
+      [
+        "reading", 31, "Đọc đoạn văn", "Ý chính là gì?", "1", "2", "3", "4", 2,
+        "", "", "https://cdn.example.com/passage.png", "long_passage", "reading-31-32", "Đây là đoạn văn dùng chung.",
+      ],
+      [
+        "reading", 32, "Đọc đoạn văn", "Thông tin nào đúng?", "1", "2", "3", "4", 3,
+        "", "", "", "long_passage", "reading-31-32", "",
+      ],
+    ]);
+
+    expect(result[1]).toMatchObject({
+      readingType: "long_passage",
+      passageBlockKey: "reading-31-32",
+      passage: "Đây là đoạn văn dùng chung.",
+      imageUrl: "https://cdn.example.com/passage.png",
+    });
+  });
+
+  it("báo rõ loại câu đọc không hợp lệ", () => {
+    const readingHeaders = [...headers, "reading_type"];
+    expect(() => parseExamImportRows([
+      readingHeaders,
+      ["reading", 1, "", "문제", "1", "2", "3", "4", 1, "", "", "", "unknown_type"],
+    ])).toThrow("reading_type không hợp lệ");
+  });
 });
 
 describe("parseCsv", () => {

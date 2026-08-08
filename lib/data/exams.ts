@@ -66,7 +66,7 @@ export async function getExamForEditing(examId: string) {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("exam_sets")
-    .select("id,code,title,description,level,duration_minutes,listening_duration_minutes,reading_duration_minutes,instructions,answer_review_policy,answer_review_available_at,status,review_note,version,created_by,exam_questions(id,position,section,audio_block_key,answer_type,instruction,prompt,audio_url,audio_text,image_url,play_limit,options,option_images,correct_option,explanation)")
+    .select("id,code,title,description,level,duration_minutes,listening_duration_minutes,reading_duration_minutes,instructions,answer_review_policy,answer_review_available_at,status,review_note,version,created_by,exam_questions(id,position,section,audio_block_key,reading_type,passage_block_key,passage,answer_type,instruction,prompt,audio_url,audio_text,image_url,play_limit,options,option_images,correct_option,explanation)")
     .eq("id", examId)
     .order("position", { referencedTable: "exam_questions", ascending: true })
     .maybeSingle();

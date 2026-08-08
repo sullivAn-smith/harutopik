@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requirePermission, getCurrentActor } from "@/lib/auth/authorize";
 import { buildExamAttemptPlan, examAttemptModeSchema } from "@/lib/exams/attempt-mode";
-import { examAnswerReviewPolicySchema, examDraftSchema, examLevelSchema, formatExamValidationError } from "@/lib/exams/types";
+import { examDraftSchema, examLevelSchema, formatExamValidationError } from "@/lib/exams/types";
 import { withErrorMessage } from "@/lib/navigation/redirect-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -27,34 +27,21 @@ export async function createExamDraft(formData: FormData) {
     code: z.string().regex(/^[a-z0-9][a-z0-9-]{2,79}$/),
     title: z.string().min(3).max(160),
     level: examLevelSchema,
-    answerReviewPolicy: examAnswerReviewPolicySchema,
-    answerReviewAvailableAt: z.string().optional(),
     listeningDurationMinutes: z.coerce.number().int().min(1).max(180),
     readingDurationMinutes: z.coerce.number().int().min(1).max(180),
   }).safeParse({
     code: text(formData, "code"), title: text(formData, "title"),
     level: text(formData, "level"),
-    answerReviewPolicy: text(formData, "answerReviewPolicy"),
-    answerReviewAvailableAt: text(formData, "answerReviewAvailableAt"),
     listeningDurationMinutes: formData.get("listeningDurationMinutes"),
     readingDurationMinutes: formData.get("readingDurationMinutes"),
   });
   if (!parsed.success) redirect(withErrorMessage("/bien-tap/de-thi/moi", "Thông tin đề chưa hợp lệ."));
-  if (parsed.data.answerReviewPolicy === "after_date" && !parsed.data.answerReviewAvailableAt) redirect(withErrorMessage("/bien-tap/de-thi/moi", "Hãy chọn thời điểm công bố đáp án."));
-  let answerReviewAvailableAt: string | null = null;
-  if (parsed.data.answerReviewPolicy === "after_date") {
-    const availableAt = new Date(`${parsed.data.answerReviewAvailableAt}:00+07:00`);
-    if (Number.isNaN(availableAt.getTime())) {
-      redirect(withErrorMessage("/bien-tap/de-thi/moi", "Thời điểm công bố đáp án không hợp lệ."));
-    }
-    answerReviewAvailableAt = availableAt.toISOString();
-  }
   const supabase = await createClient();
   const { data, error } = await supabase.from("exam_sets").insert({
     code: parsed.data.code, title: parsed.data.title,
     level: parsed.data.level,
-    answer_review_policy: parsed.data.answerReviewPolicy,
-    answer_review_available_at: answerReviewAvailableAt,
+    answer_review_policy: "immediate",
+    answer_review_available_at: null,
     duration_minutes: parsed.data.listeningDurationMinutes + parsed.data.readingDurationMinutes,
     listening_duration_minutes: parsed.data.listeningDurationMinutes,
     reading_duration_minutes: parsed.data.readingDurationMinutes,
@@ -71,8 +58,8 @@ export async function saveExamDraft(examId: string, _state: { message: string; o
   const input = {
     code: text(formData, "code"), title: text(formData, "title"),
     level: text(formData, "level"),
-    answerReviewPolicy: text(formData, "answerReviewPolicy"),
-    answerReviewAvailableAt: text(formData, "answerReviewAvailableAt"),
+    answerReviewPolicy: "immediate",
+    answerReviewAvailableAt: "",
     description: text(formData, "description"),
     listeningDurationMinutes: Number(formData.get("listeningDurationMinutes")),
     readingDurationMinutes: Number(formData.get("readingDurationMinutes")),
@@ -88,8 +75,8 @@ export async function saveExamDraft(examId: string, _state: { message: string; o
     p_exam: {
       code: parsed.data.code, title: parsed.data.title,
       level: parsed.data.level,
-      answerReviewPolicy: parsed.data.answerReviewPolicy,
-      answerReviewAvailableAt: parsed.data.answerReviewAvailableAt,
+      answerReviewPolicy: "immediate",
+      answerReviewAvailableAt: "",
       description: parsed.data.description,
       listeningDurationMinutes: parsed.data.listeningDurationMinutes,
       readingDurationMinutes: parsed.data.readingDurationMinutes,
@@ -154,7 +141,7 @@ export async function startExam(formData: FormData) {
   const parsedMode = examAttemptModeSchema.safeParse(text(formData, "attemptMode"));
   if (!parsedMode.success) redirect(withErrorMessage(`/luyen-de/${examId}`, "Hãy chọn một chế độ thi hợp lệ."));
   const admin = createAdminClient();
-  const { data: exam } = await admin.from("exam_sets").select("id,status,version,listening_duration_minutes,reading_duration_minutes,exam_questions(id,position,section,audio_block_key,answer_type,instruction,prompt,audio_url,image_url,play_limit,options,option_images,correct_option,explanation)").eq("id", examId).eq("status", "published").maybeSingle();
+  const { data: exam } = await admin.from("exam_sets").select("id,status,version,listening_duration_minutes,reading_duration_minutes,exam_questions(id,position,section,audio_block_key,reading_type,passage_block_key,passage,answer_type,instruction,prompt,audio_url,image_url,play_limit,options,option_images,correct_option,explanation)").eq("id", examId).eq("status", "published").maybeSingle();
   if (!exam || !exam.exam_questions?.length) redirect(withErrorMessage("/luyen-de", "Đề thi chưa sẵn sàng."));
   if (!exam.exam_questions.some((question) => question.section === "listening") || !exam.exam_questions.some((question) => question.section === "reading")) redirect(withErrorMessage("/luyen-de", "Đề TOPIK I chưa có đủ phần Nghe và Đọc."));
   const plan = buildExamAttemptPlan({

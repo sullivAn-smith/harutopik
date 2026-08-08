@@ -12,6 +12,9 @@ type Question = {
   section: ExamSection;
   instruction: string;
   audioBlockKey: string;
+  readingType?: string;
+  passageBlockKey?: string;
+  passage?: string;
   answerType: "text" | "image";
   prompt: string;
   audioUrl: string;
@@ -604,14 +607,22 @@ export function ExamRunner({
           </div>
 
           <div className="divide-y divide-slate-200">
-            {sectionQuestions.map((question) => {
+            {sectionQuestions.map((question, questionIndex) => {
               const questionHighlights = highlights.filter((highlight) => highlight.questionId === question.id);
               const playKey = audioKey(question);
               const isActiveAudio = activeAudioKey === playKey;
               const audioReady = !question.audioUrl || finishedAudioKeys.has(playKey) || isActiveAudio || Boolean(answers[question.id]);
               const displayedCurrentTime = isActiveAudio ? audioCurrentTime : 0;
               const displayedDuration = isActiveAudio ? audioDuration : 0;
+              const previousQuestion = sectionQuestions[questionIndex - 1];
+              const showReadingPassage = activeSection === "reading" && Boolean(question.passage || question.imageUrl)
+                && (!question.passageBlockKey || previousQuestion?.passageBlockKey !== question.passageBlockKey);
               return <article key={question.id} id={`question-${question.id}`} data-question-id={question.id} className="scroll-mt-32 px-6 py-8 md:px-8 md:py-10">
+                {showReadingPassage && <div className="mb-7 rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50 to-white p-5 md:p-7">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-black uppercase tracking-[0.18em] text-[#087eba]">Ngữ liệu đọc</p>{question.passageBlockKey && <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-slate-500 ring-1 ring-slate-200">Dùng cho nhiều câu</span>}</div>
+                  {question.passage && <p className="whitespace-pre-wrap text-lg font-semibold leading-9 text-slate-800">{question.passage}</p>}
+                  {question.imageUrl && <Image unoptimized width={1100} height={760} src={question.imageUrl} alt={`Ngữ liệu câu ${question.position}`} className="mt-5 max-h-[620px] w-full rounded-2xl bg-white object-contain" />}
+                </div>}
                 <div className="flex gap-4">
                   <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full text-lg font-black ${answers[question.id] ? "bg-[#087eba] text-white" : "bg-sky-100 text-[#087eba]"}`}>{question.position}</span>
                   <div className="min-w-0 flex-1">
@@ -623,7 +634,7 @@ export function ExamRunner({
                     </div>
 
                     {question.prompt && <div onMouseUp={(event) => prepareHighlight(question, event.currentTarget, "prompt", question.prompt)}><p className="mt-4 text-lg font-semibold leading-8 text-slate-700"><HighlightedText text={question.prompt} highlights={questionHighlights.filter((highlight) => highlight.sourceField === "prompt")} onHighlightClick={openSavedHighlight} /></p></div>}
-                    {question.imageUrl && <Image unoptimized width={800} height={500} src={question.imageUrl} alt={`Minh họa câu ${question.position}`} className="mt-5 max-h-[430px] w-auto rounded-2xl object-contain" />}
+                    {activeSection !== "reading" && question.imageUrl && <Image unoptimized width={800} height={500} src={question.imageUrl} alt={`Minh họa câu ${question.position}`} className="mt-5 max-h-[430px] w-auto rounded-2xl object-contain" />}
 
                     {activeSection === "listening" && (question.audioUrl
                       ? <div className="mt-5 rounded-2xl bg-cyan-50 p-4 ring-1 ring-cyan-100">

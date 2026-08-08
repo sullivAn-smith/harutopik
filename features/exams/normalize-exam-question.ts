@@ -1,10 +1,13 @@
-import type { ExamAnswerType, ExamQuestionInput, ExamSection } from "@/lib/exams/types";
+import type { ExamAnswerType, ExamQuestionInput, ExamReadingType, ExamSection } from "@/lib/exams/types";
 
 export type StoredExamQuestion = {
   id: string;
   position: number;
   section: ExamSection;
   audio_block_key?: string | null;
+  reading_type?: ExamReadingType | null;
+  passage_block_key?: string | null;
+  passage?: string | null;
   answer_type?: ExamAnswerType | null;
   instruction: string;
   prompt: string;
@@ -29,6 +32,9 @@ export function normalizeExamQuestion(item: StoredExamQuestion): ExamQuestionInp
     position: item.position,
     section: item.section,
     audioBlockKey: item.audio_block_key ?? "",
+    readingType: item.reading_type ?? "standard",
+    passageBlockKey: item.passage_block_key ?? "",
+    passage: item.passage ?? "",
     answerType: item.answer_type === "image" ? "image" : "text",
     instruction: item.instruction,
     prompt: item.prompt,

@@ -2,10 +2,10 @@ import type { ExamQuestionInput, ExamSection } from "@/lib/exams/types";
 
 const requiredHeaders = [
   "section", "number", "instruction", "question", "option_1", "option_2",
-  "option_3", "option_4", "correct_option", "explanation", "audio_text", "image_url",
+  "option_3", "option_4", "correct_option", "explanation",
 ] as const;
 
-const optionalHeaders = ["audio_block", "answer_type", "option_image_1", "option_image_2", "option_image_3", "option_image_4"] as const;
+const readingTypes = new Set(["standard", "fill_blank", "image_match", "practical_info", "same_topic", "main_idea", "sentence_order", "insert_sentence", "equivalent_expression", "title_match", "long_passage"]);
 
 export function parseCsv(source: string): string[][] {
   const rows: string[][] = [];
@@ -35,7 +35,7 @@ export function parseExamImportRows(rows: unknown[][]): ExamQuestionInput[] {
   const value = (row: unknown[], name: string) =>
     String(row[headers.indexOf(name)] ?? "").trim();
   const positions = new Set<string>();
-  return rows.slice(1).filter((row) => row.some((cell) => cell !== null && cell !== "")).map((row, rowIndex) => {
+  const parsed = rows.slice(1).filter((row) => row.some((cell) => cell !== null && cell !== "")).map((row, rowIndex) => {
     const section = value(row, "section") as ExamSection;
     if (section !== "listening" && section !== "reading") {
       throw new Error(`Dòng ${rowIndex + 2}: section phải là listening hoặc reading.`);
@@ -43,6 +43,8 @@ export function parseExamImportRows(rows: unknown[][]): ExamQuestionInput[] {
     const position = Number(value(row, "number"));
     const answer = Number(value(row, "correct_option"));
     const answerType = value(row, "answer_type") === "image" ? "image" as const : "text" as const;
+    const rawReadingType = value(row, "reading_type") || "standard";
+    if (!readingTypes.has(rawReadingType)) throw new Error(`Dòng ${rowIndex + 2}: reading_type không hợp lệ.`);
     if (!Number.isInteger(position) || position < 1) throw new Error(`Dòng ${rowIndex + 2}: number không hợp lệ.`);
     if (!Number.isInteger(answer) || answer < 1 || answer > 4) throw new Error(`Dòng ${rowIndex + 2}: correct_option phải từ 1 đến 4.`);
     const key = `${section}:${position}`;
@@ -53,11 +55,13 @@ export function parseExamImportRows(rows: unknown[][]): ExamQuestionInput[] {
     if (answerType === "image") {
       for (let index = 0; index < options.length; index += 1) options[index] ||= String(index + 1);
     }
-    void optionalHeaders;
     return {
       position,
       section,
       audioBlockKey: value(row, "audio_block"),
+      readingType: rawReadingType as ExamQuestionInput["readingType"],
+      passageBlockKey: value(row, "passage_group"),
+      passage: value(row, "passage"),
       answerType,
       instruction: value(row, "instruction"),
       prompt: value(row, "question"),
@@ -70,5 +74,24 @@ export function parseExamImportRows(rows: unknown[][]): ExamQuestionInput[] {
       correctOption: answer,
       explanation: value(row, "explanation"),
     };
+  });
+
+  const passageGroups = new Map<string, Pick<ExamQuestionInput, "passage" | "imageUrl" | "readingType">>();
+  for (const question of parsed) {
+    if (question.section !== "reading" || !question.passageBlockKey) continue;
+    const existing = passageGroups.get(question.passageBlockKey);
+    passageGroups.set(question.passageBlockKey, {
+      passage: existing?.passage || question.passage,
+      imageUrl: existing?.imageUrl || question.imageUrl,
+      readingType: existing?.readingType !== "standard"
+        ? existing?.readingType ?? question.readingType
+        : question.readingType,
+    });
+  }
+
+  return parsed.map((question) => {
+    if (question.section !== "reading" || !question.passageBlockKey) return question;
+    const shared = passageGroups.get(question.passageBlockKey);
+    return shared ? { ...question, ...shared } : question;
   });
 }

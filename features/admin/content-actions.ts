@@ -884,6 +884,9 @@ export async function unpublishRevision(formData: FormData) {
   }
 
   revalidatePath("/quan-tri/phat-hanh");
+  revalidatePath("/bien-tap/noi-dung");
+  revalidatePath("/bien-tap/tu-vung");
+  revalidatePath("/quan-tri/noi-dung");
   revalidatePath("/");
   revalidatePath("/tieng-han-th");
   revalidatePath("/courses/[courseSlug]", "page");
@@ -944,8 +947,14 @@ export async function deleteOrArchiveLesson(formData: FormData) {
     );
   }
   revalidatePath("/bien-tap/noi-dung");
+  revalidatePath("/bien-tap/tu-vung");
   revalidatePath("/quan-tri/noi-dung");
-  redirect(`${returnTo}?delete=${data === "archived" ? "archived" : "error"}`);
+  revalidatePath("/");
+  revalidatePath("/tieng-han-th");
+  revalidatePath("/courses/[courseSlug]", "page");
+  revalidatePath("/api/v1/catalog");
+  const result = data === "deleted" ? "deleted" : data === "archived" ? "archived" : "error";
+  redirect(`${returnTo}?delete=${result}`);
 }
 
 export async function prepareAdminRevisionEdit(formData: FormData) {

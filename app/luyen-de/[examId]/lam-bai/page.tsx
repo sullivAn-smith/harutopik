@@ -12,7 +12,7 @@ export default async function ExamRunnerPage({ params, searchParams }: { params:
   if (attempt.status !== "in_progress") redirect(`/luyen-de/${examId}/ket-qua?attempt=${attempt.id}`);
   const snapshot = (Array.isArray(attempt.question_snapshot) ? attempt.question_snapshot : []).map((raw) => {
     const q = raw as Record<string, unknown>;
-    return { id: String(q.id), position: Number(q.position), section: q.section === "reading" ? "reading" as const : "listening" as const, audioBlockKey: String(q.audio_block_key ?? ""), answerType: q.answer_type === "image" ? "image" as const : "text" as const, instruction: String(q.instruction ?? ""), prompt: String(q.prompt ?? ""), audioUrl: String(q.audio_url ?? ""), imageUrl: String(q.image_url ?? ""), options: Array.isArray(q.options) ? q.options.map(String) : [], optionImages: Array.isArray(q.option_images) ? q.option_images.map(String) : ["", "", "", ""] };
+    return { id: String(q.id), position: Number(q.position), section: q.section === "reading" ? "reading" as const : "listening" as const, audioBlockKey: String(q.audio_block_key ?? ""), readingType: String(q.reading_type ?? "standard"), passageBlockKey: String(q.passage_block_key ?? ""), passage: String(q.passage ?? ""), answerType: q.answer_type === "image" ? "image" as const : "text" as const, instruction: String(q.instruction ?? ""), prompt: String(q.prompt ?? ""), audioUrl: String(q.audio_url ?? ""), imageUrl: String(q.image_url ?? ""), options: Array.isArray(q.options) ? q.options.map(String) : [], optionImages: Array.isArray(q.option_images) ? q.option_images.map(String) : ["", "", "", ""] };
   });
   const section = attempt.current_section === "reading" ? "reading" as const : "listening" as const;
   const expiresAt = attempt.expires_at;
