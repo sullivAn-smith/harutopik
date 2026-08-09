@@ -22,4 +22,26 @@ describe("ExamPreflight", () => {
     expect(screen.queryByRole("button", { name: "Kiểm tra loa" })).toBeNull();
     expect((screen.getByRole("button", { name: /Bắt đầu phần Đọc/ }) as HTMLButtonElement).disabled).toBe(false);
   });
+
+  it("hiển thị tiến trình và đường dẫn tiếp tục lượt thi đang hoạt động", () => {
+    render(<ExamPreflight
+      examId="00000000-0000-4000-8000-000000000000"
+      listeningMinutes={40}
+      readingMinutes={60}
+      activeAttempts={[{
+        id: "11111111-1111-4111-8111-111111111111",
+        mode: "full",
+        expiresAt: "2099-01-01T00:00:00.000Z",
+        section: "reading",
+        position: 12,
+        answeredCount: 38,
+        totalQuestions: 70,
+      }]}
+    />);
+
+    expect(screen.getByText("Bạn đã làm 38/70 câu")).toBeTruthy();
+    expect(screen.getByText(/phần Đọc, câu 12/)).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Tiếp tục làm bài/ }).getAttribute("href"))
+      .toContain("attempt=11111111-1111-4111-8111-111111111111");
+  });
 });

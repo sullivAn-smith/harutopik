@@ -41,6 +41,7 @@ export function VocabularyListsManager({ backHref }: { backHref: string }) {
   const [lists, setLists] = useState<VocabularyListSummary[]>([]);
   const [activeId, setActiveId] = useState("");
   const [newName, setNewName] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [deleteCandidate, setDeleteCandidate] =
@@ -105,6 +106,19 @@ export function VocabularyListsManager({ backHref }: { backHref: string }) {
     () => lists.find((list) => list.id === activeId) ?? null,
     [activeId, lists],
   );
+  const filteredItems = useMemo(() => {
+    const query = searchTerm.trim().toLocaleLowerCase("vi");
+    const items = active?.items ?? [];
+    if (!query) return items;
+    return items.filter((savedItem) => [
+      savedItem.item.korean,
+      savedItem.item.vietnamese,
+      savedItem.item.romanization,
+      savedItem.item.partOfSpeech,
+      savedItem.item.category,
+      ...savedItem.item.examples.flatMap((example) => [example.korean, example.vietnamese]),
+    ].some((value) => value?.toLocaleLowerCase("vi").includes(query)));
+  }, [active, searchTerm]);
   async function createList(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const response = await fetch("/api/v1/vocabulary-lists", {
@@ -219,7 +233,7 @@ export function VocabularyListsManager({ backHref }: { backHref: string }) {
     <div className="mt-8">
       <form
         onSubmit={(event) => void createList(event)}
-        className="flex flex-col gap-3 rounded-2xl bg-sky-50 p-4 sm:flex-row"
+        className="flex flex-col gap-3 rounded-3xl border border-sky-100 bg-gradient-to-r from-sky-50 to-cyan-50 p-4 shadow-inner sm:flex-row"
       >
         <label className="min-w-0 flex-1">
           <span className="sr-only">Tên bộ từ mới</span>
@@ -230,10 +244,10 @@ export function VocabularyListsManager({ backHref }: { backHref: string }) {
             maxLength={60}
             required
             placeholder="Ví dụ: Từ khó TOPIK I"
-            className="w-full rounded-xl border-2 border-white bg-white px-4 py-3 font-semibold outline-none focus:border-brand-500"
+            className="w-full rounded-2xl border-2 border-white bg-white px-5 py-3.5 font-semibold shadow-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-sky-100"
           />
         </label>
-        <button className="rounded-xl bg-brand-600 px-5 py-3 font-black text-white">
+        <button className="rounded-2xl bg-brand-600 px-6 py-3.5 font-black text-white shadow-[0_10px_22px_rgba(8,126,186,.24)] transition hover:-translate-y-0.5 hover:bg-brand-700">
           + Tạo bộ từ
         </button>
       </form>
@@ -249,17 +263,17 @@ export function VocabularyListsManager({ backHref }: { backHref: string }) {
           Đang tải bộ từ...
         </p>
       ) : (
-        <div className="mt-7 grid gap-6 lg:grid-cols-[240px_1fr]">
-          <aside className="space-y-2">
+        <div className="mt-7 grid gap-7 lg:grid-cols-[250px_minmax(0,1fr)]">
+          <aside className="h-fit space-y-2 rounded-3xl border border-slate-100 bg-slate-50/80 p-3">
             {lists.map((list) => (
               <button
                 key={list.id}
                 type="button"
                 onClick={() => setActiveId(list.id)}
-                className={`flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left font-black ${
+                className={`flex w-full items-center justify-between rounded-2xl px-4 py-3.5 text-left font-black transition ${
                   activeId === list.id
-                    ? "bg-brand-600 text-white"
-                    : "bg-slate-100 text-ink-900 hover:bg-sky-50"
+                    ? "bg-gradient-to-r from-brand-600 to-cyan-600 text-white shadow-[0_8px_18px_rgba(8,126,186,.22)]"
+                    : "bg-white text-ink-900 ring-1 ring-slate-100 hover:bg-sky-50 hover:text-brand-700"
                 }`}
               >
                 <span className="truncate">
@@ -271,7 +285,7 @@ export function VocabularyListsManager({ backHref }: { backHref: string }) {
             ))}
           </aside>
 
-          <section className="min-w-0">
+          <section className="min-w-0 rounded-3xl border border-slate-100 bg-white p-1 sm:p-5">
             {active && (
               <>
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -304,6 +318,28 @@ export function VocabularyListsManager({ backHref }: { backHref: string }) {
                   </div>
                 </div>
 
+                {!!active.itemCount && (
+                  <div className="mt-5 flex flex-wrap items-center gap-3 rounded-2xl border border-sky-100 bg-sky-50/70 p-3">
+                    <label className="relative min-w-0 flex-1">
+                      <span className="sr-only">Tìm từ trong bộ {active.name}</span>
+                      <span aria-hidden="true" className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg text-slate-400">⌕</span>
+                      <input
+                        type="search"
+                        value={searchTerm}
+                        onChange={(event) => setSearchTerm(event.target.value)}
+                        placeholder="Tìm tiếng Hàn, nghĩa hoặc phiên âm..."
+                        className="w-full rounded-2xl border border-white bg-white py-3 pl-11 pr-11 font-semibold text-ink-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-sky-100"
+                      />
+                      {searchTerm && (
+                        <button type="button" onClick={() => setSearchTerm("")} aria-label="Xóa nội dung tìm kiếm" className="absolute right-2.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">×</button>
+                      )}
+                    </label>
+                    <span className="shrink-0 rounded-full bg-white px-4 py-2 text-sm font-black text-brand-700 shadow-sm ring-1 ring-sky-100">
+                      {searchTerm.trim() ? `${filteredItems.length} kết quả` : `${active.itemCount} từ`}
+                    </span>
+                  </div>
+                )}
+
                 {!active.itemCount ? (
                   <div className="mt-6 rounded-3xl border-2 border-dashed border-slate-200 p-10 text-center">
                     <p className="font-black text-ink-900">
@@ -313,12 +349,18 @@ export function VocabularyListsManager({ backHref }: { backHref: string }) {
                       Mở một bài học và bấm ♡ cạnh từ bạn muốn lưu.
                     </p>
                   </div>
+                ) : filteredItems.length === 0 ? (
+                  <div className="mt-6 rounded-3xl border-2 border-dashed border-sky-200 bg-sky-50/40 p-10 text-center">
+                    <p className="text-lg font-black text-ink-900">Không tìm thấy từ phù hợp</p>
+                    <p className="mt-2 text-sm font-semibold text-ink-600">Thử tìm bằng tiếng Hàn, nghĩa tiếng Việt hoặc phiên âm khác.</p>
+                    <button type="button" onClick={() => setSearchTerm("")} className="mt-4 rounded-xl bg-white px-4 py-2 font-black text-brand-700 shadow-sm ring-1 ring-sky-100">Xóa tìm kiếm</button>
+                  </div>
                 ) : (
-                  <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                    {active.items?.map((savedItem) => (
+                  <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                    {filteredItems.map((savedItem) => (
                       <article
                         key={savedItem.vocabularyId}
-                        className="rounded-2xl border bg-white p-4"
+                        className="group rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/60 p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-[0_12px_25px_rgba(16,36,62,.09)]"
                       >
                         <div className="flex items-start gap-3">
                           <div className="min-w-0 flex-1">

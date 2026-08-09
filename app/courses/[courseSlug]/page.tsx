@@ -25,14 +25,17 @@ function CourseLessonCard({
   course,
   lesson,
   completed,
+  signedIn,
 }: {
   course: Course;
   lesson: Lesson;
   completed: boolean;
+  signedIn: boolean;
 }) {
+  const href = lessonPath(course, lesson);
   return (
     <Link
-      href={lessonPath(course, lesson)}
+      href={signedIn ? href : `/dang-nhap?next=${encodeURIComponent(href)}`}
       className={`flex items-center gap-4 rounded-2xl border px-5 py-4 shadow-[0_12px_28px_rgba(16,36,62,0.12)] backdrop-blur transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_34px_rgba(16,36,62,0.16)] ${
         completed
           ? "border-emerald-200 bg-emerald-50/90 hover:border-emerald-300"
@@ -57,6 +60,7 @@ function CourseLessonCard({
         <span className="mt-1 block text-sm font-semibold text-[#52637a]">
           {lesson.vocabulary.length} từ
           {completed && <span className="ml-2 font-black text-emerald-700">✓ Đã hoàn thành</span>}
+          {!signedIn && <span className="ml-2 font-black text-[#087eba]">Đăng nhập để học</span>}
         </span>
       </span>
       <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#10243e]/5 text-2xl text-[#52637a]">›</span>
@@ -171,6 +175,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
                 course={course}
                 lesson={lesson}
                 completed={completedLessons.has(lesson.id)}
+                signedIn={Boolean(user)}
               />
             ))}
 

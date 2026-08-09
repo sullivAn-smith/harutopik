@@ -24,12 +24,26 @@ const listResponse = {
       id: "list-1",
       name: "Từ TOPIK cần ôn",
       kind: "custom",
-      itemCount: 1,
+      itemCount: 2,
       items: [
         {
           vocabularyId: "exam-highlight-highlight-1",
           lessonId: "exam:exam-1",
           item,
+          createdAt: "2026-08-05T00:00:00.000Z",
+        },
+        {
+          vocabularyId: "vocabulary-america",
+          lessonId: "lesson-countries",
+          item: {
+            id: "vocabulary-america",
+            korean: "미국",
+            vietnamese: "Mỹ",
+            romanization: "mi-guk",
+            category: "Quốc gia",
+            partOfSpeech: "Danh từ",
+            examples: [],
+          },
           createdAt: "2026-08-05T00:00:00.000Z",
         },
       ],
@@ -95,5 +109,20 @@ describe("VocabularyListsManager", () => {
         examples: [{ korean: "안녕하세요, 만나서 반갑습니다." }],
       },
     });
+  });
+
+  it("lọc từ trong bộ theo tiếng Hàn, nghĩa và phiên âm", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue(new Response(JSON.stringify(listResponse), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    }));
+    render(<VocabularyListsManager backHref="/" />);
+
+    const search = await screen.findByRole("searchbox", { name: /Tìm từ trong bộ/ });
+    fireEvent.change(search, { target: { value: "mi-guk" } });
+
+    expect(screen.getByRole("button", { name: "Bỏ từ 미국" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Bỏ từ 안녕하세요" })).toBeNull();
+    expect(screen.getByText("1 kết quả")).toBeTruthy();
   });
 });

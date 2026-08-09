@@ -17,25 +17,25 @@ export default async function MyVocabularyPage({
 }: {
   searchParams: Promise<{ back?: string }>;
 }) {
-  if (!isSupabaseConfigured()) redirect("/dang-nhap");
+  if (!isSupabaseConfigured()) redirect("/dang-nhap?next=%2Ftu-cua-toi");
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) redirect("/dang-nhap");
+  if (!user) redirect("/dang-nhap?next=%2Ftu-cua-toi");
   const { back } = await searchParams;
   const backHref = safeLessonHref(back);
 
   return (
-    <main className="min-h-screen bg-slate-50 px-5 py-10">
-      <section className="surface-card mx-auto max-w-5xl bg-white p-7 sm:p-10">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_10%_0%,#dff4ff_0,transparent_32rem),linear-gradient(145deg,#f8fbff,#f1f7fa)] px-4 py-6 sm:px-6 sm:py-10">
+      <section className="mx-auto max-w-6xl overflow-hidden rounded-[2rem] border border-white bg-white/95 p-6 shadow-[0_24px_70px_rgba(16,36,62,.12)] sm:p-10">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <Link
-              href={backHref}
+              href="/"
               className="mb-5 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-brand-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-50"
             >
-              ← Quay lại bài đang học
+              ← Quay về trang chủ
             </Link>
             <p className="text-sm font-black uppercase tracking-widest text-brand-600">
               Thư viện cá nhân
@@ -50,7 +50,7 @@ export default async function MyVocabularyPage({
           </div>
           <Link
             href="/courses/topik-1"
-            className="rounded-xl bg-sky-50 px-4 py-2.5 font-black text-brand-700"
+            className="rounded-2xl bg-sky-50 px-5 py-3 font-black text-brand-700 ring-1 ring-sky-100 transition hover:-translate-y-0.5 hover:bg-sky-100"
           >
             Tìm từ trong bài học
           </Link>

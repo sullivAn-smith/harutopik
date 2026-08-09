@@ -5,7 +5,7 @@ import { ExamRunner } from "@/features/exams/exam-runner";
 
 export default async function ExamRunnerPage({ params, searchParams }: { params: Promise<{ examId: string }>; searchParams: Promise<{ attempt?: string }> }) {
   const [{ examId }, query, actor] = await Promise.all([params, searchParams, getCurrentActor()]);
-  if (!actor) redirect(`/dang-nhap?next=/luyen-de/${examId}`);
+  if (!actor) redirect(`/dang-nhap?next=${encodeURIComponent(`/luyen-de/${examId}`)}`);
   if (!query.attempt) notFound();
   const attempt = await getExamAttempt(query.attempt, actor.id);
   if (!attempt || attempt.exam_id !== examId) notFound();

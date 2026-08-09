@@ -17,9 +17,11 @@ const oauthMessages: Record<string, string> = {
 export default async function SignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; next?: string }>;
 }) {
-  const error = (await searchParams).error;
+  const query = await searchParams;
+  const error = query.error;
+  const nextPath = query.next?.startsWith("/") && !query.next.startsWith("//") ? query.next : "";
 
   return (
     <AuthShell
@@ -29,8 +31,9 @@ export default async function SignInPage({
     >
       <AuthForm
         mode="sign-in"
-        action={signIn}
-        googleAction={signInWithGoogle}
+        action={signIn.bind(null, nextPath)}
+        googleAction={signInWithGoogle.bind(null, nextPath)}
+        nextPath={nextPath}
         oauthMessage={error ? oauthMessages[error] : undefined}
       />
     </AuthShell>

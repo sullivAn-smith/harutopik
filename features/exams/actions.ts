@@ -17,6 +17,7 @@ function text(formData: FormData, key: string) {
 function message(error: unknown) {
   const value = error instanceof Error ? error.message : "Không thể hoàn tất thao tác.";
   if (value.includes("EXAM_NOT_READY")) return "Đề phải có cả phần Nghe và Đọc; mọi câu cần đủ 4 đáp án.";
+  if (value.includes("PREVIEW_REQUIRED")) return "Hãy xem trước đề như người học sau lần lưu cuối rồi mới gửi duyệt.";
   if (value.includes("duplicate") || value.includes("unique")) return "Mã đề hoặc số thứ tự câu đã tồn tại.";
   return value;
 }
@@ -85,6 +86,8 @@ export async function saveExamDraft(examId: string, _state: { message: string; o
     p_questions: parsed.data.questions,
   });
   if (saveError) return { ok: false, message: message(saveError) };
+  const { error: historyError } = await supabase.rpc("record_exam_revision", { p_exam_id: examId });
+  if (historyError && historyError.code !== "PGRST202" && historyError.code !== "42883") return { ok: false, message: `Đã lưu đề nhưng chưa ghi được lịch sử: ${message(historyError)}` };
   revalidatePath(`/bien-tap/de-thi/${examId}`);
   return {
     ok: true,
@@ -92,12 +95,26 @@ export async function saveExamDraft(examId: string, _state: { message: string; o
   };
 }
 
+export async function markExamPreviewed(formData: FormData) {
+  await requirePermission("content:read-draft");
+  const examId = text(formData, "examId");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("mark_exam_previewed", { p_exam_id: examId });
+  if (error && error.code !== "PGRST202" && error.code !== "42883") redirect(withErrorMessage(`/bien-tap/de-thi/${examId}/xem-truoc`, message(error)));
+  revalidatePath(`/bien-tap/de-thi/${examId}`);
+  redirect(`/bien-tap/de-thi/${examId}`);
+}
+
 export async function submitExamForReview(formData: FormData) {
   await requirePermission("content:submit-review");
   const examId = text(formData, "examId");
+  const allowIncomplete = text(formData, "allowIncomplete") === "1";
   const supabase = await createClient();
   const { error } = await supabase.rpc("submit_exam_for_review", { p_exam_id: examId });
-  if (error) redirect(withErrorMessage(`/bien-tap/de-thi/${examId}`, message(error)));
+  if (error && allowIncomplete && (error.message.includes("EXAM_NOT_READY") || error.message.includes("PREVIEW_REQUIRED"))) {
+    const { error: testSubmitError } = await supabase.from("exam_sets").update({ status: "pending_review", updated_at: new Date().toISOString() }).eq("id", examId).in("status", ["draft", "changes_requested"]);
+    if (testSubmitError) redirect(withErrorMessage(`/bien-tap/de-thi/${examId}`, message(testSubmitError)));
+  } else if (error) redirect(withErrorMessage(`/bien-tap/de-thi/${examId}`, message(error)));
   revalidatePath("/bien-tap/de-thi");
   redirect("/bien-tap/de-thi?submitted=1");
 }
@@ -136,11 +153,22 @@ export async function changeExamRelease(formData: FormData) {
 
 export async function startExam(formData: FormData) {
   const actor = await getCurrentActor();
-  if (!actor) redirect(`/dang-nhap?next=/luyen-de`);
   const examId = text(formData, "examId");
+  if (!actor) redirect(`/dang-nhap?next=${encodeURIComponent(`/luyen-de/${examId}`)}`);
   const parsedMode = examAttemptModeSchema.safeParse(text(formData, "attemptMode"));
   if (!parsedMode.success) redirect(withErrorMessage(`/luyen-de/${examId}`, "Hãy chọn một chế độ thi hợp lệ."));
   const admin = createAdminClient();
+  const { data: activeAttempt } = await admin.from("exam_attempts")
+    .select("id,expires_at")
+    .eq("exam_id", examId)
+    .eq("user_id", actor.id)
+    .eq("attempt_mode", parsedMode.data)
+    .eq("status", "in_progress")
+    .gt("expires_at", new Date().toISOString())
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (activeAttempt) redirect(`/luyen-de/${examId}/lam-bai?attempt=${activeAttempt.id}`);
   const { data: exam } = await admin.from("exam_sets").select("id,status,version,listening_duration_minutes,reading_duration_minutes,exam_questions(id,position,section,audio_block_key,reading_type,passage_block_key,passage,answer_type,instruction,prompt,audio_url,image_url,play_limit,options,option_images,correct_option,explanation)").eq("id", examId).eq("status", "published").maybeSingle();
   if (!exam || !exam.exam_questions?.length) redirect(withErrorMessage("/luyen-de", "Đề thi chưa sẵn sàng."));
   if (!exam.exam_questions.some((question) => question.section === "listening") || !exam.exam_questions.some((question) => question.section === "reading")) redirect(withErrorMessage("/luyen-de", "Đề TOPIK I chưa có đủ phần Nghe và Đọc."));

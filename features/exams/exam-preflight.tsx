@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import type { ExamAttemptMode } from "@/lib/exams/attempt-mode";
+import { examAttemptModeLabel, type ExamAttemptMode } from "@/lib/exams/attempt-mode";
 import { startExam } from "./actions";
 
 const modes: Array<{
@@ -16,10 +16,11 @@ const modes: Array<{
   { id: "full", title: "Thi mô phỏng", description: "Làm đầy đủ cả Nghe và Đọc", icon: "◎" },
 ];
 
-export function ExamPreflight({ examId, listeningMinutes, readingMinutes }: {
+export function ExamPreflight({ examId, listeningMinutes, readingMinutes, activeAttempts = [] }: {
   examId: string;
   listeningMinutes: number;
   readingMinutes: number;
+  activeAttempts?: Array<{ id: string; mode: ExamAttemptMode; expiresAt: string; section: string; position: number; answeredCount: number; totalQuestions: number }>;
 }) {
   const [mode, setMode] = useState<ExamAttemptMode>("full");
   const [agreed, setAgreed] = useState(false);
@@ -59,6 +60,7 @@ export function ExamPreflight({ examId, listeningMinutes, readingMinutes }: {
     : mode === "reading"
       ? "Bắt đầu phần Đọc →"
       : "Bắt đầu thi mô phỏng →";
+  const resumable = activeAttempts?.find((attempt) => attempt.mode === mode);
 
   return (
     <div className="p-7 md:p-9">
@@ -101,6 +103,20 @@ export function ExamPreflight({ examId, listeningMinutes, readingMinutes }: {
         </div>
       </section>
 
+      {resumable && (
+        <section className="mt-6 rounded-3xl border-2 border-emerald-300 bg-emerald-50 p-5 shadow-sm">
+          <p className="text-xs font-black uppercase tracking-[.18em] text-emerald-700">Bài đang làm dở · {examAttemptModeLabel(resumable.mode)}</p>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-black">Bạn đã làm {resumable.answeredCount}/{resumable.totalQuestions} câu</h2>
+              <p className="mt-1 font-semibold text-slate-600">Đang ở phần {resumable.section === "reading" ? "Đọc" : "Nghe"}, câu {resumable.position} · thời gian vẫn đang tiếp tục chạy.</p>
+            </div>
+            <a href={`/luyen-de/${examId}/lam-bai?attempt=${resumable.id}`} className="rounded-2xl bg-emerald-600 px-6 py-3 font-black text-white shadow-sm transition hover:bg-emerald-700">Tiếp tục làm bài →</a>
+          </div>
+          <p className="mt-3 text-sm font-semibold text-emerald-800">Đáp án và tiến trình đã được giữ nguyên. Đồng hồ vẫn tiếp tục chạy trong thời gian bạn rời bài.</p>
+        </section>
+      )}
+
       <div className="mt-6 rounded-2xl bg-sky-50 p-5 text-center">
         <strong className="block text-3xl text-[#087eba]">{selectedMinutes}</strong>
         <span className="font-bold text-slate-500">phút cho chế độ đã chọn</span>
@@ -137,7 +153,7 @@ export function ExamPreflight({ examId, listeningMinutes, readingMinutes }: {
         <input type="hidden" name="examId" value={examId} />
         <input type="hidden" name="attemptMode" value={mode} />
         <button disabled={!agreed || (needsSpeaker && !speakerChecked)} className="w-full rounded-2xl bg-[#102b5c] px-6 py-4 text-lg font-black text-white shadow-lg transition hover:bg-[#173d70] disabled:cursor-not-allowed disabled:opacity-40">
-          {buttonLabel}
+          {resumable ? "Tiếp tục bài đang làm →" : buttonLabel}
         </button>
       </form>
     </div>

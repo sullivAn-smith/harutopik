@@ -143,7 +143,7 @@ export function ExamImageUpload({
         role="img"
         aria-label={`Xem trước ${label}`}
         className={`${compact
-          ? "mx-auto aspect-[4/3] w-full max-w-[560px]"
+          ? "mx-auto aspect-[4/3] w-full max-w-[420px]"
           : "h-52 w-full sm:h-64"
         } relative block overflow-hidden rounded-xl border border-slate-200 bg-slate-100`}
       >

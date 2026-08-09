@@ -404,25 +404,26 @@ export function HomeClient({
             </span>
           </Link>
 
-          {[
-            ["", "Kiến thức nền tảng", "Chữ cái và bảng số", "/kien-thuc", ""],
-            ["✎", "Luyện đề", "Ôn tập theo mục tiêu", "/luyen-de", "bg-amber-100 text-amber-700"],
-          ].map(([icon, title, description, href, tone]) => (
-            <Link
-              key={href}
-              href={href}
-              className="rounded-3xl border border-white/80 bg-white/70 p-5 shadow-[0_12px_28px_rgba(16,36,62,0.1)] backdrop-blur transition hover:-translate-y-1 hover:bg-white hover:shadow-[0_18px_34px_rgba(16,36,62,0.16)]"
-            >
-              {icon && (
-                <span className={`flex h-11 w-11 items-center justify-center rounded-2xl text-xl font-black ${tone}`}>
-                  {icon}
-                </span>
-              )}
-              <h2 className={`${icon ? "mt-4" : "mt-1"} text-lg font-black`}>{title}</h2>
-              <p className="mt-1 text-sm font-semibold text-[#10243e]/60">{description}</p>
-              <span className="mt-4 inline-block text-sm font-black text-[#087eba]">Mở ngay →</span>
-            </Link>
-          ))}
+          <Link href="/kien-thuc" className="group relative min-h-56 overflow-hidden rounded-[2rem] border border-violet-100 bg-gradient-to-br from-[#f0edff] via-[#f3f0ff] to-[#e7e4ff] p-6 shadow-[0_16px_34px_rgba(92,72,190,0.16)] transition hover:-translate-y-1 hover:shadow-[0_22px_42px_rgba(92,72,190,0.23)]">
+            <span className="absolute right-7 top-7 rotate-6 text-4xl font-black text-violet-500/90">가</span>
+            <span className="absolute right-20 top-16 h-3 w-3 rotate-45 rounded-sm bg-violet-400/70" />
+            <h2 className="relative max-w-36 text-2xl font-black leading-tight text-[#10243e]">Kiến thức nền tảng</h2>
+            <p className="relative mt-3 text-sm font-bold text-[#53627a]">Chữ cái và bảng số</p>
+            <div className="absolute bottom-5 left-6 grid h-20 w-20 place-items-center rounded-[1.4rem] bg-gradient-to-br from-violet-300 to-violet-500 text-4xl font-black text-white shadow-[0_12px_24px_rgba(99,72,190,.3)] ring-4 ring-white/40 transition group-hover:-rotate-3 group-hover:scale-105">가</div>
+            <span className="absolute bottom-7 right-6 text-sm font-black text-violet-700">Khám phá →</span>
+          </Link>
+
+          <Link href="/luyen-de" className="group relative min-h-56 overflow-hidden rounded-[2rem] border border-emerald-100 bg-gradient-to-br from-[#e8fbf5] via-[#e9faf7] to-[#d9f5ef] p-6 shadow-[0_16px_34px_rgba(31,150,132,0.15)] transition hover:-translate-y-1 hover:shadow-[0_22px_42px_rgba(31,150,132,0.22)]">
+            <h2 className="relative text-2xl font-black text-[#10243e]">Luyện đề</h2>
+            <p className="relative mt-3 text-sm font-bold text-[#53627a]">Ôn tập theo mục tiêu</p>
+            <span className="relative mt-3 inline-block text-sm font-black text-emerald-700">Mở ngay →</span>
+            <div className="absolute bottom-5 right-6 grid h-24 w-24 place-items-center rounded-full border-[10px] border-emerald-400/80 shadow-[0_12px_28px_rgba(31,150,132,.25)] transition group-hover:scale-105">
+              <span className="h-12 w-12 rounded-full border-[9px] border-emerald-500/90"><span className="mx-auto mt-2 block h-3 w-3 rounded-full bg-emerald-700" /></span>
+              <span className="absolute -right-2 -top-3 h-12 w-3 rotate-45 rounded-full bg-emerald-600" />
+              <span className="absolute -right-1 -top-3 h-3 w-8 rotate-45 rounded-full bg-emerald-600" />
+            </div>
+            <span className="absolute bottom-8 left-7 rotate-[-18deg] text-3xl text-emerald-400/50">✦</span>
+          </Link>
         </div>
 
         <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-white/70 bg-white/65 px-5 py-3 shadow-[0_12px_28px_rgba(16,36,62,0.1)] backdrop-blur">

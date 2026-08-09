@@ -190,9 +190,34 @@ export function ExamRunner({
   const optimisticSequenceRef = useRef(0);
   const lastWindowEvent = useRef(0);
   const wasFullscreen = useRef(false);
+  const suppressWindowEvents = useRef(false);
+  const progressTimer = useRef<number | undefined>(undefined);
+  const lastSavedProgress = useRef(`${initialSection}:${initialPosition}`);
+
+  function persistProgress(question: Question, keepalive = false) {
+    const key = `${question.section}:${question.position}`;
+    if (lastSavedProgress.current === key) return Promise.resolve();
+    lastSavedProgress.current = key;
+    return fetch(`/api/v1/exam-attempts/${attemptId}/progress`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ questionId: question.id, section: question.section, position: question.position }),
+      keepalive,
+    }).then((response) => {
+      if (!response.ok) lastSavedProgress.current = "";
+    }).catch(() => { lastSavedProgress.current = ""; });
+  }
+
+  async function exitExam() {
+    suppressWindowEvents.current = true;
+    const activeQuestion = questions.find((question) => question.id === activeQuestionId);
+    if (activeQuestion) await persistProgress(activeQuestion, true);
+    router.push(`/luyen-de/${examId}`);
+  }
 
   async function submit() {
     if (submitting) return;
+    suppressWindowEvents.current = true;
     setSubmitting(true);
     const response = await fetch(`/api/v1/exam-attempts/${attemptId}/submit`, { method: "POST" });
     if (response.ok) router.replace(`/luyen-de/${examId}/ket-qua?attempt=${attemptId}`);
@@ -200,7 +225,17 @@ export function ExamRunner({
       const body = await response.json().catch(() => null);
       setSaving(body?.error?.message ?? "Nộp bài thất bại. Hãy kiểm tra mạng và thử lại.");
       setSubmitting(false);
+      suppressWindowEvents.current = false;
     }
+  }
+
+  function confirmSubmit() {
+    suppressWindowEvents.current = true;
+    if (window.confirm(`Nộp bài ngay? Bạn còn ${questions.filter((question) => !answers[question.id]).length} câu chưa trả lời.`)) {
+      void submit();
+      return;
+    }
+    window.setTimeout(() => { suppressWindowEvents.current = false; }, 250);
   }
 
   async function switchSection(nextSection: ExamSection) {
@@ -249,6 +284,7 @@ export function ExamRunner({
 
   useEffect(() => {
     async function record(eventType: "hidden" | "blur" | "fullscreen_exit") {
+      if (suppressWindowEvents.current) return;
       const now = Date.now();
       if (now - lastWindowEvent.current < 2000) return;
       lastWindowEvent.current = now;
@@ -261,8 +297,8 @@ export function ExamRunner({
       if (response.ok) {
         const body = await response.json();
         setWindowLeaveCount(Number(body.data?.count ?? windowLeaveCount + 1));
-      } else setWindowLeaveCount((count) => count + 1);
-      setWarning(true);
+        setWarning(true);
+      }
     }
     const visibility = () => { if (document.visibilityState === "hidden") void record("hidden"); };
     const blur = () => void record("blur");
@@ -285,13 +321,26 @@ export function ExamRunner({
       const visible = entries
         .filter((entry) => entry.isIntersecting)
         .sort((left, right) => left.boundingClientRect.top - right.boundingClientRect.top)[0];
-      if (visible?.target instanceof HTMLElement) setActiveQuestionId(visible.target.dataset.questionId ?? "");
+      if (visible?.target instanceof HTMLElement) {
+        const questionId = visible.target.dataset.questionId ?? "";
+        setActiveQuestionId(questionId);
+        const question = questions.find((item) => item.id === questionId);
+        if (question) {
+          window.clearTimeout(progressTimer.current);
+          progressTimer.current = window.setTimeout(() => void persistProgress(question), 500);
+        }
+      }
     }, { rootMargin: "-20% 0px -65% 0px", threshold: 0 });
     for (const question of sectionQuestions) {
       const element = document.getElementById(`question-${question.id}`);
       if (element) observer.observe(element);
     }
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      window.clearTimeout(progressTimer.current);
+    };
+    // Persist only when the visible section changes; questions are immutable attempt snapshots.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sectionQuestions]);
 
   async function choose(question: Question, option: number) {
@@ -562,6 +611,7 @@ export function ExamRunner({
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <button type="button" onClick={() => void exitExam()} className="inline-flex rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-600 transition hover:border-sky-300 hover:text-[#087eba] sm:px-4 sm:text-sm">Thoát và làm tiếp sau</button>
             <span className="hidden rounded-full bg-sky-100 px-4 py-2 text-xs font-black text-sky-800 sm:inline">Đã làm {questions.length - unansweredTotal}/{questions.length}</span>
             <div className={`rounded-2xl px-5 py-3 text-xl font-black ${remaining < 300 ? "bg-red-100 text-red-700" : "bg-sky-100 text-[#087eba]"}`}>{minutes}:{seconds}</div>
           </div>
@@ -615,13 +665,14 @@ export function ExamRunner({
               const displayedCurrentTime = isActiveAudio ? audioCurrentTime : 0;
               const displayedDuration = isActiveAudio ? audioDuration : 0;
               const previousQuestion = sectionQuestions[questionIndex - 1];
-              const showReadingPassage = activeSection === "reading" && Boolean(question.passage || question.imageUrl)
+              const showReadingPassage = activeSection === "reading" && Boolean(question.passage)
+                && (!question.passageBlockKey || previousQuestion?.passageBlockKey !== question.passageBlockKey);
+              const showSideImage = Boolean(question.imageUrl && question.answerType !== "image")
                 && (!question.passageBlockKey || previousQuestion?.passageBlockKey !== question.passageBlockKey);
               return <article key={question.id} id={`question-${question.id}`} data-question-id={question.id} className="scroll-mt-32 px-6 py-8 md:px-8 md:py-10">
                 {showReadingPassage && <div className="mb-7 rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50 to-white p-5 md:p-7">
                   <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-black uppercase tracking-[0.18em] text-[#087eba]">Ngữ liệu đọc</p>{question.passageBlockKey && <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-slate-500 ring-1 ring-slate-200">Dùng cho nhiều câu</span>}</div>
                   {question.passage && <p className="whitespace-pre-wrap text-lg font-semibold leading-9 text-slate-800">{question.passage}</p>}
-                  {question.imageUrl && <Image unoptimized width={1100} height={760} src={question.imageUrl} alt={`Ngữ liệu câu ${question.position}`} className="mt-5 max-h-[620px] w-full rounded-2xl bg-white object-contain" />}
                 </div>}
                 <div className="flex gap-4">
                   <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full text-lg font-black ${answers[question.id] ? "bg-[#087eba] text-white" : "bg-sky-100 text-[#087eba]"}`}>{question.position}</span>
@@ -634,7 +685,6 @@ export function ExamRunner({
                     </div>
 
                     {question.prompt && <div onMouseUp={(event) => prepareHighlight(question, event.currentTarget, "prompt", question.prompt)}><p className="mt-4 text-lg font-semibold leading-8 text-slate-700"><HighlightedText text={question.prompt} highlights={questionHighlights.filter((highlight) => highlight.sourceField === "prompt")} onHighlightClick={openSavedHighlight} /></p></div>}
-                    {activeSection !== "reading" && question.imageUrl && <Image unoptimized width={800} height={500} src={question.imageUrl} alt={`Minh họa câu ${question.position}`} className="mt-5 max-h-[430px] w-auto rounded-2xl object-contain" />}
 
                     {activeSection === "listening" && (question.audioUrl
                       ? <div className="mt-5 rounded-2xl bg-cyan-50 p-4 ring-1 ring-cyan-100">
@@ -674,23 +724,36 @@ export function ExamRunner({
                         </div>
                       : <p className="mt-5 rounded-2xl bg-slate-100 p-4 font-bold text-slate-600">Câu này không có audio.</p>)}
 
-                    <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                      {question.options.map((option, index) => <button
-                        type="button"
-                        key={index}
-                        aria-label={`Đáp án ${index + 1}: ${option}`}
-                        disabled={activeSection === "listening" && !audioReady}
-                        onClick={() => {
-                          if (selectionJustMadeRef.current) { selectionJustMadeRef.current = false; return; }
-                          void choose(question, index + 1);
-                        }}
-                        className={`flex min-h-16 items-center gap-3 rounded-2xl border-2 p-4 text-left font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${answers[question.id] === index + 1 ? "border-[#087eba] bg-sky-100 text-[#075f88]" : "border-slate-200 hover:border-sky-300"}`}
-                      >
-                        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white">{index + 1}</span>
-                        {question.answerType === "image" && question.optionImages[index]
-                          ? <Image unoptimized src={question.optionImages[index]} alt={`Lựa chọn ${index + 1}`} width={240} height={160} className="max-h-40 min-w-0 flex-1 rounded-xl object-contain" />
-                          : <span onMouseUp={(event) => prepareHighlight(question, event.currentTarget, "option", option, index)}><HighlightedText text={option} highlights={questionHighlights.filter((highlight) => highlight.sourceField === "option" && highlight.sourceIndex === index)} onHighlightClick={openSavedHighlight} /></span>}
-                      </button>)}
+                    <div className={`mt-6 ${showSideImage ? "grid items-start gap-6 xl:grid-cols-[minmax(220px,0.8fr)_minmax(340px,1.2fr)]" : ""}`}>
+                      {showSideImage && <Image unoptimized width={640} height={480} src={question.imageUrl} alt={`Ngữ liệu câu ${question.position}`} className="aspect-[4/3] w-full max-w-[400px] justify-self-center border border-slate-200 bg-white object-cover" />}
+                      <div className={`grid ${question.answerType === "image" ? "mx-auto w-full max-w-[532px] grid-cols-2 gap-2.5" : showSideImage ? "grid-cols-1 gap-3" : "gap-3 sm:grid-cols-2"}`}>
+                      {question.options.map((option, index) => question.answerType === "image"
+                        ? <button
+                            type="button"
+                            key={index}
+                            aria-label={`Chọn ảnh đáp án ${index + 1}`}
+                            disabled={activeSection === "listening" && !audioReady}
+                            onClick={() => void choose(question, index + 1)}
+                            className={`group relative aspect-[4/3] overflow-hidden border bg-slate-50 text-left transition disabled:cursor-not-allowed disabled:opacity-50 ${answers[question.id] === index + 1 ? "border-[3px] border-[#10243e] ring-2 ring-sky-300" : "border-slate-200 hover:border-cyan-600"}`}
+                          >
+                            {question.optionImages[index] && <Image unoptimized src={question.optionImages[index]} alt={`Đáp án ${index + 1}`} fill sizes="(max-width: 640px) 45vw, 260px" className="object-cover" />}
+                            <span className="absolute left-2 top-2 grid h-7 w-7 place-items-center rounded-full border border-slate-300 bg-white/95 text-sm font-black text-slate-800 shadow-sm">{index + 1}</span>
+                          </button>
+                        : <button
+                            type="button"
+                            key={index}
+                            aria-label={`Đáp án ${index + 1}: ${option}`}
+                            disabled={activeSection === "listening" && !audioReady}
+                            onClick={() => {
+                              if (selectionJustMadeRef.current) { selectionJustMadeRef.current = false; return; }
+                              void choose(question, index + 1);
+                            }}
+                            className={`flex min-h-16 items-center gap-3 rounded-2xl border-2 p-4 text-left font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${answers[question.id] === index + 1 ? "border-[#087eba] bg-sky-100 text-[#075f88]" : "border-slate-200 hover:border-sky-300"}`}
+                          >
+                            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white">{index + 1}</span>
+                            <span onMouseUp={(event) => prepareHighlight(question, event.currentTarget, "option", option, index)}><HighlightedText text={option} highlights={questionHighlights.filter((highlight) => highlight.sourceField === "option" && highlight.sourceIndex === index)} onHighlightClick={openSavedHighlight} /></span>
+                          </button>)}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -701,7 +764,7 @@ export function ExamRunner({
           <div className="border-t border-slate-200 bg-slate-50 px-6 py-7 text-center md:px-8">
             {activeSection === "listening" && hasReading
               ? <button type="button" onClick={() => void switchSection("reading")} className="rounded-2xl bg-[#087eba] px-7 py-4 font-black text-white shadow-sm transition hover:bg-[#066c9f]">Sang phần Đọc →</button>
-              : <button type="button" disabled={submitting} onClick={() => { if (window.confirm(`Nộp bài ngay? Bạn còn ${unansweredTotal} câu chưa trả lời.`)) void submit(); }} className="rounded-2xl bg-emerald-600 px-8 py-4 font-black text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50">{submitting ? "Đang nộp..." : "Nộp bài"}</button>}
+              : <button type="button" disabled={submitting} onClick={confirmSubmit} className="rounded-2xl bg-emerald-600 px-8 py-4 font-black text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50">{submitting ? "Đang nộp..." : "Nộp bài"}</button>}
           </div>
         </section>
 

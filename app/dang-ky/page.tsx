@@ -15,7 +15,7 @@ export default function SignUpPage() {
       <AuthForm
         mode="sign-up"
         action={signUp}
-        googleAction={signInWithGoogle}
+        googleAction={signInWithGoogle.bind(null, "")}
       />
     </AuthShell>
   );

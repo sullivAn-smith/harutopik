@@ -32,6 +32,19 @@ const question = {
 };
 
 describe("ExamRunner listening", () => {
+  it("không ghi nhận rời cửa sổ khi hộp xác nhận nộp bài làm phát sinh blur", async () => {
+    const fetchMock = vi.spyOn(global, "fetch").mockResolvedValue(new Response(JSON.stringify({ data: {} }), { status: 200, headers: { "content-type": "application/json" } }));
+    vi.spyOn(window, "confirm").mockImplementation(() => {
+      window.dispatchEvent(new Event("blur"));
+      return true;
+    });
+    render(<ExamRunner attemptId="00000000-0000-4000-8000-000000000010" examId="00000000-0000-4000-8000-000000000020" title="TOPIK I" section="listening" expiresAt={new Date(Date.now() + 60_000).toISOString()} initialPosition={1} initialAnswers={{}} initialFlagged={[]} initialAudioPlays={{}} initialWindowLeaveCount={0} questions={[question]} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Nộp bài" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/submit"), { method: "POST" }));
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/window-event"))).toBe(false);
+  });
+
   it("ẩn điều khiển audio gốc và khóa đáp án trước khi bắt đầu nghe", () => {
     const { container } = render(<ExamRunner attemptId="00000000-0000-4000-8000-000000000010" examId="00000000-0000-4000-8000-000000000020" title="TOPIK I" section="listening" expiresAt={new Date(Date.now() + 60_000).toISOString()} initialPosition={1} initialAnswers={{}} initialFlagged={[]} initialAudioPlays={{}} initialWindowLeaveCount={0} questions={[question]} />);
     expect(container.querySelector("audio")?.hasAttribute("controls")).toBe(false);

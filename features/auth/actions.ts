@@ -22,6 +22,7 @@ function formValues(formData: FormData) {
 
 async function getPostAuthPath(
   supabase: Awaited<ReturnType<typeof createClient>>,
+  requestedPath?: string,
 ) {
   const {
     data: { user },
@@ -36,6 +37,10 @@ async function getPostAuthPath(
     supabase.from("user_roles").select("role").eq("user_id", user.id),
   ]);
   if (!profile?.onboarding_completed) return "/bat-dau";
+  const safeRequestedPath = requestedPath?.startsWith("/") && !requestedPath.startsWith("//")
+    ? requestedPath
+    : null;
+  if (safeRequestedPath) return safeRequestedPath;
   const assignedRoles = (roleRows ?? []).map((row) => row.role);
   if (assignedRoles.includes("admin")) return "/quan-tri";
   if (assignedRoles.includes("content_editor")) return "/bien-tap";
@@ -43,6 +48,7 @@ async function getPostAuthPath(
 }
 
 export async function signIn(
+  requestedPath: string,
   _state: AuthFormState,
   formData: FormData,
 ): Promise<AuthFormState> {
@@ -64,7 +70,7 @@ export async function signIn(
     };
   }
 
-  redirect(await getPostAuthPath(supabase));
+  redirect(await getPostAuthPath(supabase, requestedPath));
 }
 
 export async function signUp(
@@ -104,9 +110,12 @@ export async function signUp(
   };
 }
 
-export async function signInWithGoogle() {
+export async function signInWithGoogle(requestedPath: string) {
+  const safeRequestedPath = requestedPath.startsWith("/") && !requestedPath.startsWith("//")
+    ? requestedPath
+    : "";
   if (!isSupabaseConfigured()) {
-    redirect("/dang-nhap?error=not-configured");
+    redirect(`/dang-nhap?error=not-configured${safeRequestedPath ? `&next=${encodeURIComponent(safeRequestedPath)}` : ""}`);
   }
 
   const siteUrl =
@@ -116,12 +125,12 @@ export async function signInWithGoogle() {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${siteUrl}/auth/callback`,
+      redirectTo: `${siteUrl}/auth/callback${safeRequestedPath ? `?next=${encodeURIComponent(safeRequestedPath)}` : ""}`,
     },
   });
 
   if (error || !data.url) {
-    redirect("/dang-nhap?error=google");
+    redirect(`/dang-nhap?error=google${safeRequestedPath ? `&next=${encodeURIComponent(safeRequestedPath)}` : ""}`);
   }
 
   redirect(data.url);

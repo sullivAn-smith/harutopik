@@ -19,7 +19,7 @@ type ExamRow = {
   answer_review_available_at: string | null;
   status: string;
   updated_at: string;
-  exam_questions?: Array<{ section: "listening" | "reading" }>;
+  exam_questions?: Array<{ section: "listening" | "reading"; position: number }>;
 };
 
 function summary(row: ExamRow): ExamSummary {
@@ -45,7 +45,7 @@ function summary(row: ExamRow): ExamSummary {
   };
 }
 
-const examSummarySelect = "id,code,title,description,level,duration_minutes,listening_duration_minutes,reading_duration_minutes,answer_review_policy,answer_review_available_at,status,updated_at,exam_questions(section)";
+const examSummarySelect = "id,code,title,description,level,duration_minutes,listening_duration_minutes,reading_duration_minutes,answer_review_policy,answer_review_available_at,status,updated_at,exam_questions(section,position)";
 
 export async function getEditorExams() {
   const supabase = await createClient();
@@ -66,13 +66,26 @@ export async function getExamForEditing(examId: string) {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("exam_sets")
-    .select("id,code,title,description,level,duration_minutes,listening_duration_minutes,reading_duration_minutes,instructions,answer_review_policy,answer_review_available_at,status,review_note,version,created_by,exam_questions(id,position,section,audio_block_key,reading_type,passage_block_key,passage,answer_type,instruction,prompt,audio_url,audio_text,image_url,play_limit,options,option_images,correct_option,explanation)")
+    .select("id,code,title,description,level,duration_minutes,listening_duration_minutes,reading_duration_minutes,instructions,answer_review_policy,answer_review_available_at,status,review_note,version,created_by,updated_at,exam_questions(id,position,section,audio_block_key,reading_type,passage_block_key,passage,answer_type,instruction,prompt,audio_url,audio_text,image_url,play_limit,options,option_images,correct_option,explanation)")
     .eq("id", examId)
     .order("position", { referencedTable: "exam_questions", ascending: true })
     .maybeSingle();
   if (error) throw error;
   if (data && !canManageExam({ actorId: actor.id, roles: actor.roles, ownerId: data.created_by })) return null;
-  return data;
+  if (!data) return null;
+  const preview = await admin.from("exam_sets").select("previewed_at").eq("id", examId).maybeSingle();
+  return { ...data, previewed_at: preview.error ? undefined : preview.data?.previewed_at ?? null };
+}
+
+export async function getExamRevisionHistory(examId: string) {
+  await requirePermission("content:read-draft");
+  const admin = createAdminClient();
+  const { data, error } = await admin.from("exam_revisions")
+    .select("id,version,status,created_at,created_by")
+    .eq("exam_id", examId).order("version", { ascending: false }).limit(30);
+  if (error?.code === "42P01" || error?.code === "PGRST205") return [];
+  if (error) throw error;
+  return data ?? [];
 }
 
 export async function getExamAttempt(attemptId: string, userId: string) {

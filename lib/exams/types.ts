@@ -37,6 +37,10 @@ export const examQuestionSchema = z.object({
   explanation: z.string().trim().max(2000).default(""),
 });
 
+const examDraftQuestionSchema = examQuestionSchema.extend({
+  options: z.array(z.string().trim().max(500, "Đáp án không được dài quá 500 ký tự.")).length(4),
+});
+
 export const examDraftSchema = z.object({
   code: z.string().trim().regex(/^[a-z0-9][a-z0-9-]{2,79}$/, "Mã đề chỉ gồm chữ thường, số và dấu gạch ngang."),
   title: z.string().trim().min(3).max(160),
@@ -47,7 +51,7 @@ export const examDraftSchema = z.object({
   listeningDurationMinutes: z.number().int().min(1).max(180),
   readingDurationMinutes: z.number().int().min(1).max(180),
   instructions: z.string().trim().max(4000).default(""),
-  questions: z.array(examQuestionSchema).max(100),
+  questions: z.array(examDraftQuestionSchema).max(100),
 });
 
 export type ExamQuestionInput = z.infer<typeof examQuestionSchema>;
@@ -105,6 +109,8 @@ export function getExamEligibility(questions: readonly ExamQuestionInput[]) {
   const issues: string[] = [];
   if (listening.length === 0) issues.push("Đề phải có ít nhất một câu nghe.");
   if (reading.length === 0) issues.push("Đề phải có ít nhất một câu đọc.");
+  const incompleteQuestion = questions.find((question) => question.options.some((option) => !option.trim()));
+  if (incompleteQuestion) issues.push(`Câu ${incompleteQuestion.position} chưa có đủ 4 đáp án.`);
   const invalidImageQuestion = questions.find((question) =>
     question.answerType === "image" && question.optionImages.some((url) => !url),
   );

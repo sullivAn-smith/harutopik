@@ -17,6 +17,7 @@ type AuthFormProps = {
   action: AuthAction;
   googleAction: () => Promise<void>;
   oauthMessage?: string;
+  nextPath?: string;
 };
 
 function FieldError({
@@ -62,6 +63,7 @@ export function AuthForm({
   action,
   googleAction,
   oauthMessage,
+  nextPath = "",
 }: AuthFormProps) {
   const [state, formAction, pending] = useActionState(
     action,
@@ -181,7 +183,7 @@ export function AuthForm({
       <p className="text-center text-sm text-slate-600">
         {isSignUp ? "Đã có tài khoản?" : "Chưa có tài khoản?"}{" "}
         <Link
-          href={isSignUp ? "/dang-nhap" : "/dang-ky"}
+          href={`${isSignUp ? "/dang-nhap" : "/dang-ky"}${nextPath ? `?next=${encodeURIComponent(nextPath)}` : ""}`}
           className="font-black text-brand-700 hover:underline"
         >
           {isSignUp ? "Đăng nhập" : "Đăng ký miễn phí"}

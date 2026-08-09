@@ -16,7 +16,40 @@ export type ManagedAccount = {
   contentCount: number;
 };
 
-export async function getManagedAccounts(query = ""): Promise<ManagedAccount[]> {
+export type ManagedAccountStats = {
+  registeredLearners: number;
+  currentLearners: number;
+  proLearners: number;
+};
+
+export type ManagedAccountFilters = {
+  query?: string;
+  role?: "learner" | "content_editor" | "admin";
+  status?: "active" | "locked";
+  plan?: "free" | "pro";
+};
+
+export async function getManagedAccountStats(): Promise<ManagedAccountStats> {
+  await requirePermission("role:assign");
+  const admin = createAdminClient();
+  const now = new Date().toISOString();
+  const [profiles, learners, proLearners] = await Promise.all([
+    admin.from("learner_profiles").select("id", { count: "exact", head: true }),
+    admin.from("user_roles").select("user_id", { count: "exact", head: true }).eq("role", "learner"),
+    admin.from("entitlements").select("user_id")
+      .eq("status", "active").lte("starts_at", now).or(`ends_at.is.null,ends_at.gt.${now}`),
+  ]);
+  if (profiles.error || learners.error || proLearners.error) {
+    throw new Error("Không thể tải thống kê tài khoản.");
+  }
+  return {
+    registeredLearners: profiles.count ?? 0,
+    currentLearners: learners.count ?? 0,
+    proLearners: new Set((proLearners.data ?? []).map((item) => item.user_id)).size,
+  };
+}
+
+export async function getManagedAccounts(filters: ManagedAccountFilters | string = {}): Promise<ManagedAccount[]> {
   await requirePermission("role:assign");
   const admin = createAdminClient();
   const { data: authData, error: authError } = await admin.auth.admin.listUsers({
@@ -40,7 +73,8 @@ export async function getManagedAccounts(query = ""): Promise<ManagedAccount[]> 
   const errors = [profiles.error, roles.error, locks.error, progress.error, entitlements.error, content.error].filter(Boolean);
   if (errors.length > 0) throw new Error("Không thể tổng hợp dữ liệu tài khoản.");
 
-  const normalizedQuery = query.trim().toLocaleLowerCase("vi");
+  const normalizedFilters = typeof filters === "string" ? { query: filters } : filters;
+  const normalizedQuery = normalizedFilters.query?.trim().toLocaleLowerCase("vi") ?? "";
   return users
     .map((user) => {
       const displayName =
@@ -76,11 +110,17 @@ export async function getManagedAccounts(query = ""): Promise<ManagedAccount[]> 
         contentCount: content.data?.filter((item) => item.created_by === user.id).length ?? 0,
       };
     })
-    .filter((user) =>
-      !normalizedQuery ||
-      user.email.toLocaleLowerCase("vi").includes(normalizedQuery) ||
-      user.displayName.toLocaleLowerCase("vi").includes(normalizedQuery),
-    );
+    .filter((user) => {
+      const matchesQuery = !normalizedQuery ||
+        user.email.toLocaleLowerCase("vi").includes(normalizedQuery) ||
+        user.displayName.toLocaleLowerCase("vi").includes(normalizedQuery);
+      const matchesRole = !normalizedFilters.role || user.role === normalizedFilters.role;
+      const matchesStatus = !normalizedFilters.status ||
+        (normalizedFilters.status === "locked" ? user.isLocked : !user.isLocked);
+      const matchesPlan = !normalizedFilters.plan ||
+        (normalizedFilters.plan === "pro" ? user.subscription === "Haru Pro" : user.subscription === "Haru Free");
+      return matchesQuery && matchesRole && matchesStatus && matchesPlan;
+    });
 }
 
 export async function getManagedAccountDetail(userId: string) {

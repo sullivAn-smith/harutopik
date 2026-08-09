@@ -34,21 +34,14 @@ describe("examDraftSchema", () => {
     expect(examDraftSchema.safeParse({ ...draft, questions: [{ ...question, section: "writing" }] }).success).toBe(false);
   });
 
-  it("nêu rõ câu và đáp án đang bị bỏ trống bằng tiếng Việt", () => {
+  it("cho autosave câu chưa hoàn thiện nhưng chưa đủ điều kiện gửi duyệt", () => {
     const result = examDraftSchema.safeParse({
       ...draft,
       questions: [{ ...question, options: ["", "둘", "셋", "넷"] }],
     });
 
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(formatExamValidationError(result.error, {
-        ...draft,
-        questions: [{ ...question, options: ["", "둘", "셋", "넷"] }],
-      })).toBe(
-        "Câu nghe 1: đáp án 1 không được để trống.",
-      );
-    }
+    expect(result.success).toBe(true);
+    expect(getExamEligibility([{ ...question, options: ["", "둘", "셋", "넷"] }]).eligible).toBe(false);
   });
 
   it("nêu rõ trường thông tin chung không hợp lệ bằng tiếng Việt", () => {

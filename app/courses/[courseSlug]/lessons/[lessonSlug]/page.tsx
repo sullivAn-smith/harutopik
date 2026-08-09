@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import {
   getLessonParams,
 } from "@/content/catalog";
 import { LessonExperience } from "@/features/lesson/lesson-experience";
 import { getPublishedCourses } from "@/lib/data/published-catalog";
+import { getCurrentActor } from "@/lib/auth/authorize";
 
 type LessonPageProps = {
   params: Promise<{
@@ -37,6 +38,11 @@ export async function generateMetadata({
 
 export default async function LessonPage({ params }: LessonPageProps) {
   const { courseSlug, lessonSlug } = await params;
+  const actor = await getCurrentActor();
+  if (!actor) {
+    const lessonUrl = `/courses/${encodeURIComponent(courseSlug)}/lessons/${encodeURIComponent(lessonSlug)}`;
+    redirect(`/dang-nhap?next=${encodeURIComponent(lessonUrl)}`);
+  }
   const courses = await getPublishedCourses();
   const course = courses.find((item) => item.slug === courseSlug);
   const lesson = course?.lessons.find((item) => item.slug === lessonSlug);
