@@ -37,7 +37,7 @@ export default function VocabularyImportPage() {
             <h2 className="text-xl font-black">Quy trình an toàn</h2>
             <ol className="mt-4 space-y-3 text-sm font-semibold text-ink-600">
               <li>1. Soạn nội dung trong Excel hoặc Google Sheets.</li>
-              <li>2. Tải file lên để kiểm tra lỗi và dữ liệu trùng.</li>
+              <li>2. Tải file lên để kiểm tra lỗi và từ đã tồn tại.</li>
               <li>3. Xem trước toàn bộ kết quả.</li>
               <li>4. Xác nhận để tạo các từ ở trạng thái bản nháp.</li>
             </ol>

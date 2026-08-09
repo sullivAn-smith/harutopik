@@ -6,7 +6,7 @@ import { getVocabularyImport } from "@/lib/data/vocabulary-import";
 const labels: Record<string, string> = {
   valid: "Hợp lệ",
   invalid: "Có lỗi",
-  duplicate: "Bị trùng",
+  duplicate: "Đã tồn tại",
   imported: "Đã nhập",
   skipped: "Đã bỏ qua",
 };
@@ -71,7 +71,7 @@ export default async function VocabularyImportPreviewPage({
       {(query.completed || completed) && (
         <p className="mt-5 rounded-2xl bg-emerald-50 p-4 font-bold text-emerald-800">
           Đã tạo {batch.validRows} từ vựng ở trạng thái bản nháp. Các dòng lỗi
-          và trùng đã được bỏ qua.
+          và các từ đã tồn tại được bỏ qua.
         </p>
       )}
       <section className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -79,7 +79,7 @@ export default async function VocabularyImportPreviewPage({
           ["Tổng số dòng", batch.totalRows, "bg-slate-50"],
           ["Sẵn sàng nhập", batch.validRows, "bg-emerald-50"],
           ["Có lỗi", batch.invalidRows, "bg-red-50"],
-          ["Trùng dữ liệu", batch.duplicateRows, "bg-amber-50"],
+          ["Đã có trong thư viện", batch.duplicateRows, "bg-amber-50"],
         ].map(([label, value, color]) => (
           <div key={String(label)} className={`rounded-3xl border p-5 ${color}`}>
             <p className="text-sm font-bold text-ink-600">{label}</p>
@@ -91,6 +91,13 @@ export default async function VocabularyImportPreviewPage({
         <p className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 font-semibold text-amber-900">
           Bạn vẫn có thể nhập các dòng hợp lệ. Hãy sửa những dòng báo lỗi trong
           Excel rồi tải lại ở một phiên mới nếu muốn nhập chúng.
+        </p>
+      )}
+      {batch.duplicateRows > 0 && !completed && (
+        <p className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 p-4 font-semibold text-sky-900">
+          Các dòng “Đã tồn tại” không phải lỗi và sẽ tự động được bỏ qua.
+          Nếu đó là bản nháp của bạn, hãy tìm đúng từ trong Thư viện từ và
+          xóa vĩnh viễn trước khi nhập lại.
         </p>
       )}
       <section className="surface-card mt-7 overflow-hidden bg-white">

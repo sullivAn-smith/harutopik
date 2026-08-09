@@ -44,7 +44,9 @@ export async function uploadVocabularyImport(
   const supabase = await createClient();
   const { data: existing, error: existingError } = await supabase
     .from("vocabulary_items")
-    .select("id,hangul,part_of_speech,primary_meaning_vi")
+    .select(
+      "id,hangul,part_of_speech,primary_meaning_vi,status,created_by",
+    )
     .range(0, 9_999);
   if (existingError)
     return {
@@ -62,18 +64,22 @@ export async function uploadVocabularyImport(
         partOfSpeech: item.part_of_speech,
         meaningVi: item.primary_meaning_vi,
       }),
-      item.id,
+      item,
     ]),
   );
   const fileKeys = new Map<string, number>();
   const stagedRows = parsed.rows.map((row) => {
-    const existingId = existingKeys.get(row.naturalKey);
+    const existingItem = existingKeys.get(row.naturalKey);
     const earlierRow = fileKeys.get(row.naturalKey);
     if (!earlierRow) fileKeys.set(row.naturalKey, row.rowNumber);
-    const duplicateOf = existingId
-      ? `Từ đã có trong thư viện: ${existingId}`
+    const duplicateOf = existingItem
+      ? existingItem.status === "published"
+        ? `Từ “${row.normalizedData.hangul}” đang được dùng trong bài học. Hệ thống sẽ bỏ qua dòng này.`
+        : existingItem.created_by === actor.id
+          ? `Bạn đã có bản nháp của từ “${row.normalizedData.hangul}”. Hãy sửa hoặc xóa bản nháp đó trong Thư viện từ trước khi nhập lại.`
+          : `Từ “${row.normalizedData.hangul}” đã tồn tại trong thư viện. Hệ thống sẽ bỏ qua dòng này.`
       : earlierRow
-        ? `Trùng dòng ${earlierRow} trong tệp`
+        ? `Trùng với dòng ${earlierRow} trong chính tệp này. Hệ thống sẽ bỏ qua dòng này.`
         : null;
     const rowStatus =
       row.validationErrors.length > 0
