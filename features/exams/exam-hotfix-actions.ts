@@ -31,6 +31,9 @@ export async function hotfixPublishedExam(examId: string, _state: { ok: boolean;
     p_questions: parsed.data.questions, p_reason: reason,
   });
   if (error) return { ok: false, message: error.message };
-  revalidatePath("/luyen-de"); revalidatePath(`/quan-tri/de-thi/${examId}`);
-  return { ok: true, message: `Đã áp dụng hotfix phiên bản ${data}. Lượt thi đang chạy giữ nguyên snapshot cũ.` };
+  revalidatePath("/luyen-de");
+  revalidatePath(`/luyen-de/${examId}`);
+  revalidatePath(`/luyen-de/${examId}/lam-bai`);
+  revalidatePath(`/quan-tri/de-thi/${examId}`);
+  return { ok: true, message: `Đã áp dụng phiên bản ${data}. Lượt thi mở lại sẽ tự dùng nội dung mới.` };
 }

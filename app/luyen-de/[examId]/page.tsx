@@ -11,14 +11,14 @@ export default async function ExamInstructionsPage({ params, searchParams }: {
   const [{ examId }, notice, actor] = await Promise.all([params, searchParams, getCurrentActor()]);
   const admin = createAdminClient();
   const [{ data: exam }, activeResult] = await Promise.all([
-    admin.from("exam_sets").select("id,title,description,level,listening_duration_minutes,reading_duration_minutes,instructions,exam_questions(count)").eq("id", examId).eq("status", "published").maybeSingle(),
+    admin.from("exam_sets").select("id,title,description,level,version,listening_duration_minutes,reading_duration_minutes,instructions,exam_questions(count)").eq("id", examId).eq("status", "published").maybeSingle(),
     actor
-      ? admin.from("exam_attempts").select("id,attempt_mode,expires_at,current_section,current_position,answers,total_questions").eq("exam_id", examId).eq("user_id", actor.id).eq("status", "in_progress").gt("expires_at", new Date().toISOString()).order("started_at", { ascending: false })
+      ? admin.from("exam_attempts").select("id,attempt_mode,exam_version,expires_at,current_section,current_position,answers,total_questions").eq("exam_id", examId).eq("user_id", actor.id).eq("status", "in_progress").gt("expires_at", new Date().toISOString()).order("started_at", { ascending: false })
       : Promise.resolve({ data: [] }),
   ]);
   if (!exam) notFound();
   const count = exam.exam_questions?.[0]?.count ?? 0;
-  const activeAttempts = (activeResult.data ?? []).map((attempt) => ({
+  const activeAttempts = (activeResult.data ?? []).filter((attempt) => attempt.exam_version === exam.version).map((attempt) => ({
     id: attempt.id,
     mode: attempt.attempt_mode,
     expiresAt: attempt.expires_at,

@@ -17,6 +17,7 @@ type Question = {
   passage?: string;
   answerType: "text" | "image";
   prompt: string;
+  secondaryPrompt?: string;
   audioUrl: string;
   imageUrl: string;
   options: string[];
@@ -572,6 +573,7 @@ export function ExamRunner({
     : availableSections[0] === "reading"
       ? "Luyện Đọc"
       : "Luyện Nghe";
+  const levelLabel = questions.length === 50 || questions.length === 100 ? "TOPIK II" : "TOPIK I";
 
   return (
     <main className="min-h-screen bg-[#eef7fc] text-[#10243e]">
@@ -606,7 +608,7 @@ export function ExamRunner({
               <Image src="/haru-mascot-clean.png" alt="Chim cánh cụt Haru" width={44} height={44} className="h-11 w-11 object-contain" />
             </span>
             <div>
-              <p className="text-xs font-black uppercase tracking-widest text-[#087eba]">TOPIK I · {modeLabel}</p>
+              <p className="text-xs font-black uppercase tracking-widest text-[#087eba]">{levelLabel} · {modeLabel}</p>
               <h1 className="font-black">{title}</h1>
             </div>
           </div>
@@ -661,33 +663,61 @@ export function ExamRunner({
               const questionHighlights = highlights.filter((highlight) => highlight.questionId === question.id);
               const playKey = audioKey(question);
               const isActiveAudio = activeAudioKey === playKey;
-              const audioReady = !question.audioUrl || finishedAudioKeys.has(playKey) || isActiveAudio || Boolean(answers[question.id]);
               const displayedCurrentTime = isActiveAudio ? audioCurrentTime : 0;
               const displayedDuration = isActiveAudio ? audioDuration : 0;
               const previousQuestion = sectionQuestions[questionIndex - 1];
+              const readingNumberOffset = activeSection === "reading" && sectionQuestions.length === 40 ? 30 : 0;
+              const displayPosition = question.position + readingNumberOffset;
+              const sharedAudioQuestions = activeSection === "listening" && question.audioBlockKey
+                ? sectionQuestions.filter((item) => item.audioBlockKey === question.audioBlockKey)
+                : [];
+              const sharedAudioRange = sharedAudioQuestions.length > 1
+                ? `${sharedAudioQuestions[0].position}~${sharedAudioQuestions[sharedAudioQuestions.length - 1].position}`
+                : "";
+              const firstOfSharedAudio = Boolean(sharedAudioRange)
+                && previousQuestion?.audioBlockKey !== question.audioBlockKey;
+              const showListeningAudio = activeSection === "listening"
+                && (!sharedAudioRange || firstOfSharedAudio);
+              const audioReady = !question.audioUrl
+                || finishedAudioKeys.has(playKey)
+                || isActiveAudio
+                || Boolean(answers[question.id])
+                || sharedAudioQuestions.some((item) => Boolean(answers[item.id]));
+              const sharedReadingQuestions = activeSection === "reading" && question.passageBlockKey
+                ? sectionQuestions.filter((item) => item.passageBlockKey === question.passageBlockKey)
+                : [];
+              const sharedReadingRange = sharedReadingQuestions.length > 1
+                ? `${sharedReadingQuestions[0].position + readingNumberOffset}~${sharedReadingQuestions[sharedReadingQuestions.length - 1].position + readingNumberOffset}`
+                : "";
+              const firstOfSharedReading = Boolean(sharedReadingRange)
+                && previousQuestion?.passageBlockKey !== question.passageBlockKey;
               const showReadingPassage = activeSection === "reading" && Boolean(question.passage)
                 && (!question.passageBlockKey || previousQuestion?.passageBlockKey !== question.passageBlockKey);
               const showSideImage = Boolean(question.imageUrl && question.answerType !== "image")
                 && (!question.passageBlockKey || previousQuestion?.passageBlockKey !== question.passageBlockKey);
               return <article key={question.id} id={`question-${question.id}`} data-question-id={question.id} className="scroll-mt-32 px-6 py-8 md:px-8 md:py-10">
+                {firstOfSharedReading && question.instruction && <h3 className="mb-5 rounded-2xl bg-slate-50 px-5 py-4 text-lg font-black text-slate-900 ring-1 ring-slate-200">※ [{sharedReadingRange}] {question.instruction}</h3>}
+                {firstOfSharedAudio && question.instruction && <h3 className="mb-5 rounded-2xl bg-cyan-50 px-5 py-4 text-lg font-black text-slate-900 ring-1 ring-cyan-100">※ [{sharedAudioRange}] {question.instruction}</h3>}
                 {showReadingPassage && <div className="mb-7 rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50 to-white p-5 md:p-7">
                   <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-black uppercase tracking-[0.18em] text-[#087eba]">Ngữ liệu đọc</p>{question.passageBlockKey && <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-slate-500 ring-1 ring-slate-200">Dùng cho nhiều câu</span>}</div>
                   {question.passage && <p className="whitespace-pre-wrap text-lg font-semibold leading-9 text-slate-800">{question.passage}</p>}
                 </div>}
                 <div className="flex gap-4">
-                  <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full text-lg font-black ${answers[question.id] ? "bg-[#087eba] text-white" : "bg-sky-100 text-[#087eba]"}`}>{question.position}</span>
+                  <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full text-lg font-black ${answers[question.id] ? "bg-[#087eba] text-white" : "bg-sky-100 text-[#087eba]"}`}>{displayPosition}</span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div onMouseUp={(event) => prepareHighlight(question, event.currentTarget, "instruction", question.instruction)} className="min-w-0 flex-1">
+                      {!sharedReadingRange && !sharedAudioRange && <div onMouseUp={(event) => prepareHighlight(question, event.currentTarget, "instruction", question.instruction)} className="min-w-0 flex-1">
                         <h3 className="text-lg font-black"><HighlightedText text={question.instruction} highlights={questionHighlights.filter((highlight) => highlight.sourceField === "instruction")} onHighlightClick={openSavedHighlight} /></h3>
-                      </div>
+                      </div>}
                       <button type="button" onClick={() => toggleFlag(question)} className={`rounded-full px-4 py-2 text-sm font-black ${flagged.includes(question.id) ? "bg-amber-200 text-amber-900" : "bg-slate-100 text-slate-600 hover:bg-amber-50"}`}>⚑ {flagged.includes(question.id) ? "Đã đánh dấu" : "Xem lại"}</button>
                     </div>
 
                     {question.prompt && <div onMouseUp={(event) => prepareHighlight(question, event.currentTarget, "prompt", question.prompt)}><p className="mt-4 text-lg font-semibold leading-8 text-slate-700"><HighlightedText text={question.prompt} highlights={questionHighlights.filter((highlight) => highlight.sourceField === "prompt")} onHighlightClick={openSavedHighlight} /></p></div>}
+                    {question.secondaryPrompt && <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"><p className="mb-2 text-center text-xs font-black tracking-[0.2em] text-slate-500">＜보기＞</p><p className="whitespace-pre-wrap text-lg font-semibold leading-8 text-slate-800">{question.secondaryPrompt}</p></div>}
 
-                    {activeSection === "listening" && (question.audioUrl
+                    {showListeningAudio && (question.audioUrl
                       ? <div className="mt-5 rounded-2xl bg-cyan-50 p-4 ring-1 ring-cyan-100">
+                          {sharedAudioRange && <p className="mb-3 text-sm font-black text-[#087eba]">Audio dùng chung cho câu {sharedAudioRange}</p>}
                           <div className="flex flex-wrap items-center gap-3">
                             <button
                               type="button"
@@ -725,7 +755,7 @@ export function ExamRunner({
                       : <p className="mt-5 rounded-2xl bg-slate-100 p-4 font-bold text-slate-600">Câu này không có audio.</p>)}
 
                     <div className={`mt-6 ${showSideImage ? "grid items-start gap-6 xl:grid-cols-[minmax(220px,0.8fr)_minmax(340px,1.2fr)]" : ""}`}>
-                      {showSideImage && <Image unoptimized width={640} height={480} src={question.imageUrl} alt={`Ngữ liệu câu ${question.position}`} className="aspect-[4/3] w-full max-w-[400px] justify-self-center border border-slate-200 bg-white object-cover" />}
+                      {showSideImage && <Image unoptimized width={960} height={720} src={question.imageUrl} alt={`Ngữ liệu câu ${question.position}`} className="h-auto max-h-[620px] w-full max-w-[560px] justify-self-center rounded-2xl border border-slate-200 bg-white object-contain p-2" />}
                       <div className={`grid ${question.answerType === "image" ? "mx-auto w-full max-w-[532px] grid-cols-2 gap-2.5" : showSideImage ? "grid-cols-1 gap-3" : "gap-3 sm:grid-cols-2"}`}>
                       {question.options.map((option, index) => question.answerType === "image"
                         ? <button
@@ -736,7 +766,7 @@ export function ExamRunner({
                             onClick={() => void choose(question, index + 1)}
                             className={`group relative aspect-[4/3] overflow-hidden border bg-slate-50 text-left transition disabled:cursor-not-allowed disabled:opacity-50 ${answers[question.id] === index + 1 ? "border-[3px] border-[#10243e] ring-2 ring-sky-300" : "border-slate-200 hover:border-cyan-600"}`}
                           >
-                            {question.optionImages[index] && <Image unoptimized src={question.optionImages[index]} alt={`Đáp án ${index + 1}`} fill sizes="(max-width: 640px) 45vw, 260px" className="object-cover" />}
+                            {question.optionImages[index] && <Image unoptimized src={question.optionImages[index]} alt={`Đáp án ${index + 1}`} fill sizes="(max-width: 640px) 45vw, 260px" className="bg-white object-contain p-1" />}
                             <span className="absolute left-2 top-2 grid h-7 w-7 place-items-center rounded-full border border-slate-300 bg-white/95 text-sm font-black text-slate-800 shadow-sm">{index + 1}</span>
                           </button>
                         : <button
@@ -771,7 +801,10 @@ export function ExamRunner({
         <aside className="h-fit rounded-3xl bg-white p-5 shadow-sm lg:sticky lg:top-24">
           <div className="flex items-center justify-between"><h2 className="font-black">Danh sách câu</h2><span className="text-xs font-bold text-slate-500">Còn {unansweredInSection}</span></div>
           <div className="mt-4 grid grid-cols-5 gap-2">
-            {sectionQuestions.map((question) => <button type="button" key={question.id} onClick={() => jumpToQuestion(question)} className={`relative aspect-square rounded-xl text-sm font-black transition ${activeQuestionId === question.id ? "ring-2 ring-[#10243e] ring-offset-2" : ""} ${answers[question.id] ? "bg-[#087eba] text-white" : "bg-slate-100 text-slate-500 hover:bg-sky-100"}`}>{question.position}{flagged.includes(question.id) && <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-amber-400" />}</button>)}
+            {sectionQuestions.map((question) => {
+              const numberOffset = activeSection === "reading" && sectionQuestions.length === 40 ? 30 : 0;
+              return <button type="button" key={question.id} onClick={() => jumpToQuestion(question)} className={`relative aspect-square rounded-xl text-sm font-black transition ${activeQuestionId === question.id ? "ring-2 ring-[#10243e] ring-offset-2" : ""} ${answers[question.id] ? "bg-[#087eba] text-white" : "bg-slate-100 text-slate-500 hover:bg-sky-100"}`}>{question.position + numberOffset}{flagged.includes(question.id) && <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-amber-400" />}</button>;
+            })}
           </div>
           <div className="mt-5 space-y-2 border-t border-slate-200 pt-4 text-xs font-bold text-slate-500"><p><span className="mr-2 inline-block h-3 w-3 rounded bg-[#087eba]" />Đã trả lời</p><p><span className="mr-2 inline-block h-3 w-3 rounded bg-slate-100 ring-1 ring-slate-200" />Chưa trả lời</p><p><span className="mr-2 inline-block h-3 w-3 rounded-full bg-amber-400" />Đánh dấu xem lại</p></div>
           <p className="mt-5 min-h-5 text-center text-xs font-bold text-slate-500">{saving}</p>

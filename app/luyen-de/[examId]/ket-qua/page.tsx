@@ -51,9 +51,9 @@ export default async function ExamResultPage({
     ? "reading"
     : availableSections[0] ?? "listening";
   const activeFilter = ["issues", "wrong", "blank", "correct", "all"].includes(query.filter ?? "") ? query.filter! : "issues";
-  const readingOffset = availableSections.length === 2
-    ? Math.max(0, ...questions.filter((question) => question.section === "listening").map((question) => Number(question.position ?? 0)))
-    : 0;
+  const listeningQuestionCount = questions.filter((question) => question.section === "listening").length;
+  const readingQuestionCount = questions.filter((question) => question.section === "reading").length;
+  const readingOffset = listeningQuestionCount === 30 && readingQuestionCount === 40 ? 30 : 0;
   const sectionQuestions = questions.filter((question) => question.section === activeSection).sort((left, right) => Number(left.position) - Number(right.position));
   const questionCountFor = (section: string) => questions.filter((question) => question.section === section).length;
   const statusOf = (question: Record<string, unknown>) => {

@@ -142,6 +142,71 @@ describe("ExamRunner listening", () => {
     expect(screen.getByRole("button", { name: "Nộp bài" })).toBeTruthy();
   });
 
+  it("hiển thị audio chung một lần và giữ đủ hai câu trong nhóm", () => {
+    const sharedQuestions = [1, 2].map((position) => ({
+      ...question,
+      id: `00000000-0000-4000-8000-00000000000${position}`,
+      position,
+      instruction: "Nghe đoạn hội thoại và trả lời",
+      prompt: `Câu hỏi ${position}`,
+      audioBlockKey: "audio-21-22",
+    }));
+
+    render(<ExamRunner attemptId="00000000-0000-4000-8000-000000000010" examId="00000000-0000-4000-8000-000000000020" title="TOPIK II" section="listening" expiresAt={new Date(Date.now() + 60_000).toISOString()} initialPosition={1} initialAnswers={{}} initialFlagged={[]} initialAudioPlays={{}} initialWindowLeaveCount={0} questions={sharedQuestions} />);
+
+    expect(screen.getByText("※ [1~2] Nghe đoạn hội thoại và trả lời")).toBeTruthy();
+    expect(screen.getByText("Audio dùng chung cho câu 1~2")).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: /Phát audio câu/ })).toHaveLength(1);
+    expect(screen.getByText("Câu hỏi 1")).toBeTruthy();
+    expect(screen.getByText("Câu hỏi 2")).toBeTruthy();
+  });
+
+  it("hiển thị ảnh đề, bốn ảnh đáp án và câu hỏi hiển thị thứ hai", () => {
+    const promptImageQuestion = {
+      ...question,
+      section: "reading" as const,
+      audioUrl: "",
+      instruction: "Chọn đáp án đúng",
+      prompt: "Câu hỏi chính",
+      secondaryPrompt: "Câu hỏi riêng 2",
+      answerType: "text" as const,
+      imageUrl: "https://cdn.example.com/prompt.png",
+    };
+    const imageAnswerQuestion = {
+      ...question,
+      id: "00000000-0000-4000-8000-000000000002",
+      position: 2,
+      section: "reading" as const,
+      audioUrl: "",
+      answerType: "image" as const,
+      imageUrl: "",
+      optionImages: [1, 2, 3, 4].map((index) => `https://cdn.example.com/answer-${index}.png`),
+    };
+
+    render(<ExamRunner attemptId="00000000-0000-4000-8000-000000000010" examId="00000000-0000-4000-8000-000000000020" title="TOPIK II" section="reading" expiresAt={new Date(Date.now() + 60_000).toISOString()} initialPosition={1} initialAnswers={{}} initialFlagged={[]} initialAudioPlays={{}} initialWindowLeaveCount={0} questions={[promptImageQuestion, imageAnswerQuestion]} />);
+
+    expect(screen.getByAltText("Ngữ liệu câu 1").className).toContain("object-contain");
+    expect(screen.getByText("Câu hỏi riêng 2")).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: /Chọn ảnh đáp án/ })).toHaveLength(4);
+    expect(screen.getByAltText("Đáp án 4").className).toContain("object-contain");
+  });
+
+  it("đánh số phần Đọc TOPIK I từ 31 đến 70 cả trong bài và danh sách câu", () => {
+    const readingQuestions = Array.from({ length: 40 }, (_, index) => ({
+      ...question,
+      id: `reading-${index + 1}`,
+      position: index + 1,
+      section: "reading" as const,
+      instruction: `Câu đọc ${index + 31}`,
+      audioUrl: "",
+    }));
+
+    render(<ExamRunner attemptId="00000000-0000-4000-8000-000000000010" examId="00000000-0000-4000-8000-000000000020" title="TOPIK I" section="reading" expiresAt={new Date(Date.now() + 60_000).toISOString()} initialPosition={1} initialAnswers={{}} initialFlagged={[]} initialAudioPlays={{}} initialWindowLeaveCount={0} questions={readingQuestions} />);
+
+    expect(screen.getAllByText("31").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("70").length).toBeGreaterThanOrEqual(2);
+  });
+
   it("hiện thanh chọn màu và tô màu ngay khi người học chọn", async () => {
     const { container } = render(<ExamRunner attemptId="00000000-0000-4000-8000-000000000010" examId="00000000-0000-4000-8000-000000000020" title="TOPIK I" section="listening" expiresAt={new Date(Date.now() + 60_000).toISOString()} initialPosition={1} initialAnswers={{}} initialFlagged={[]} initialAudioPlays={{}} initialWindowLeaveCount={0} questions={[question]} />);
 

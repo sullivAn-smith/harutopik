@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requirePermission, getCurrentActor } from "@/lib/auth/authorize";
 import { buildExamAttemptPlan, examAttemptModeSchema } from "@/lib/exams/attempt-mode";
+import { canManageExam } from "@/lib/exams/access";
 import { examDraftSchema, examLevelSchema, formatExamValidationError } from "@/lib/exams/types";
 import { withErrorMessage } from "@/lib/navigation/redirect-url";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -20,6 +21,66 @@ function message(error: unknown) {
   if (value.includes("PREVIEW_REQUIRED")) return "Hãy xem trước đề như người học sau lần lưu cuối rồi mới gửi duyệt.";
   if (value.includes("duplicate") || value.includes("unique")) return "Mã đề hoặc số thứ tự câu đã tồn tại.";
   return value;
+}
+
+function examStoragePath(url: unknown, bucket: "exam-audio" | "exam-images", examId: string) {
+  if (typeof url !== "string" || !url) return null;
+  const marker = `/storage/v1/object/public/${bucket}/`;
+  const markerIndex = url.indexOf(marker);
+  if (markerIndex < 0) return null;
+  const encodedPath = url.slice(markerIndex + marker.length).split("?")[0];
+  try {
+    const path = decodeURIComponent(encodedPath);
+    return path.startsWith(`${examId}/`) ? path : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function deleteExamDraft(formData: FormData) {
+  const actor = await requirePermission("content:edit");
+  const parsedId = z.string().uuid().safeParse(text(formData, "examId"));
+  if (!parsedId.success) redirect(withErrorMessage("/bien-tap/de-thi", "Không xác định được bản nháp cần xóa."));
+
+  const examId = parsedId.data;
+  const admin = createAdminClient();
+  const { data: exam, error: readError } = await admin.from("exam_sets")
+    .select("id,title,status,created_by,exam_questions(audio_url,image_url,option_images)")
+    .eq("id", examId)
+    .maybeSingle();
+  if (readError || !exam) redirect(withErrorMessage("/bien-tap/de-thi", "Bản nháp không còn tồn tại."));
+  if (!canManageExam({ actorId: actor.id, roles: actor.roles, ownerId: exam.created_by })) {
+    redirect(withErrorMessage("/bien-tap/de-thi", "Bạn không có quyền xóa bản nháp này."));
+  }
+  if (exam.status !== "draft") {
+    redirect(withErrorMessage("/bien-tap/de-thi", "Chỉ được xóa bản nháp. Đề đã gửi duyệt hoặc đang phát hành phải do admin xử lý."));
+  }
+
+  const audioPaths = new Set<string>();
+  const imagePaths = new Set<string>();
+  for (const question of exam.exam_questions ?? []) {
+    const audioPath = examStoragePath(question.audio_url, "exam-audio", examId);
+    const imagePath = examStoragePath(question.image_url, "exam-images", examId);
+    if (audioPath) audioPaths.add(audioPath);
+    if (imagePath) imagePaths.add(imagePath);
+    if (Array.isArray(question.option_images)) {
+      for (const optionImage of question.option_images) {
+        const optionPath = examStoragePath(optionImage, "exam-images", examId);
+        if (optionPath) imagePaths.add(optionPath);
+      }
+    }
+  }
+
+  const { error: deleteError } = await admin.from("exam_sets").delete().eq("id", examId).eq("status", "draft");
+  if (deleteError) redirect(withErrorMessage("/bien-tap/de-thi", message(deleteError)));
+
+  await Promise.all([
+    audioPaths.size ? admin.storage.from("exam-audio").remove([...audioPaths]) : Promise.resolve(),
+    imagePaths.size ? admin.storage.from("exam-images").remove([...imagePaths]) : Promise.resolve(),
+  ]);
+  revalidatePath("/bien-tap/de-thi");
+  revalidatePath(`/bien-tap/de-thi/${examId}`);
+  redirect("/bien-tap/de-thi?deleted=1");
 }
 
 export async function createExamDraft(formData: FormData) {
@@ -137,6 +198,7 @@ export async function publishExam(formData: FormData) {
   const { error } = await supabase.rpc("publish_exam", { p_exam_id: examId });
   if (error) redirect(withErrorMessage(`/quan-tri/de-thi/${examId}`, message(error)));
   revalidatePath("/luyen-de");
+  revalidatePath(`/luyen-de/${examId}`);
   redirect("/quan-tri/de-thi?published=1");
 }
 
@@ -148,6 +210,7 @@ export async function changeExamRelease(formData: FormData) {
   const { error } = await supabase.rpc("change_exam_release", { p_exam_id: examId, p_action: action });
   if (error) redirect(withErrorMessage(`/quan-tri/de-thi/${examId}`, message(error)));
   revalidatePath("/luyen-de");
+  revalidatePath(`/luyen-de/${examId}`);
   redirect("/quan-tri/de-thi?reviewed=1");
 }
 
@@ -158,8 +221,11 @@ export async function startExam(formData: FormData) {
   const parsedMode = examAttemptModeSchema.safeParse(text(formData, "attemptMode"));
   if (!parsedMode.success) redirect(withErrorMessage(`/luyen-de/${examId}`, "Hãy chọn một chế độ thi hợp lệ."));
   const admin = createAdminClient();
+  const { data: exam } = await admin.from("exam_sets").select("id,status,version,listening_duration_minutes,reading_duration_minutes,exam_questions(id,position,section,audio_block_key,reading_type,passage_block_key,passage,answer_type,instruction,prompt,audio_url,audio_text,image_url,play_limit,options,option_images,correct_option,explanation)").eq("id", examId).eq("status", "published").maybeSingle();
+  if (!exam || !exam.exam_questions?.length) redirect(withErrorMessage("/luyen-de", "Đề thi chưa sẵn sàng."));
+  if (!exam.exam_questions.some((question) => question.section === "listening") || !exam.exam_questions.some((question) => question.section === "reading")) redirect(withErrorMessage("/luyen-de", "Đề thi chưa có đủ phần Nghe và Đọc."));
   const { data: activeAttempt } = await admin.from("exam_attempts")
-    .select("id,expires_at")
+    .select("id,expires_at,exam_version")
     .eq("exam_id", examId)
     .eq("user_id", actor.id)
     .eq("attempt_mode", parsedMode.data)
@@ -168,10 +234,11 @@ export async function startExam(formData: FormData) {
     .order("started_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (activeAttempt) redirect(`/luyen-de/${examId}/lam-bai?attempt=${activeAttempt.id}`);
-  const { data: exam } = await admin.from("exam_sets").select("id,status,version,listening_duration_minutes,reading_duration_minutes,exam_questions(id,position,section,audio_block_key,reading_type,passage_block_key,passage,answer_type,instruction,prompt,audio_url,image_url,play_limit,options,option_images,correct_option,explanation)").eq("id", examId).eq("status", "published").maybeSingle();
-  if (!exam || !exam.exam_questions?.length) redirect(withErrorMessage("/luyen-de", "Đề thi chưa sẵn sàng."));
-  if (!exam.exam_questions.some((question) => question.section === "listening") || !exam.exam_questions.some((question) => question.section === "reading")) redirect(withErrorMessage("/luyen-de", "Đề TOPIK I chưa có đủ phần Nghe và Đọc."));
+  if (activeAttempt && activeAttempt.exam_version === exam.version) redirect(`/luyen-de/${examId}/lam-bai?attempt=${activeAttempt.id}`);
+  if (activeAttempt) {
+    const staleAttemptId = activeAttempt.id;
+    await admin.from("exam_attempts").update({ status: "expired", expires_at: new Date().toISOString() }).eq("id", staleAttemptId).eq("user_id", actor.id);
+  }
   const plan = buildExamAttemptPlan({
     mode: parsedMode.data,
     listeningDurationMinutes: exam.listening_duration_minutes,
