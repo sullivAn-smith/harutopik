@@ -947,8 +947,10 @@ export async function deleteOrArchiveLesson(formData: FormData) {
     );
   }
   revalidatePath("/bien-tap/noi-dung");
+  revalidatePath("/bien-tap/cau-truc");
   revalidatePath("/bien-tap/tu-vung");
   revalidatePath("/quan-tri/noi-dung");
+  revalidatePath("/quan-tri/cau-truc");
   revalidatePath("/");
   revalidatePath("/tieng-han-th");
   revalidatePath("/courses/[courseSlug]", "page");
