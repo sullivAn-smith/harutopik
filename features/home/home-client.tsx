@@ -272,10 +272,12 @@ function UpcomingBookCover({
 
 export function HomeClient({
   initialCourses,
+  initialUser,
   initialStreakData,
   initialNotificationSummary,
 }: {
   initialCourses: CourseSummary[];
+  initialUser: User | null;
   initialStreakData: {
     streak: LearnerStreak | null;
     rules: LearnerStreakRules;
@@ -285,7 +287,7 @@ export function HomeClient({
 }) {
   const [showBooks, setShowBooks] = useState(false);
   const [comingSoon, setComingSoon] = useState(false);
-  const [user, setUser] = useState<User | null | undefined>(undefined);
+  const [user, setUser] = useState<User | null | undefined>(initialUser);
   const publishedCourses = initialCourses.length ? initialCourses : fallbackCourses;
   const topikShelf = buildTopikShelf(publishedCourses);
   const primaryCourse = publishedCourses.find((course) => course.slug === "topik-1") ?? publishedCourses[0];
@@ -299,7 +301,6 @@ export function HomeClient({
   useEffect(() => {
     const supabase = createClient();
 
-    void supabase.auth.getUser().then(({ data }) => setUser(data.user));
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {

@@ -32,7 +32,20 @@ const nextConfig: NextConfig = {
         value: "max-age=31536000; includeSubDomains",
       });
     }
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      {
+        source: "/downloads/harutopik-bang-luyen-viet-hangul.pdf",
+        headers: [
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          {
+            key: "Content-Security-Policy",
+            value: "base-uri 'none'; frame-ancestors 'self'; object-src 'self'",
+          },
+          { key: "Content-Disposition", value: "inline" },
+        ],
+      },
+    ];
   },
 };
 

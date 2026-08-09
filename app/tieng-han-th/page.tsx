@@ -4,12 +4,12 @@ import {
   buildTopikShelf,
   getAdditionalPublishedCourses,
 } from "@/lib/catalog/course-shelf";
-import { getPublishedCourses } from "@/lib/data/published-catalog";
+import { getPublishedCourseShells } from "@/lib/data/published-catalog";
 
 export const dynamic = "force-dynamic";
 
 export default async function KoreanLibraryPage() {
-  const courses = await getPublishedCourses();
+  const courses = await getPublishedCourseShells();
   const topikShelf = buildTopikShelf(courses);
   const additionalCourses = getAdditionalPublishedCourses(courses);
   const unlockedCount = topikShelf.filter((item) => item.course).length;

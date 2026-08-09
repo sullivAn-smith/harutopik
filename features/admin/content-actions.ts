@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { lessonSchema, type VocabularyItem } from "@/content/schema";
 import {
@@ -17,6 +17,7 @@ import { requirePermission } from "@/lib/auth/authorize";
 import { toUserFacingError } from "@/lib/errors/user-facing";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { publishedLearningCacheTag } from "@/lib/data/published-cache";
 import { evaluateLessonEligibility } from "@/lib/vocabulary/eligibility";
 import type { ZodError } from "zod";
 
@@ -767,6 +768,7 @@ async function transitionRevision(
   revalidatePath("/tieng-han-th");
   revalidatePath("/courses/[courseSlug]", "page");
   revalidatePath("/api/v1/catalog");
+  if (targetStatus === "published") revalidateTag(publishedLearningCacheTag, { expire: 0 });
   redirect(`${destination}?workflow=${targetStatus}`);
 }
 
@@ -891,6 +893,7 @@ export async function unpublishRevision(formData: FormData) {
   revalidatePath("/tieng-han-th");
   revalidatePath("/courses/[courseSlug]", "page");
   revalidatePath("/api/v1/catalog");
+  revalidateTag(publishedLearningCacheTag, { expire: 0 });
   redirect("/quan-tri/phat-hanh?release=unpublished");
 }
 
@@ -955,6 +958,7 @@ export async function deleteOrArchiveLesson(formData: FormData) {
   revalidatePath("/tieng-han-th");
   revalidatePath("/courses/[courseSlug]", "page");
   revalidatePath("/api/v1/catalog");
+  revalidateTag(publishedLearningCacheTag, { expire: 0 });
   const result = data === "deleted" ? "deleted" : data === "archived" ? "archived" : "error";
   redirect(`${returnTo}?delete=${result}`);
 }

@@ -41,7 +41,7 @@ function vietnamParts(now = new Date()) {
   };
 }
 
-export async function getHomeStreakData(): Promise<{
+export async function getHomeStreakData(knownUserId?: string | null): Promise<{
   streak: LearnerStreak | null;
   rules: LearnerStreakRules;
   period: "day" | "night";
@@ -49,8 +49,10 @@ export async function getHomeStreakData(): Promise<{
   const supabase = await createClient();
   const vietnam = vietnamParts();
   const period = vietnam.hour >= 5 && vietnam.hour < 18 ? "day" : "night";
-  const [{ data: auth }, { data: settings }] = await Promise.all([
-    supabase.auth.getUser(),
+  const [resolvedUserId, { data: settings }] = await Promise.all([
+    knownUserId === undefined
+      ? supabase.auth.getUser().then(({ data }) => data.user?.id ?? null)
+      : Promise.resolve(knownUserId),
     supabase
       .from("streak_settings")
       .select("shield_reward_interval,shield_reward_amount,max_shields")
@@ -59,17 +61,17 @@ export async function getHomeStreakData(): Promise<{
   ]);
 
   let streak: LearnerStreak | null = null;
-  if (auth.user) {
+  if (resolvedUserId) {
     const [{ data: row }, { data: days }] = await Promise.all([
       supabase
         .from("user_streaks")
         .select("current_streak,longest_streak,shield_count,last_activity_date")
-        .eq("user_id", auth.user.id)
+        .eq("user_id", resolvedUserId)
         .maybeSingle(),
       supabase
         .from("streak_activity_days")
         .select("activity_date")
-        .eq("user_id", auth.user.id)
+        .eq("user_id", resolvedUserId)
         .order("activity_date", { ascending: false })
         .limit(14),
     ]);

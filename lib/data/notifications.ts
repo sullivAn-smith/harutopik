@@ -41,21 +41,25 @@ export async function getUnreadNotificationCount() {
   return count ?? 0;
 }
 
-export async function getHomeNotificationSummary(): Promise<HomeNotificationSummary> {
-  const actor = await getCurrentActor();
-  if (!actor) return { unreadCount: 0, streakReminder: null };
+export async function getHomeNotificationSummary(
+  knownUserId?: string | null,
+): Promise<HomeNotificationSummary> {
+  const userId = knownUserId === undefined
+    ? (await getCurrentActor())?.id ?? null
+    : knownUserId;
+  if (!userId) return { unreadCount: 0, streakReminder: null };
 
   const supabase = await createClient();
   const [unreadResult, reminderResult] = await Promise.all([
     supabase
       .from("notifications")
       .select("id", { count: "exact", head: true })
-      .eq("user_id", actor.id)
+      .eq("user_id", userId)
       .is("read_at", null),
     supabase
       .from("notifications")
       .select("id,title,message,href,created_at")
-      .eq("user_id", actor.id)
+      .eq("user_id", userId)
       .eq("type", "streak_reminder")
       .is("read_at", null)
       .order("created_at", { ascending: false })

@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { isAzureTtsConfigured } from "@/lib/audio/config";
 import {
@@ -9,6 +9,7 @@ import {
 } from "@/lib/audio/service";
 import { requirePermission } from "@/lib/auth/authorize";
 import { createClient } from "@/lib/supabase/server";
+import { publishedLearningCacheTag } from "@/lib/data/published-cache";
 
 function resultUrl(vocabularyId: string, result: string) {
   return `/bien-tap/tu-vung/${vocabularyId}?audio=${result}`;
@@ -36,6 +37,7 @@ export async function generateVocabularyAudio(formData: FormData) {
     revalidatePath(`/bien-tap/tu-vung/${vocabularyId}`);
     revalidatePath("/courses", "layout");
     revalidatePath("/", "layout");
+    revalidateTag(publishedLearningCacheTag, { expire: 0 });
     redirect(
       resultUrl(
         vocabularyId,

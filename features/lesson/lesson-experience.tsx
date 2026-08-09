@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Suspense,
@@ -11,17 +12,11 @@ import {
   useState,
 } from "react";
 import type { Lesson } from "@/content/schema";
-import { DictationExercise } from "@/features/lesson/components/dictation-exercise";
-import { FlashcardExercise } from "@/features/lesson/components/flashcard-exercise";
 import { GrammarSection } from "@/features/lesson/components/grammar-section";
-import { MatchingExercise } from "@/features/lesson/components/matching-exercise";
 import { ModeNavigation } from "@/features/lesson/components/mode-navigation";
-import { QuizExercise } from "@/features/lesson/components/quiz-exercise";
 import {
-  TranslationExercise,
   type TranslationDirection,
 } from "@/features/lesson/components/translation-exercise";
-import { TypingExercise } from "@/features/lesson/components/typing-exercise";
 import { VocabularyList } from "@/features/lesson/components/vocabulary-list";
 import { FloatingLanguageKeyboard } from "@/features/lesson/components/floating-language-keyboard";
 import type { StudyMode } from "@/features/lesson/types";
@@ -35,6 +30,35 @@ import {
 } from "@/lib/learning-core/session";
 import { generateLessonPractice } from "@/lib/learning-core/practice-generator";
 import { enqueueAudioPlayback } from "@/lib/audio/playback-queue";
+
+function ExerciseLoading() {
+  return <div className="min-h-72 animate-pulse rounded-3xl bg-gradient-to-br from-sky-50 to-slate-100" aria-label="Đang tải chế độ luyện tập" />;
+}
+
+const FlashcardExercise = dynamic(
+  () => import("@/features/lesson/components/flashcard-exercise").then((module) => module.FlashcardExercise),
+  { loading: ExerciseLoading },
+);
+const TypingExercise = dynamic(
+  () => import("@/features/lesson/components/typing-exercise").then((module) => module.TypingExercise),
+  { loading: ExerciseLoading },
+);
+const QuizExercise = dynamic(
+  () => import("@/features/lesson/components/quiz-exercise").then((module) => module.QuizExercise),
+  { loading: ExerciseLoading },
+);
+const MatchingExercise = dynamic(
+  () => import("@/features/lesson/components/matching-exercise").then((module) => module.MatchingExercise),
+  { loading: ExerciseLoading },
+);
+const DictationExercise = dynamic(
+  () => import("@/features/lesson/components/dictation-exercise").then((module) => module.DictationExercise),
+  { loading: ExerciseLoading },
+);
+const TranslationExercise = dynamic(
+  () => import("@/features/lesson/components/translation-exercise").then((module) => module.TranslationExercise),
+  { loading: ExerciseLoading },
+);
 
 type Tab = "vocabulary" | "grammar";
 

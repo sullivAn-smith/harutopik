@@ -4,7 +4,7 @@ import {
   getLessonParams,
 } from "@/content/catalog";
 import { LessonExperience } from "@/features/lesson/lesson-experience";
-import { getPublishedCourses } from "@/lib/data/published-catalog";
+import { getPublishedLessonRouteData } from "@/lib/data/published-catalog";
 import { getCurrentActor } from "@/lib/auth/authorize";
 
 type LessonPageProps = {
@@ -25,28 +25,25 @@ export async function generateMetadata({
   params,
 }: LessonPageProps): Promise<Metadata> {
   const { courseSlug, lessonSlug } = await params;
-  const courses = await getPublishedCourses();
-  const course = courses.find((item) => item.slug === courseSlug);
-  const lesson = course?.lessons.find((item) => item.slug === lessonSlug);
-  if (!course || !lesson) return {};
+  const data = await getPublishedLessonRouteData(courseSlug, lessonSlug);
+  if (!data) return {};
 
   return {
-    title: `${lesson.title.vi} — ${course.title.vi}`,
-    description: lesson.summary,
+    title: `${data.lesson.title.vi} — ${data.courseTitle}`,
+    description: data.lesson.summary,
   };
 }
 
 export default async function LessonPage({ params }: LessonPageProps) {
   const { courseSlug, lessonSlug } = await params;
+  const lessonData = getPublishedLessonRouteData(courseSlug, lessonSlug);
   const actor = await getCurrentActor();
   if (!actor) {
     const lessonUrl = `/courses/${encodeURIComponent(courseSlug)}/lessons/${encodeURIComponent(lessonSlug)}`;
     redirect(`/dang-nhap?next=${encodeURIComponent(lessonUrl)}`);
   }
-  const courses = await getPublishedCourses();
-  const course = courses.find((item) => item.slug === courseSlug);
-  const lesson = course?.lessons.find((item) => item.slug === lessonSlug);
-  if (!lesson) notFound();
+  const data = await lessonData;
+  if (!data) notFound();
 
-  return <LessonExperience lesson={lesson} />;
+  return <LessonExperience lesson={data.lesson} />;
 }

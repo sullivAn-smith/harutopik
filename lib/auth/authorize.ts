@@ -11,15 +11,21 @@ import {
   type Permission,
 } from "./permissions";
 
-export const getCurrentActor = cache(async () => {
+export const getCurrentUser = cache(async () => {
   if (!isSupabaseConfigured()) return null;
 
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  return user;
+});
+
+export const getCurrentActor = cache(async () => {
+  const user = await getCurrentUser();
   if (!user) return null;
 
+  const supabase = await createClient();
   const { data } = await supabase
     .from("user_roles")
     .select("role")

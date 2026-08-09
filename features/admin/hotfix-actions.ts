@@ -1,11 +1,12 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { lessonSchema } from "@/content/schema";
 import { requirePermission } from "@/lib/auth/authorize";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { publishedLearningCacheTag } from "@/lib/data/published-cache";
 import { planPublishedLessonVocabularyRemoval } from "./published-lesson-vocabulary";
 
 const hotfixSchema = z.object({
@@ -280,5 +281,6 @@ export async function applyPublishedLessonHotfix(
   revalidatePath("/xem-truoc", "layout");
   revalidatePath("/courses", "layout");
   revalidatePath("/", "layout");
+  revalidateTag(publishedLearningCacheTag, { expire: 0 });
   redirect(`/quan-tri/hotfix/${parsed.data.contentId}?saved=1`);
 }

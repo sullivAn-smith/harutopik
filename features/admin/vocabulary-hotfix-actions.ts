@@ -1,13 +1,14 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth/authorize";
 import { toUserFacingError } from "@/lib/errors/user-facing";
 import { normalizeKorean } from "@/lib/vocabulary/domain";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { publishedLearningCacheTag } from "@/lib/data/published-cache";
 
 const imageUrlSchema = z.union([
   z.literal(""),
@@ -566,6 +567,7 @@ export async function applyVocabularyHotfix(
   revalidatePath("/xem-truoc", "layout");
   revalidatePath("/courses", "layout");
   revalidatePath("/", "layout");
+  revalidateTag(publishedLearningCacheTag, { expire: 0 });
   redirect(
     `/quan-tri/hotfix/${parsed.data.contentId}/tu-vung/${parsed.data.vocabularyId}?saved=1`,
   );

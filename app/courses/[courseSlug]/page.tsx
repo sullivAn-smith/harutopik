@@ -7,8 +7,9 @@ import {
   type Course,
 } from "@/content/catalog";
 import type { Lesson } from "@/content/schema";
-import { getPublishedCourses } from "@/lib/data/published-catalog";
+import { getPublishedCourseShells } from "@/lib/data/published-catalog";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/authorize";
 
 type CoursePageProps = {
   params: Promise<{ courseSlug: string }>;
@@ -72,7 +73,7 @@ export async function generateMetadata({
   params,
 }: CoursePageProps): Promise<Metadata> {
   const { courseSlug } = await params;
-  const courses = await getPublishedCourses();
+  const courses = await getPublishedCourseShells();
   const course = courses.find((item) => item.slug === courseSlug);
   if (!course) return {};
 
@@ -84,13 +85,13 @@ export async function generateMetadata({
 
 export default async function CoursePage({ params }: CoursePageProps) {
   const { courseSlug } = await params;
-  const courses = await getPublishedCourses();
+  const [courses, user] = await Promise.all([
+    getPublishedCourseShells(),
+    getCurrentUser(),
+  ]);
   const course = courses.find((item) => item.slug === courseSlug);
   if (!course) notFound();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
   const lessonIds = course.lessons.map((lesson) => lesson.id);
   const { data: practiceEvents } =
     user && lessonIds.length > 0

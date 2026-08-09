@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { HangulPdfActions } from "@/features/hangul/hangul-pdf-actions";
 
 type Letter = {
   letter: string;
@@ -133,16 +134,21 @@ export default function HangulPage() {
 
       <section className="mx-auto max-w-7xl px-5 py-10 md:py-14">
         <div className="overflow-hidden rounded-[2.5rem] bg-[linear-gradient(125deg,#10243e,#087eba_60%,#18b6d9)] p-7 text-white shadow-[0_24px_60px_rgba(8,126,186,0.24)] md:p-12">
-          <p className="text-sm font-black uppercase tracking-[0.2em] text-cyan-200">
-            Bảng chữ cái tiếng Hàn
-          </p>
-          <h1 className="mt-4 max-w-3xl text-4xl font-black tracking-tight md:text-6xl">
-            Làm quen Hangul theo từng nhóm âm
-          </h1>
-          <p className="mt-5 max-w-3xl text-lg leading-8 text-blue-100">
-            Nhìn mặt chữ, đọc âm và liên hệ với từ ví dụ. Nguyên âm và phụ âm
-            được tách màu để bạn nhận biết nhanh hơn khi ghép âm tiết.
-          </p>
+          <div className="flex flex-col items-start justify-between gap-8 lg:flex-row lg:items-end">
+            <div>
+              <p className="text-sm font-black uppercase tracking-[0.2em] text-cyan-200">
+                Bảng chữ cái tiếng Hàn
+              </p>
+              <h1 className="mt-4 max-w-3xl text-4xl font-black tracking-tight md:text-6xl">
+                Làm quen Hangul theo từng nhóm âm
+              </h1>
+              <p className="mt-5 max-w-3xl text-lg leading-8 text-blue-100">
+                Nhìn mặt chữ, đọc âm và liên hệ với từ ví dụ. Nguyên âm và phụ âm
+                được tách màu để bạn nhận biết nhanh hơn khi ghép âm tiết.
+              </p>
+            </div>
+            <HangulPdfActions />
+          </div>
         </div>
 
         <section className="mt-9 rounded-[2rem] border border-white bg-white/90 p-6 shadow-[0_18px_45px_rgba(16,36,62,0.1)] md:p-9">
