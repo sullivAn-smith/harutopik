@@ -24,7 +24,7 @@ export default async function VocabularyLibraryPage({
       </div>
       {notice.delete === "done" && (
         <p role="status" className="mt-6 rounded-2xl bg-emerald-50 p-4 font-bold text-emerald-800">
-          Đã xóa {notice.count ? `${notice.count} từ vựng` : "từ vựng"} bản nháp khỏi thư viện.
+          Đã xóa vĩnh viễn {notice.count ? `${notice.count} từ vựng` : "từ vựng"} khỏi thư viện.
         </p>
       )}
       {notice.delete === "error" && (

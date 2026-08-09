@@ -160,6 +160,16 @@ const domainErrors: Array<{
     message: "Bạn chỉ có thể xóa tối đa 500 từ trong một lần.",
   },
   {
+    match: "vocabulary_delete_incomplete",
+    code: "VOCABULARY_DELETE_INCOMPLETE",
+    message: "Xóa chưa hoàn tất. Từ vựng vẫn còn trong thư viện, hãy thử lại.",
+  },
+  {
+    match: "vocabulary_delete_failed",
+    code: "VOCABULARY_DELETE_FAILED",
+    message: "Không thể xóa từ vựng khỏi database. Hãy thử lại.",
+  },
+  {
     match: "active_revision_cannot_delete",
     code: "ACTIVE_REVISION_CANNOT_DELETE",
     message:

@@ -151,15 +151,34 @@ export async function deleteVocabularyDraft(formData: FormData) {
     redirect("/bien-tap/tu-vung?delete=invalid");
   }
   const supabase = await createClient();
-  const { error } = await supabase.rpc("delete_vocabulary_draft", {
+  const { data, error } = await supabase.rpc("delete_vocabulary_draft", {
     p_vocabulary_id: vocabularyId,
   });
-  if (error) {
-    const friendly = toUserFacingError(error, "Chưa thể xóa từ vựng.");
+  if (error || data !== "deleted") {
+    const friendly = toUserFacingError(
+      error ?? new Error("vocabulary_delete_failed"),
+      "Chưa thể xóa từ vựng.",
+    );
     redirect(
       `/bien-tap/tu-vung/${vocabularyId}?delete=error&errorMessage=${encodeURIComponent(friendly.message)}`,
     );
   }
+
+  const { data: remainingItem, error: verificationError } = await supabase
+    .from("vocabulary_items")
+    .select("id")
+    .eq("id", vocabularyId)
+    .maybeSingle();
+  if (verificationError || remainingItem) {
+    const friendly = toUserFacingError(
+      verificationError ?? new Error("vocabulary_delete_incomplete"),
+      "Chưa thể xác nhận từ vựng đã được xóa.",
+    );
+    redirect(
+      `/bien-tap/tu-vung/${vocabularyId}?delete=error&errorMessage=${encodeURIComponent(friendly.message)}`,
+    );
+  }
+
   revalidatePath("/bien-tap/tu-vung");
   redirect("/bien-tap/tu-vung?delete=done");
 }
@@ -190,11 +209,33 @@ export async function deleteVocabularyDrafts(formData: FormData) {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.rpc("delete_vocabulary_drafts", {
+  const { data, error } = await supabase.rpc("delete_vocabulary_drafts", {
     p_vocabulary_ids: parsedIds.data,
   });
-  if (error) {
-    const friendly = toUserFacingError(error, "Chưa thể xóa các từ đã chọn.");
+  const result =
+    data && typeof data === "object" && !Array.isArray(data)
+      ? (data as { deleted_count?: unknown })
+      : null;
+  if (error || result?.deleted_count !== parsedIds.data.length) {
+    const friendly = toUserFacingError(
+      error ?? new Error("vocabulary_delete_incomplete"),
+      "Chưa thể xóa các từ đã chọn.",
+    );
+    redirect(
+      "/bien-tap/tu-vung?delete=error&errorMessage=" +
+        encodeURIComponent(friendly.message),
+    );
+  }
+
+  const { data: remainingItems, error: verificationError } = await supabase
+    .from("vocabulary_items")
+    .select("id")
+    .in("id", parsedIds.data);
+  if (verificationError || (remainingItems?.length ?? 0) > 0) {
+    const friendly = toUserFacingError(
+      verificationError ?? new Error("vocabulary_delete_incomplete"),
+      "Chưa thể xác nhận các từ đã được xóa.",
+    );
     redirect(
       "/bien-tap/tu-vung?delete=error&errorMessage=" +
         encodeURIComponent(friendly.message),

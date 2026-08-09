@@ -35,6 +35,18 @@ describe("toUserFacingError", () => {
     });
   });
 
+  it("does not report success when vocabulary deletion is incomplete", () => {
+    expect(
+      toUserFacingError({
+        code: "P0001",
+        message: "vocabulary_delete_incomplete",
+      }),
+    ).toEqual({
+      code: "VOCABULARY_DELETE_INCOMPLETE",
+      message: "Xóa chưa hoàn tất. Từ vựng vẫn còn trong thư viện, hãy thử lại.",
+    });
+  });
+
   it("adds a support reference without leaking backend details", () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     const result = toUserFacingError(
