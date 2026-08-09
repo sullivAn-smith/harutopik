@@ -13,8 +13,8 @@ export default function manifest(): MetadataRoute.Manifest {
     lang: "vi",
     icons: [
       {
-        src: "/harutopik-logo-key.png",
-        sizes: "any",
+        src: "/haru-mascot-clean.png",
+        sizes: "768x768",
         type: "image/png",
       },
     ],

@@ -314,7 +314,9 @@ export function HomeClient({
     <main className="elegant-blue home-landing min-h-screen overflow-hidden text-[#101820]">
       <header className="relative z-30 flex items-center justify-between border-b border-white/70 bg-white/70 px-4 py-3 backdrop-blur lg:hidden">
         <Link href="/" className="flex items-center gap-2 font-black">
-          <Image src="/harutopik-logo-key.png" alt="" width={44} height={44} className="h-10 w-10 object-contain" />
+          <span className="grid h-11 w-11 place-items-center rounded-2xl bg-white/80 p-1 shadow-[0_8px_20px_rgba(16,36,62,0.14)] ring-1 ring-white">
+            <Image src="/haru-mascot-clean.png" alt="" width={44} height={44} className="h-full w-full object-contain" priority />
+          </span>
           Harutopik
         </Link>
         <nav aria-label="Điều hướng di động" className="flex items-center gap-2 text-sm font-bold">
@@ -357,13 +359,13 @@ export function HomeClient({
         </div>
       </aside>
       <LearnerStreakReminderPopup reminder={initialNotificationSummary.streakReminder} />
-      {comingSoon && <div className="fixed bottom-8 left-1/2 z-50 -translate-x-1/2 rounded-full border border-white/80 bg-[#10243e] px-6 py-3 text-base font-black text-white shadow-[0_14px_30px_rgba(16,36,62,0.28)]">Khóa học chưa phát hành</div>}
+      {comingSoon && <div className="fixed bottom-28 left-1/2 z-50 -translate-x-1/2 rounded-full border border-white/80 bg-[#10243e] px-6 py-3 text-base font-black text-white shadow-[0_14px_30px_rgba(16,36,62,0.28)] lg:bottom-8">Khóa học chưa phát hành</div>}
       <div className="home-grid-glow pointer-events-none absolute inset-0" />
       <div className="home-aurora home-aurora-one pointer-events-none absolute" />
       <div className="home-aurora home-aurora-two pointer-events-none absolute" />
       <div className="home-aurora home-aurora-three pointer-events-none absolute" />
 
-      <section className="relative mx-auto max-w-[1500px] px-6 py-5 md:px-8 lg:ml-64">
+      <section className="relative mx-auto max-w-[1500px] px-6 pb-32 pt-5 md:px-8 lg:ml-64 lg:pb-5">
         <div className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,1.08fr)_minmax(0,.92fr)]">
           <div className="flex min-h-[8.5rem] min-w-0 flex-col justify-center rounded-3xl border border-white/60 bg-white/38 px-5 py-3.5 shadow-[0_12px_28px_rgba(16,36,62,.08)] backdrop-blur">
             <div className="border-l-4 border-[#087eba] pl-4">
@@ -479,6 +481,27 @@ export function HomeClient({
           </section>
         ))}
       </section>
+      <nav
+        aria-label="Điều hướng chính trên điện thoại"
+        className="fixed bottom-[max(.75rem,env(safe-area-inset-bottom))] left-3 right-3 z-40 grid grid-cols-4 gap-1 rounded-[1.6rem] border border-white/90 bg-white/88 p-1.5 shadow-[0_16px_44px_rgba(16,36,62,0.24)] backdrop-blur-2xl lg:hidden"
+      >
+        <Link href="/" aria-current="page" className="flex min-w-0 flex-col items-center gap-1 rounded-[1.15rem] bg-gradient-to-br from-[#087eba] to-[#19a7d5] px-1 py-2.5 text-[.68rem] font-black text-white shadow-[0_8px_20px_rgba(8,126,186,0.3)]">
+          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 10 9-7 9 7" /><path d="M5 9v11h14V9" /><path d="M9 20v-6h6v6" /></svg>
+          <span>Trang chủ</span>
+        </Link>
+        <Link href={`/courses/${primaryCourse.slug}`} className="flex min-w-0 flex-col items-center gap-1 rounded-[1.15rem] px-1 py-2.5 text-[.68rem] font-black text-[#52637a] transition active:scale-95 active:bg-sky-50 active:text-[#087eba]">
+          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11a2 2 0 0 1 2 2v15a2 2 0 0 0-2-2H6.5A2.5 2.5 0 0 0 4 20.5z" /><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v17a2 2 0 0 1 2-2h2.5a2.5 2.5 0 0 1 2.5 2.5z" /></svg>
+          <span>Học</span>
+        </Link>
+        <Link href="/tu-cua-toi" className="flex min-w-0 flex-col items-center gap-1 rounded-[1.15rem] px-1 py-2.5 text-[.68rem] font-black text-[#52637a] transition active:scale-95 active:bg-sky-50 active:text-[#087eba]">
+          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="3" /><path d="M7 9h10M7 13h6" /><path d="M17.5 12.5v4M15.5 14.5h4" /></svg>
+          <span>Bộ từ</span>
+        </Link>
+        <Link href="/luyen-de" className="flex min-w-0 flex-col items-center gap-1 rounded-[1.15rem] px-1 py-2.5 text-[.68rem] font-black text-[#52637a] transition active:scale-95 active:bg-sky-50 active:text-[#087eba]">
+          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 4h6" /><path d="M9 2h6v4H9z" /><path d="M7 4H5a2 2 0 0 0-2 2v14h11" /><path d="m14 18 6-6 2 2-6 6-3 1z" /></svg>
+          <span>Luyện đề</span>
+        </Link>
+      </nav>
     </main>
   );
 }
