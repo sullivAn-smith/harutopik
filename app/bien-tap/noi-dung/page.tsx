@@ -46,14 +46,14 @@ export default async function EditorContentPage({
       )}
       {notice.delete === "archived" && (
         <p role="status" className="mt-6 rounded-2xl bg-emerald-50 px-5 py-4 font-bold text-emerald-800">
-          Đã xóa bản nháp hoặc ẩn phiên bản khỏi danh sách. Nội dung đang phát
-          hành, nếu có, vẫn được giữ nguyên cho người học.
+          Đã xóa bản nháp. Bài đang phát hành vẫn được giữ nguyên cho người
+          học, vì vậy ID của bài chưa thể dùng lại.
         </p>
       )}
       {notice.delete === "deleted" && (
         <p role="status" className="mt-6 rounded-2xl bg-emerald-50 px-5 py-4 font-bold text-emerald-800">
-          Đã xóa bài học. Kho từ vựng vẫn được giữ lại; các từ không còn được
-          bài nào sử dụng đã chuyển về Bản nháp để bạn sửa, tái sử dụng hoặc xóa.
+          Đã xóa vĩnh viễn bài học khỏi database. Bạn có thể dùng lại ID, slug
+          và thứ tự bài; kho từ vựng vẫn được giữ để tái sử dụng.
         </p>
       )}
       {notice.delete === "error" && (
@@ -103,17 +103,17 @@ export default async function EditorContentPage({
                     <ConfirmSubmitButton
                       confirmation={
                         revision.status === "unpublished"
-                          ? `Xóa bài “${revision.title}”? Toàn bộ phiên bản của bài sẽ bị ẩn khỏi CMS. Kho từ vựng vẫn được giữ lại và có thể tái sử dụng.`
+                          ? `Xóa vĩnh viễn bài “${revision.title}”? ID, slug và thứ tự bài sẽ được giải phóng; tiến độ của bài cũ sẽ bị xóa. Kho từ vựng vẫn được giữ để tái sử dụng.`
                           : revision.status === "archived"
-                            ? `Ẩn phiên bản “${revision.title}” khỏi danh sách? Nội dung đang phát hành, nếu có, không bị ảnh hưởng.`
-                            : `Xóa bản nháp “${revision.title}”? Nội dung đang phát hành, nếu có, không bị ảnh hưởng.`
+                            ? `Xóa phiên bản “${revision.title}”? Nếu bài không còn phát hành, bài sẽ bị xóa vĩnh viễn và có thể dùng lại ID. Kho từ vựng vẫn được giữ.`
+                            : `Xóa bản nháp “${revision.title}”? Nếu bài chưa từng phát hành, bài sẽ bị xóa vĩnh viễn và có thể dùng lại ID. Phiên bản đang phát hành, nếu có, không bị ảnh hưởng.`
                       }
                       className="rounded-xl border border-red-300 px-4 py-2 text-sm font-black text-red-700"
                     >
                       {revision.status === "unpublished"
                         ? "Xóa bài"
                         : revision.status === "archived"
-                          ? "Ẩn phiên bản"
+                          ? "Xóa bài"
                           : "Xóa bản nháp"}
                     </ConfirmSubmitButton>
                   </form>
