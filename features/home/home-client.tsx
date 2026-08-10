@@ -13,8 +13,75 @@ import type {
   LearnerStreak,
   LearnerStreakRules,
 } from "@/lib/data/streaks";
-import type { HomeNotificationSummary } from "@/lib/data/notifications";
-import { LearnerStreakReminderPopup } from "@/features/notifications/learner-streak-reminder-popup";
+
+type HomeStreakData = {
+  streak: LearnerStreak | null;
+  rules: LearnerStreakRules;
+  period: "day" | "night";
+};
+
+const HOME_STREAK_CACHE_TTL_MS = 30_000;
+
+function defaultHomeStreakData(): HomeStreakData {
+  const hour = Number(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      hour: "2-digit",
+      hourCycle: "h23",
+    }).format(new Date()),
+  );
+  return {
+    streak: null,
+    rules: {
+      shieldRewardInterval: 10,
+      shieldRewardAmount: 1,
+      maxShields: 10,
+    },
+    period: hour >= 5 && hour < 18 ? "day" : "night",
+  };
+}
+
+function readCachedStreak(userId: string): HomeStreakData | null {
+  try {
+    const raw = window.sessionStorage.getItem(`harutopik:home-streak:${userId}`);
+    if (!raw) return null;
+    const cached = JSON.parse(raw) as { savedAt?: number; data?: HomeStreakData };
+    if (!cached.savedAt || !cached.data || Date.now() - cached.savedAt > HOME_STREAK_CACHE_TTL_MS) {
+      window.sessionStorage.removeItem(`harutopik:home-streak:${userId}`);
+      return null;
+    }
+    return cached.data;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedStreak(userId: string, data: HomeStreakData) {
+  try {
+    window.sessionStorage.setItem(
+      `harutopik:home-streak:${userId}`,
+      JSON.stringify({ savedAt: Date.now(), data }),
+    );
+  } catch {
+    // Storage may be unavailable in strict privacy modes; the live request still works.
+  }
+}
+
+function StreakLoadingCard() {
+  return (
+    <section
+      aria-label="Đang tải chuỗi ngày học"
+      aria-busy="true"
+      className="relative min-h-[8.5rem] overflow-hidden rounded-3xl border border-white/30 bg-gradient-to-r from-[#0b6fa8] via-[#168fc7] to-[#54b7df] px-5 py-4 shadow-[0_16px_34px_rgba(14,46,101,.2)]"
+    >
+      <div className="absolute -right-14 -top-16 h-52 w-52 rounded-full bg-white/10" />
+      <div className="relative flex h-full items-center gap-4">
+        <div className="h-14 w-32 animate-pulse rounded-2xl bg-white/18" />
+        <div className="h-16 min-w-0 flex-1 animate-pulse rounded-2xl bg-white/12" />
+      </div>
+    </section>
+  );
+}
 
 const bookThemes = [
   "from-[#15a7d8] via-[#087eba] to-[#123f72]",
@@ -272,22 +339,13 @@ function UpcomingBookCover({
 
 export function HomeClient({
   initialCourses,
-  initialUser,
-  initialStreakData,
-  initialNotificationSummary,
 }: {
   initialCourses: CourseSummary[];
-  initialUser: User | null;
-  initialStreakData: {
-    streak: LearnerStreak | null;
-    rules: LearnerStreakRules;
-    period: "day" | "night";
-  };
-  initialNotificationSummary: HomeNotificationSummary;
 }) {
   const [showBooks, setShowBooks] = useState(false);
   const [comingSoon, setComingSoon] = useState(false);
-  const [user, setUser] = useState<User | null | undefined>(initialUser);
+  const [user, setUser] = useState<User | null | undefined>(undefined);
+  const [streakData, setStreakData] = useState<HomeStreakData | undefined>(undefined);
   const publishedCourses = initialCourses.length ? initialCourses : fallbackCourses;
   const topikShelf = buildTopikShelf(publishedCourses);
   const primaryCourse = publishedCourses.find((course) => course.slug === "topik-1") ?? publishedCourses[0];
@@ -300,14 +358,50 @@ export function HomeClient({
 
   useEffect(() => {
     const supabase = createClient();
+    let active = true;
+    let requestedUserId: string | null | undefined;
+
+    async function loadForUser(nextUser: User | null) {
+      if (!active || requestedUserId === nextUser?.id) return;
+      requestedUserId = nextUser?.id ?? null;
+      setUser(nextUser);
+
+      if (!nextUser) {
+        setStreakData(defaultHomeStreakData());
+        return;
+      }
+
+      const cached = readCachedStreak(nextUser.id);
+      if (cached) setStreakData(cached);
+      else setStreakData(undefined);
+
+      const response = await fetch("/api/v1/home/streak", {
+        credentials: "same-origin",
+        headers: { accept: "application/json" },
+      }).catch(() => null);
+      if (!active || !response?.ok) return;
+      const payload = await response.json().catch(() => null) as {
+        data?: HomeStreakData;
+      } | null;
+      if (!payload?.data) return;
+      writeCachedStreak(nextUser.id, payload.data);
+      setStreakData(payload.data);
+    }
+
+    void supabase.auth.getSession().then(({ data }) => {
+      void loadForUser(data.session?.user ?? null);
+    });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      void loadForUser(session?.user ?? null);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   return (
@@ -320,14 +414,6 @@ export function HomeClient({
           Harutopik
         </Link>
         <nav aria-label="Điều hướng di động" className="flex items-center gap-2 text-sm font-bold">
-          <Link href="/thong-bao" aria-label={`Thông báo${initialNotificationSummary.unreadCount ? `, ${initialNotificationSummary.unreadCount} chưa đọc` : ""}`} className="relative grid h-10 w-10 place-items-center rounded-xl border border-white/80 bg-white/70 text-[#087eba] shadow-sm">
-            <span aria-hidden="true">●</span>
-            {initialNotificationSummary.unreadCount > 0 && (
-              <span className="absolute -right-1 -top-1 grid min-h-5 min-w-5 place-items-center rounded-full bg-amber-300 px-1 text-[.62rem] font-black text-amber-950">
-                {initialNotificationSummary.unreadCount > 9 ? "9+" : initialNotificationSummary.unreadCount}
-              </span>
-            )}
-          </Link>
           <Link href="/nang-cap" className="rounded-xl bg-amber-300 px-3 py-2 text-amber-950">Pro</Link>
           <AccountLink user={user} compact />
         </nav>
@@ -344,21 +430,12 @@ export function HomeClient({
           <Link href="/tu-cua-toi" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-cyan-100 text-[#087eba]"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-none stroke-current" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="3" /><path d="M7 9h10M7 13h6" /><path d="M17.5 12.5v4M15.5 14.5h4" /></svg></span><span>Quản lý bộ từ</span></Link>
           <Link href="/luyen-de" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-[#087eba]">✎</span><span>Luyện đề</span></Link>
           <Link href="/tro-ly" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-[#087eba]">✦</span><span>Trợ lý Haru AI</span></Link>
-          <Link href="/thong-bao" className="flex items-center justify-between gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75">
-            <span className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-700">●</span><span>Thông báo</span></span>
-            {initialNotificationSummary.unreadCount > 0 && (
-              <span className="grid min-h-6 min-w-6 place-items-center rounded-full bg-amber-300 px-1.5 text-xs font-black text-amber-950">
-                {initialNotificationSummary.unreadCount > 99 ? "99+" : initialNotificationSummary.unreadCount}
-              </span>
-            )}
-          </Link>
         </nav>
         <div className="mt-auto space-y-3">
           <Link href="/nang-cap" className="sidebar-upgrade flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-center font-black">♕ <span>Nâng cấp</span></Link>
           <AccountLink user={user} />
         </div>
       </aside>
-      <LearnerStreakReminderPopup reminder={initialNotificationSummary.streakReminder} />
       {comingSoon && <div className="fixed bottom-28 left-1/2 z-50 -translate-x-1/2 rounded-full border border-white/80 bg-[#10243e] px-6 py-3 text-base font-black text-white shadow-[0_14px_30px_rgba(16,36,62,0.28)] lg:bottom-8">Khóa học chưa phát hành</div>}
       <div className="home-grid-glow pointer-events-none absolute inset-0" />
       <div className="home-aurora home-aurora-one pointer-events-none absolute" />
@@ -385,7 +462,7 @@ export function HomeClient({
               </Link>
             )}
           </div>
-          <StreakBanner {...initialStreakData} />
+          {streakData ? <StreakBanner {...streakData} /> : <StreakLoadingCard />}
         </div>
 
         <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">

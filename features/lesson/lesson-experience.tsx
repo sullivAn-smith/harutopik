@@ -116,6 +116,10 @@ function LessonContent({
   const [learnedIndices, setLearnedIndices] = useState<number[]>([]);
   const [shuffleSeed, setShuffleSeed] = useState(1);
 
+  useEffect(() => {
+    router.prefetch("/");
+  }, [router]);
+
   const [quizAnswer, setQuizAnswer] = useState<string | null>(null);
   const [quizCorrectCount, setQuizCorrectCount] = useState(0);
   const [quizWrongIndices, setQuizWrongIndices] = useState<number[]>([]);
