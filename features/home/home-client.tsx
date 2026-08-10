@@ -362,8 +362,9 @@ export function HomeClient({
     let requestedUserId: string | null | undefined;
 
     async function loadForUser(nextUser: User | null) {
-      if (!active || requestedUserId === nextUser?.id) return;
-      requestedUserId = nextUser?.id ?? null;
+      const nextUserId = nextUser?.id ?? null;
+      if (!active || requestedUserId === nextUserId) return;
+      requestedUserId = nextUserId;
       setUser(nextUser);
 
       if (!nextUser) {
@@ -379,7 +380,11 @@ export function HomeClient({
         credentials: "same-origin",
         headers: { accept: "application/json" },
       }).catch(() => null);
-      if (!active || !response?.ok) return;
+      if (!active) return;
+      if (!response?.ok) {
+        if (!cached) setStreakData(defaultHomeStreakData());
+        return;
+      }
       const payload = await response.json().catch(() => null) as {
         data?: HomeStreakData;
       } | null;
@@ -442,7 +447,7 @@ export function HomeClient({
       <div className="home-aurora home-aurora-two pointer-events-none absolute" />
       <div className="home-aurora home-aurora-three pointer-events-none absolute" />
 
-      <section className="relative mx-auto max-w-[1500px] px-6 pb-32 pt-5 md:px-8 lg:ml-64 lg:pb-5">
+      <section className="relative mx-auto max-w-[1380px] px-6 pb-32 pt-5 md:px-8 lg:ml-64 lg:pb-5">
         <div className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,1.08fr)_minmax(0,.92fr)]">
           <div className="flex min-h-[8.5rem] min-w-0 flex-col justify-center rounded-3xl border border-white/60 bg-white/38 px-5 py-3.5 shadow-[0_12px_28px_rgba(16,36,62,.08)] backdrop-blur">
             <div className="border-l-4 border-[#087eba] pl-4">
@@ -469,35 +474,35 @@ export function HomeClient({
           <Link
             id="khoa-hoc-dang-mo"
             href={`/courses/${primaryCourse.slug}`}
-            className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#087eba] via-[#168fd0] to-[#20a9d8] p-6 text-white shadow-[0_18px_38px_rgba(8,126,186,0.28)] transition hover:-translate-y-1 hover:shadow-[0_24px_46px_rgba(8,126,186,0.36)] md:col-span-2"
+            className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#087eba] via-[#168fd0] to-[#20a9d8] p-5 text-white shadow-[0_18px_38px_rgba(8,126,186,0.28)] transition hover:-translate-y-1 hover:shadow-[0_24px_46px_rgba(8,126,186,0.36)] md:col-span-2"
           >
             <div className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-white/12" />
             <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-100">
               Khóa học đang mở
             </p>
-            <h2 className="mt-3 text-3xl font-black">{primaryCourse.title.vi}</h2>
+            <h2 className="mt-2.5 text-2xl font-black md:text-[1.7rem]">{primaryCourse.title.vi}</h2>
             <p className="mt-2 max-w-md font-semibold leading-7 text-white/80">
               Học từ vựng, ngữ pháp, nghe chép, ghép từ và kiểm tra ngay trong từng bài.
             </p>
-            <span className="mt-6 inline-flex rounded-2xl bg-white px-5 py-3 font-black text-[#087eba] shadow-lg transition group-hover:translate-x-1">
+            <span className="mt-5 inline-flex rounded-2xl bg-white px-4 py-2.5 font-black text-[#087eba] shadow-lg transition group-hover:translate-x-1">
               Bắt đầu học →
             </span>
           </Link>
 
-          <Link href="/kien-thuc" className="group relative min-h-56 overflow-hidden rounded-[2rem] border border-violet-100 bg-gradient-to-br from-[#f0edff] via-[#f3f0ff] to-[#e7e4ff] p-6 shadow-[0_16px_34px_rgba(92,72,190,0.16)] transition hover:-translate-y-1 hover:shadow-[0_22px_42px_rgba(92,72,190,0.23)]">
+          <Link href="/kien-thuc" className="group relative min-h-52 overflow-hidden rounded-[2rem] border border-violet-100 bg-gradient-to-br from-[#f0edff] via-[#f3f0ff] to-[#e7e4ff] p-5 shadow-[0_16px_34px_rgba(92,72,190,0.16)] transition hover:-translate-y-1 hover:shadow-[0_22px_42px_rgba(92,72,190,0.23)]">
             <span className="absolute right-7 top-7 rotate-6 text-4xl font-black text-violet-500/90">가</span>
             <span className="absolute right-20 top-16 h-3 w-3 rotate-45 rounded-sm bg-violet-400/70" />
             <h2 className="relative max-w-36 text-2xl font-black leading-tight text-[#10243e]">Kiến thức nền tảng</h2>
             <p className="relative mt-3 text-sm font-bold text-[#53627a]">Chữ cái và bảng số</p>
-            <div className="absolute bottom-5 left-6 grid h-20 w-20 place-items-center rounded-[1.4rem] bg-gradient-to-br from-violet-300 to-violet-500 text-4xl font-black text-white shadow-[0_12px_24px_rgba(99,72,190,.3)] ring-4 ring-white/40 transition group-hover:-rotate-3 group-hover:scale-105">가</div>
+            <div className="absolute bottom-5 left-5 grid h-16 w-16 place-items-center rounded-[1.2rem] bg-gradient-to-br from-violet-300 to-violet-500 text-3xl font-black text-white shadow-[0_12px_24px_rgba(99,72,190,.3)] ring-4 ring-white/40 transition group-hover:-rotate-3 group-hover:scale-105">가</div>
             <span className="absolute bottom-7 right-6 text-sm font-black text-violet-700">Khám phá →</span>
           </Link>
 
-          <Link href="/luyen-de" className="group relative min-h-56 overflow-hidden rounded-[2rem] border border-emerald-100 bg-gradient-to-br from-[#e8fbf5] via-[#e9faf7] to-[#d9f5ef] p-6 shadow-[0_16px_34px_rgba(31,150,132,0.15)] transition hover:-translate-y-1 hover:shadow-[0_22px_42px_rgba(31,150,132,0.22)]">
+          <Link href="/luyen-de" className="group relative min-h-52 overflow-hidden rounded-[2rem] border border-emerald-100 bg-gradient-to-br from-[#e8fbf5] via-[#e9faf7] to-[#d9f5ef] p-5 shadow-[0_16px_34px_rgba(31,150,132,0.15)] transition hover:-translate-y-1 hover:shadow-[0_22px_42px_rgba(31,150,132,0.22)]">
             <h2 className="relative text-2xl font-black text-[#10243e]">Luyện đề</h2>
             <p className="relative mt-3 text-sm font-bold text-[#53627a]">Ôn tập theo mục tiêu</p>
             <span className="relative mt-3 inline-block text-sm font-black text-emerald-700">Mở ngay →</span>
-            <div className="absolute bottom-5 right-6 grid h-24 w-24 place-items-center rounded-full border-[10px] border-emerald-400/80 shadow-[0_12px_28px_rgba(31,150,132,.25)] transition group-hover:scale-105">
+            <div className="absolute bottom-5 right-5 grid h-20 w-20 place-items-center rounded-full border-[8px] border-emerald-400/80 shadow-[0_12px_28px_rgba(31,150,132,.25)] transition group-hover:scale-105">
               <span className="h-12 w-12 rounded-full border-[9px] border-emerald-500/90"><span className="mx-auto mt-2 block h-3 w-3 rounded-full bg-emerald-700" /></span>
               <span className="absolute -right-2 -top-3 h-12 w-3 rotate-45 rounded-full bg-emerald-600" />
               <span className="absolute -right-1 -top-3 h-3 w-8 rotate-45 rounded-full bg-emerald-600" />
@@ -520,7 +525,7 @@ export function HomeClient({
           </p>
         </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6 lg:gap-5">
+        <div className="mx-auto mt-5 grid w-full max-w-[1180px] grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6 lg:gap-5">
           {topikShelf.map((item, index) => (
             item.course ? (
               <Link key={item.id} href={`/courses/${item.course.slug}`} className="group relative" aria-label={`Mở ${item.course.title.vi}`}>
@@ -541,7 +546,7 @@ export function HomeClient({
         {(["vocabulary", "grammar"] as const).map((series) => (
           <section key={series} className="mt-9" aria-label={series === "vocabulary" ? "Bộ giáo trình từ vựng sắp ra mắt" : "Bộ giáo trình ngữ pháp sắp ra mắt"}>
             <ShelfStatus count={0} total={series === "grammar" ? 8 : 6} />
-            <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6 lg:gap-5">
+            <div className="mx-auto mt-5 grid w-full max-w-[1180px] grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6 lg:gap-5">
               {Array.from({ length: series === "grammar" ? 8 : 6 }, (_, index) => (
                 <button
                   type="button"
