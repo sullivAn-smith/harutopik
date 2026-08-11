@@ -766,6 +766,19 @@ p.text-center.font-bold.text-blue-700 {
     linear-gradient(145deg, #169ed8 0%, #087cc1 46%, #055593 100%);
 }
 
+@media (min-width: 1024px) and (min-height: 780px) {
+  .home-landing[data-home-viewport="fixed-desktop"] {
+    height: 100dvh;
+    min-height: 0;
+    overflow-y: hidden;
+  }
+
+  .home-desktop-content {
+    height: 100dvh;
+    overflow-y: hidden;
+  }
+}
+
 .home-grid-glow {
   z-index: -1;
   background-image:
