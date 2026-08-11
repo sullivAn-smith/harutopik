@@ -28,3 +28,8 @@ export function getAdditionalPublishedCourses<T extends { slug: string }>(
   );
   return publishedCourses.filter((course) => !reservedSlugs.has(course.slug));
 }
+
+export function getTopikBookLevelLabel(courseSlug: string) {
+  const match = /^topik-([1-6])$/.exec(courseSlug);
+  return match ? `SƠ CẤP ${match[1]}` : undefined;
+}

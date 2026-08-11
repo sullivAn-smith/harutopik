@@ -860,12 +860,14 @@ function LessonContent({
                 onMarkLearned={() => {
                   addUniqueIndex(setLearnedIndices, current);
                   void rateContent("flashcard", activeWord.id, "good");
+                  move(1);
                 }}
                 onMarkUnlearned={() => {
                   setLearnedIndices((items) =>
                     items.filter((item) => item !== current),
                   );
                   void rateContent("flashcard", activeWord.id, "again");
+                  move(1);
                 }}
                 onPrevious={() => move(-1)}
                 onNext={() => move(1)}

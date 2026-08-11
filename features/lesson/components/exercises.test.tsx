@@ -57,8 +57,10 @@ describe("FlashcardExercise", () => {
     expect(onSpeak).toHaveBeenCalledOnce();
     expect(onMarkLearned).toHaveBeenCalledOnce();
     expect(
-      screen.getByRole("button", { name: "← Trước" }).hasAttribute("disabled"),
+      screen.getByRole("button", { name: "Thẻ trước" }).hasAttribute("disabled"),
     ).toBe(true);
+    expect(screen.getByRole("button", { name: "Thẻ sau" })).toBeTruthy();
+    expect(screen.queryByText("Lưu vào bộ từ")).toBeNull();
   });
 });
 

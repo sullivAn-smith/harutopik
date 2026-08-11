@@ -294,7 +294,7 @@ export function HomeClient({
         <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Link
             id="khoa-hoc-dang-mo"
-            href={`/courses/${primaryCourse.slug}`}
+            href="/thu-vien/1"
             className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#087eba] via-[#168fd0] to-[#20a9d8] p-5 text-white shadow-[0_18px_38px_rgba(8,126,186,0.28)] transition hover:-translate-y-1 hover:shadow-[0_24px_46px_rgba(8,126,186,0.36)] md:col-span-2"
           >
             <div className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-white/12" />
@@ -362,7 +362,7 @@ export function HomeClient({
           <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 10 9-7 9 7" /><path d="M5 9v11h14V9" /><path d="M9 20v-6h6v6" /></svg>
           <span>Trang chủ</span>
         </Link>
-        <Link href={`/courses/${primaryCourse.slug}`} className="flex min-w-0 flex-col items-center gap-1 rounded-[1.15rem] px-1 py-2.5 text-[.68rem] font-black text-[#52637a] transition active:scale-95 active:bg-sky-50 active:text-[#087eba]">
+        <Link href="/thu-vien/1" className="flex min-w-0 flex-col items-center gap-1 rounded-[1.15rem] px-1 py-2.5 text-[.68rem] font-black text-[#52637a] transition active:scale-95 active:bg-sky-50 active:text-[#087eba]">
           <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11a2 2 0 0 1 2 2v15a2 2 0 0 0-2-2H6.5A2.5 2.5 0 0 0 4 20.5z" /><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v17a2 2 0 0 1 2-2h2.5a2.5 2.5 0 0 1 2.5 2.5z" /></svg>
           <span>Học</span>
         </Link>

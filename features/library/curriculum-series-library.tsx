@@ -114,7 +114,7 @@ export function CurriculumSeriesLibrary({
             </button>
 
             {expanded && (
-              <div className="border-t border-[#10243e]/8 bg-white/72 px-4 py-4 backdrop-blur md:px-6">
+              <div className="border-t border-sky-300/75 bg-gradient-to-b from-[#e2f5ff]/95 to-[#cceaff]/90 px-4 py-4 backdrop-blur md:px-6">
                 {book.lessons.length > 0 && book.courseSlug ? (
                   <div className="space-y-2">
                     {book.lessons.map((lesson) => {
@@ -122,17 +122,18 @@ export function CurriculumSeriesLibrary({
                       return (
                         <Link
                           key={lesson.id}
+                          data-lesson-link
                           href={signedIn ? lessonHref : `/dang-nhap?next=${encodeURIComponent(lessonHref)}`}
-                          className="flex items-center gap-4 rounded-2xl border border-white bg-white/80 px-4 py-3 font-bold text-[#344b67] shadow-sm transition hover:-translate-y-0.5 hover:text-[#087eba] hover:shadow-md"
+                          className="group/lesson flex items-center gap-4 rounded-2xl border border-sky-300/85 bg-gradient-to-r from-[#edf9ff] via-[#dff2ff] to-[#cfeaff] px-4 py-3 font-bold text-[#344b67] shadow-[0_5px_14px_rgba(8,126,186,.12)] transition hover:-translate-y-0.5 hover:border-sky-400 hover:from-[#f7fcff] hover:to-[#bfe3fb] hover:text-[#087eba] hover:shadow-[0_9px_20px_rgba(8,126,186,.2)]"
                         >
-                          <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-black ${theme.accent}`}>
+                          <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border border-sky-200 text-sm font-black shadow-sm transition group-hover/lesson:scale-105 ${theme.accent}`}>
                             {lesson.order}
                           </span>
                           <span className="min-w-0 flex-1">
                             <strong className="font-black">Bài {lesson.order}</strong>
                             <span className="ml-2">· {lesson.title}</span>
                           </span>
-                          <span aria-hidden="true">→</span>
+                          <span aria-hidden="true" className="grid h-8 w-8 place-items-center rounded-full bg-white/75 text-[#245d93] transition group-hover/lesson:translate-x-0.5 group-hover/lesson:bg-white">→</span>
                         </Link>
                       );
                     })}

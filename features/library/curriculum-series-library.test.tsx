@@ -80,4 +80,19 @@ describe("CurriculumSeriesLibrary", () => {
     expect(screen.getAllByText("Xem bài học")).toHaveLength(2);
     expect(container.querySelector("[data-book-state='locked']")).toBeTruthy();
   });
+
+  it("uses a soft blue treatment for expanded lesson rows", () => {
+    const { container } = render(
+      <CurriculumSeriesLibrary
+        series={curriculumSeriesDefinitions[0]}
+        books={books}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Quyển 1" }));
+    const lessonLink = container.querySelector("[data-lesson-link]");
+
+    expect(lessonLink?.className).toContain("from-[#edf9ff]");
+    expect(lessonLink?.className).toContain("border-sky-300/85");
+  });
 });
