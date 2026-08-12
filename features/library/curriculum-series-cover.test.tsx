@@ -16,6 +16,7 @@ describe("CurriculumSeriesCover", () => {
     const link = screen.getByRole("link", { name: "Mở bộ 1" });
     expect(link.getAttribute("href")).toBe("/thu-vien/1");
     expect(link.getAttribute("data-cover-variant")).toBe("topik-original");
+    expect(screen.getByText("Bộ sách")).toBeTruthy();
     expect(screen.getByText("TOPIK")).toBeTruthy();
     expect(link.textContent).toContain("Nền tảng chongười Việt");
     expect(screen.getByText("HỌC NGAY")).toBeTruthy();
@@ -29,7 +30,8 @@ describe("CurriculumSeriesCover", () => {
 
       const link = screen.getByRole("link", { name: `Mở bộ ${series.id}` });
       expect(link.getAttribute("href")).toBe(series.href);
-      expect(link.textContent?.trim()).toBe(series.id);
+      expect(link.textContent).toContain("Bộ sách");
+      expect(link.textContent).toContain(series.id);
       expect(link.getAttribute("data-theme")).toBe(series.theme);
       expect(screen.queryByText(/TOPIK/i)).toBeNull();
     },
