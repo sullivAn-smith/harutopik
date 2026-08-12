@@ -134,6 +134,7 @@ export function ExamRunner({
   attemptId,
   examId,
   title,
+  level,
   section: initialSection,
   expiresAt,
   initialPosition,
@@ -147,6 +148,7 @@ export function ExamRunner({
   attemptId: string;
   examId: string;
   title: string;
+  level?: "topik_i" | "topik_ii";
   section: ExamSection;
   expiresAt: string;
   initialPosition: number;
@@ -573,7 +575,44 @@ export function ExamRunner({
     : availableSections[0] === "reading"
       ? "Luyện Đọc"
       : "Luyện Nghe";
-  const levelLabel = questions.length === 50 || questions.length === 100 ? "TOPIK II" : "TOPIK I";
+  const levelLabel = level === "topik_ii"
+    ? "TOPIK II"
+    : level === "topik_i"
+      ? "TOPIK I"
+      : questions.length === 50 || questions.length === 100 ? "TOPIK II" : "TOPIK I";
+  const readingNumberOffset = activeSection === "reading" && levelLabel === "TOPIK I" ? 30 : 0;
+  const shouldShareLearnerFrame = (first?: Question, second?: Question) => Boolean(
+    first
+    && second
+    && levelLabel === "TOPIK I"
+    && second.position === first.position + 1
+    && (
+      (activeSection === "listening"
+        && first.position >= 25
+        && first.position <= 29
+        && first.position % 2 === 1
+        && first.audioBlockKey
+        && first.audioBlockKey === second.audioBlockKey)
+      || (activeSection === "reading"
+        && ((first.position >= 19 && first.position <= 25)
+          || (first.position >= 29 && first.position <= 31)
+          || (first.position >= 33 && first.position <= 39))
+        && first.position % 2 === 1
+        && first.passageBlockKey
+        && first.passageBlockKey === second.passageBlockKey)
+    ),
+  );
+  const learnerQuestionBlocks: Question[][] = [];
+  for (let index = 0; index < sectionQuestions.length; index += 1) {
+    const question = sectionQuestions[index];
+    const nextQuestion = sectionQuestions[index + 1];
+    if (shouldShareLearnerFrame(question, nextQuestion)) {
+      learnerQuestionBlocks.push([question, nextQuestion]);
+      index += 1;
+    } else {
+      learnerQuestionBlocks.push([question]);
+    }
+  }
 
   return (
     <main className="min-h-screen bg-[#eef7fc] text-[#10243e]">
@@ -659,14 +698,15 @@ export function ExamRunner({
           </div>
 
           <div className="divide-y divide-slate-200">
-            {sectionQuestions.map((question, questionIndex) => {
+            {learnerQuestionBlocks.map((questionBlock) => {
+              const renderedQuestions = questionBlock.map((question) => {
+              const questionIndex = sectionQuestions.indexOf(question);
               const questionHighlights = highlights.filter((highlight) => highlight.questionId === question.id);
               const playKey = audioKey(question);
               const isActiveAudio = activeAudioKey === playKey;
               const displayedCurrentTime = isActiveAudio ? audioCurrentTime : 0;
               const displayedDuration = isActiveAudio ? audioDuration : 0;
               const previousQuestion = sectionQuestions[questionIndex - 1];
-              const readingNumberOffset = activeSection === "reading" && sectionQuestions.length === 40 ? 30 : 0;
               const displayPosition = question.position + readingNumberOffset;
               const sharedAudioQuestions = activeSection === "listening" && question.audioBlockKey
                 ? sectionQuestions.filter((item) => item.audioBlockKey === question.audioBlockKey)
@@ -683,7 +723,11 @@ export function ExamRunner({
                 || isActiveAudio
                 || Boolean(answers[question.id])
                 || sharedAudioQuestions.some((item) => Boolean(answers[item.id]));
-              const sharedReadingQuestions = activeSection === "reading" && question.passageBlockKey
+              const separatesTopikIReading57To58 = levelLabel === "TOPIK I"
+                && activeSection === "reading"
+                && question.position >= 27
+                && question.position <= 28;
+              const sharedReadingQuestions = activeSection === "reading" && question.passageBlockKey && !separatesTopikIReading57To58
                 ? sectionQuestions.filter((item) => item.passageBlockKey === question.passageBlockKey)
                 : [];
               const sharedReadingRange = sharedReadingQuestions.length > 1
@@ -691,29 +735,61 @@ export function ExamRunner({
                 : "";
               const firstOfSharedReading = Boolean(sharedReadingRange)
                 && previousQuestion?.passageBlockKey !== question.passageBlockKey;
+              const isTopikIBoxedReading = levelLabel === "TOPIK I"
+                && activeSection === "reading"
+                && ((question.position >= 1 && question.position <= 9)
+                  || (question.position >= 13 && question.position <= 18));
+              const isTopikIHorizontalBoxedReading = levelLabel === "TOPIK I"
+                && activeSection === "reading"
+                && question.position >= 1
+                && question.position <= 9;
+              const isTopikILargeImageReading = levelLabel === "TOPIK I"
+                && activeSection === "reading"
+                && ((question.position >= 10 && question.position <= 12)
+                  || (question.position >= 33 && question.position <= 34));
+              const isTopikISharedReadingPair = levelLabel === "TOPIK I"
+                && activeSection === "reading"
+                && ((question.position >= 19 && question.position <= 26)
+                  || (question.position >= 33 && question.position <= 40));
+              const isTopikIReadingQuestion59 = levelLabel === "TOPIK I"
+                && activeSection === "reading"
+                && question.position === 29;
+              const isTopikIVerticalSharedReadingAnswer = levelLabel === "TOPIK I"
+                && activeSection === "reading"
+                && [20, 24, 26, 32, 33, 34, 35, 36, 40].includes(question.position);
+              const isTopikIVerticalListeningAnswer = levelLabel === "TOPIK I"
+                && activeSection === "listening"
+                && question.position >= 17
+                && question.position <= 30;
+              const hidesTopikIReadingPassage = levelLabel === "TOPIK I"
+                && activeSection === "reading"
+                && question.position >= 1
+                && question.position <= 18;
               const showReadingPassage = activeSection === "reading" && Boolean(question.passage)
-                && (!question.passageBlockKey || previousQuestion?.passageBlockKey !== question.passageBlockKey);
+                && !hidesTopikIReadingPassage
+                && (separatesTopikIReading57To58 || !question.passageBlockKey || previousQuestion?.passageBlockKey !== question.passageBlockKey);
               const showSideImage = Boolean(question.imageUrl && question.answerType !== "image")
-                && (!question.passageBlockKey || previousQuestion?.passageBlockKey !== question.passageBlockKey);
+                && (separatesTopikIReading57To58 || !question.passageBlockKey || previousQuestion?.passageBlockKey !== question.passageBlockKey);
               return <article key={question.id} id={`question-${question.id}`} data-question-id={question.id} className="scroll-mt-32 px-6 py-8 md:px-8 md:py-10">
-                {firstOfSharedReading && question.instruction && <h3 className="mb-5 rounded-2xl bg-slate-50 px-5 py-4 text-lg font-black text-slate-900 ring-1 ring-slate-200">※ [{sharedReadingRange}] {question.instruction}</h3>}
-                {firstOfSharedAudio && question.instruction && <h3 className="mb-5 rounded-2xl bg-cyan-50 px-5 py-4 text-lg font-black text-slate-900 ring-1 ring-cyan-100">※ [{sharedAudioRange}] {question.instruction}</h3>}
-                {showReadingPassage && <div className="mb-7 rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50 to-white p-5 md:p-7">
-                  <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-black uppercase tracking-[0.18em] text-[#087eba]">Ngữ liệu đọc</p>{question.passageBlockKey && <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-slate-500 ring-1 ring-slate-200">Dùng cho nhiều câu</span>}</div>
-                  {question.passage && <p className="whitespace-pre-wrap text-lg font-semibold leading-9 text-slate-800">{question.passage}</p>}
+                {firstOfSharedReading && question.instruction && <h3 className="mb-5 rounded-2xl bg-slate-50 px-5 py-4 text-lg font-bold text-slate-900 ring-1 ring-slate-200">[{sharedReadingRange}] {question.instruction}</h3>}
+                {firstOfSharedAudio && question.instruction && <h3 className="mb-5 rounded-2xl bg-cyan-50 px-5 py-4 text-lg font-bold text-slate-900 ring-1 ring-cyan-100">[{sharedAudioRange}] {question.instruction}</h3>}
+                {separatesTopikIReading57To58 && question.instruction && <h3 onMouseUp={(event) => prepareHighlight(question, event.currentTarget, "instruction", question.instruction)} className="mb-5 text-lg font-bold text-slate-900"><HighlightedText text={question.instruction} highlights={questionHighlights.filter((highlight) => highlight.sourceField === "instruction")} onHighlightClick={openSavedHighlight} /></h3>}
+                {showReadingPassage && <div className="exam-material-frame mb-7 border-[3px] border-black bg-white p-5 md:p-7">
+                  {!isTopikISharedReadingPair && <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-black uppercase tracking-[0.18em] text-[#087eba]">Ngữ liệu đọc</p>{question.passageBlockKey && <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-slate-500 ring-1 ring-slate-200">Dùng cho nhiều câu</span>}</div>}
+                  {question.passage && <p className="whitespace-pre-wrap text-lg font-normal leading-9 text-slate-800">{question.passage}</p>}
                 </div>}
                 <div className="flex gap-4">
                   <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full text-lg font-black ${answers[question.id] ? "bg-[#087eba] text-white" : "bg-sky-100 text-[#087eba]"}`}>{displayPosition}</span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-start justify-between gap-3">
-                      {!sharedReadingRange && !sharedAudioRange && <div onMouseUp={(event) => prepareHighlight(question, event.currentTarget, "instruction", question.instruction)} className="min-w-0 flex-1">
-                        <h3 className="text-lg font-black"><HighlightedText text={question.instruction} highlights={questionHighlights.filter((highlight) => highlight.sourceField === "instruction")} onHighlightClick={openSavedHighlight} /></h3>
+                      {!sharedReadingRange && !sharedAudioRange && !separatesTopikIReading57To58 && <div onMouseUp={(event) => prepareHighlight(question, event.currentTarget, "instruction", question.instruction)} className="min-w-0 flex-1">
+                        <h3 className="text-lg font-bold"><HighlightedText text={question.instruction} highlights={questionHighlights.filter((highlight) => highlight.sourceField === "instruction")} onHighlightClick={openSavedHighlight} /></h3>
                       </div>}
                       <button type="button" onClick={() => toggleFlag(question)} className={`rounded-full px-4 py-2 text-sm font-black ${flagged.includes(question.id) ? "bg-amber-200 text-amber-900" : "bg-slate-100 text-slate-600 hover:bg-amber-50"}`}>⚑ {flagged.includes(question.id) ? "Đã đánh dấu" : "Xem lại"}</button>
                     </div>
 
-                    {question.prompt && <div onMouseUp={(event) => prepareHighlight(question, event.currentTarget, "prompt", question.prompt)}><p className="mt-4 text-lg font-semibold leading-8 text-slate-700"><HighlightedText text={question.prompt} highlights={questionHighlights.filter((highlight) => highlight.sourceField === "prompt")} onHighlightClick={openSavedHighlight} /></p></div>}
-                    {question.secondaryPrompt && <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"><p className="mb-2 text-center text-xs font-black tracking-[0.2em] text-slate-500">＜보기＞</p><p className="whitespace-pre-wrap text-lg font-semibold leading-8 text-slate-800">{question.secondaryPrompt}</p></div>}
+                    {question.prompt && <div onMouseUp={(event) => prepareHighlight(question, event.currentTarget, "prompt", question.prompt)}><p className={isTopikIBoxedReading ? "exam-material-frame mt-4 border-[3px] border-black bg-white px-5 py-4 text-lg font-normal leading-8 text-slate-800" : "mt-4 text-lg font-normal leading-8 text-slate-700"}><HighlightedText text={question.prompt} highlights={questionHighlights.filter((highlight) => highlight.sourceField === "prompt")} onHighlightClick={openSavedHighlight} /></p></div>}
+                    {question.secondaryPrompt && <div className={isTopikIReadingQuestion59 ? "mt-4 border border-slate-500 bg-white px-5 py-4" : "mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"}>{!isTopikIReadingQuestion59 && <p className="mb-2 text-center text-xs font-black tracking-[0.2em] text-slate-500">＜보기＞</p>}<p className="whitespace-pre-wrap text-lg font-normal leading-8 text-slate-800">{question.secondaryPrompt}</p></div>}
 
                     {showListeningAudio && (question.audioUrl
                       ? <div className="mt-5 rounded-2xl bg-cyan-50 p-4 ring-1 ring-cyan-100">
@@ -754,9 +830,9 @@ export function ExamRunner({
                         </div>
                       : <p className="mt-5 rounded-2xl bg-slate-100 p-4 font-bold text-slate-600">Câu này không có audio.</p>)}
 
-                    <div className={`mt-6 ${showSideImage ? "grid items-start gap-6 xl:grid-cols-[minmax(220px,0.8fr)_minmax(340px,1.2fr)]" : ""}`}>
-                      {showSideImage && <Image unoptimized width={960} height={720} src={question.imageUrl} alt={`Ngữ liệu câu ${question.position}`} className="h-auto max-h-[620px] w-full max-w-[560px] justify-self-center rounded-2xl border border-slate-200 bg-white object-contain p-2" />}
-                      <div className={`grid ${question.answerType === "image" ? "mx-auto w-full max-w-[532px] grid-cols-2 gap-2.5" : showSideImage ? "grid-cols-1 gap-3" : "gap-3 sm:grid-cols-2"}`}>
+                    <div className={`mt-6 ${showSideImage && !isTopikILargeImageReading ? "grid items-start gap-6 xl:grid-cols-[minmax(220px,0.8fr)_minmax(340px,1.2fr)]" : ""}`}>
+                      {showSideImage && <Image unoptimized width={1200} height={900} src={question.imageUrl} alt={`Ngữ liệu câu ${question.position}`} className={isTopikILargeImageReading ? "exam-material-frame mx-auto h-auto max-h-[760px] w-full max-w-[920px] rounded-xl border-[3px] border-black bg-white object-contain p-3" : "exam-material-frame h-auto max-h-[620px] w-full max-w-[560px] justify-self-center rounded-2xl border-[3px] border-black bg-white object-contain p-2"} />}
+                      <div className={`grid ${question.answerType === "image" ? "mx-auto w-full max-w-[532px] grid-cols-2 gap-2.5" : isTopikILargeImageReading ? "mx-auto mt-6 w-full max-w-[920px] grid-cols-1 gap-3" : showSideImage ? "grid-cols-1 gap-3" : isTopikIVerticalListeningAnswer || isTopikIVerticalSharedReadingAnswer ? "grid-cols-1 gap-3" : isTopikIReadingQuestion59 || isTopikIHorizontalBoxedReading ? "grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4" : isTopikIBoxedReading ? "grid-cols-1 gap-3" : "gap-3 sm:grid-cols-2"}`}>
                       {question.options.map((option, index) => question.answerType === "image"
                         ? <button
                             type="button"
@@ -778,7 +854,7 @@ export function ExamRunner({
                               if (selectionJustMadeRef.current) { selectionJustMadeRef.current = false; return; }
                               void choose(question, index + 1);
                             }}
-                            className={`flex min-h-16 items-center gap-3 rounded-2xl border-2 p-4 text-left font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${answers[question.id] === index + 1 ? "border-[#087eba] bg-sky-100 text-[#075f88]" : "border-slate-200 hover:border-sky-300"}`}
+                            className={`flex min-h-16 items-center gap-3 rounded-2xl border-2 p-4 text-left text-lg font-normal transition disabled:cursor-not-allowed disabled:opacity-50 ${answers[question.id] === index + 1 ? "border-[#087eba] bg-sky-100 text-[#075f88]" : "border-slate-200 hover:border-sky-300"}`}
                           >
                             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white">{index + 1}</span>
                             <span onMouseUp={(event) => prepareHighlight(question, event.currentTarget, "option", option, index)}><HighlightedText text={option} highlights={questionHighlights.filter((highlight) => highlight.sourceField === "option" && highlight.sourceIndex === index)} onHighlightClick={openSavedHighlight} /></span>
@@ -788,6 +864,23 @@ export function ExamRunner({
                   </div>
                 </div>
               </article>;
+              });
+
+              if (questionBlock.length === 2) {
+                const blockOffset = questionBlock[0].section === "reading" ? readingNumberOffset : 0;
+                const range = `${questionBlock[0].position + blockOffset}-${questionBlock[1].position + blockOffset}`;
+                const isReadingPairFrame = questionBlock[0].section === "reading";
+                return <div
+                  key={`shared-question-frame-${range}`}
+                  role="group"
+                  aria-label={`Khung câu ${range}`}
+                  data-testid={`shared-question-frame-${range}`}
+                  className={isReadingPairFrame ? "m-4 divide-y divide-slate-200 overflow-hidden rounded-3xl bg-white shadow-sm md:m-6" : "m-4 divide-y divide-cyan-100 overflow-hidden rounded-3xl border-2 border-cyan-200 bg-cyan-50/30 shadow-sm md:m-6"}
+                >
+                  {renderedQuestions}
+                </div>;
+              }
+              return renderedQuestions[0];
             })}
           </div>
 

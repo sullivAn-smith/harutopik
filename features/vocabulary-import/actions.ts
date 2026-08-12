@@ -8,12 +8,125 @@ import { createClient } from "@/lib/supabase/server";
 import {
   parseVocabularyImport,
   vocabularyNaturalKey,
+  type NormalizedImportData,
 } from "@/lib/vocabulary-import/parser";
 
 export type VocabularyImportState = {
   status: "idle" | "error";
   message?: string;
 };
+
+type ImportCommitError = {
+  code?: string;
+  message: string;
+};
+
+function isNaturalKeyConflict(error: ImportCommitError | null) {
+  return (
+    error?.code === "23505" &&
+    error.message.toLowerCase().includes("duplicate vocabulary natural key")
+  );
+}
+
+async function commitWithLegacyDatabase(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  importId: string,
+): Promise<{ error: ImportCommitError | null }> {
+  const { data: rows, error: rowsError } = await supabase
+    .from("content_import_rows")
+    .select("id,row_status,normalized_data")
+    .eq("import_id", importId)
+    .in("row_status", ["valid", "duplicate"])
+    .order("row_number")
+    .range(0, 4_999);
+
+  if (rowsError) return { error: rowsError };
+
+  for (const row of rows ?? []) {
+    if (row.row_status === "duplicate") {
+      const { error } = await supabase
+        .from("content_import_rows")
+        .update({ row_status: "skipped" })
+        .eq("id", row.id);
+      if (error) return { error };
+      continue;
+    }
+
+    const vocabulary = row.normalized_data as NormalizedImportData;
+    const { data: vocabularyId, error: createError } = await supabase.rpc(
+      "create_vocabulary_draft",
+      {
+        p_hangul: vocabulary.hangul,
+        p_romanization: vocabulary.romanization,
+        p_primary_meaning_vi: vocabulary.meaning_vi,
+        p_part_of_speech: vocabulary.part_of_speech,
+        p_level: vocabulary.level,
+        p_category: vocabulary.category,
+        p_audio_url: vocabulary.audio_url,
+        p_image_url: vocabulary.image_url,
+        p_accepted_vi: vocabulary.accepted_vi,
+        p_accepted_ko: vocabulary.accepted_ko,
+        p_examples: vocabulary.examples,
+      },
+    );
+
+    if (isNaturalKeyConflict(createError)) {
+      const { error } = await supabase
+        .from("content_import_rows")
+        .update({
+          row_status: "skipped",
+          duplicate_of: `Từ “${vocabulary.hangul}” đã tồn tại trong thư viện và được tự động bỏ qua.`,
+        })
+        .eq("id", row.id);
+      if (error) return { error };
+      continue;
+    }
+
+    if (createError || typeof vocabularyId !== "string") {
+      return {
+        error:
+          createError ?? {
+            message: "create_vocabulary_draft returned no id",
+          },
+      };
+    }
+
+    const { error: rowUpdateError } = await supabase
+      .from("content_import_rows")
+      .update({
+        row_status: "imported",
+        imported_vocabulary_id: vocabularyId,
+      })
+      .eq("id", row.id);
+    if (rowUpdateError) return { error: rowUpdateError };
+  }
+
+  const { data: completedRows, error: completedRowsError } = await supabase
+    .from("content_import_rows")
+    .select("row_status")
+    .eq("import_id", importId)
+    .range(0, 4_999);
+  if (completedRowsError) return { error: completedRowsError };
+
+  const importedCount = (completedRows ?? []).filter(
+    (row) => row.row_status === "imported",
+  ).length;
+  const skippedCount = (completedRows ?? []).filter(
+    (row) => row.row_status === "skipped",
+  ).length;
+
+  const { error: batchUpdateError } = await supabase
+    .from("content_imports")
+    .update({
+      status: "completed",
+      valid_rows: importedCount,
+      duplicate_rows: skippedCount,
+      completed_at: new Date().toISOString(),
+    })
+    .eq("id", importId);
+
+  return { error: batchUpdateError };
+}
 
 export async function uploadVocabularyImport(
   _state: VocabularyImportState,
@@ -168,8 +281,14 @@ export async function commitVocabularyImport(formData: FormData) {
   const { error } = await supabase.rpc("commit_vocabulary_import", {
     p_import_id: importId,
   });
-  if (error) {
-    const friendly = toUserFacingError(error, "Chưa thể hoàn tất nhập dữ liệu.");
+  const commitError = isNaturalKeyConflict(error)
+    ? (await commitWithLegacyDatabase(supabase, importId)).error
+    : error;
+  if (commitError) {
+    const friendly = toUserFacingError(
+      commitError,
+      "Chưa thể hoàn tất nhập dữ liệu.",
+    );
     redirect(
       `/bien-tap/nhap-tu-vung/${importId}?error=${encodeURIComponent(friendly.message)}`,
     );

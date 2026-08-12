@@ -92,7 +92,7 @@ export async function getExamAttempt(attemptId: string, userId: string) {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("exam_attempts")
-    .select("id,exam_id,user_id,status,attempt_mode,exam_version,started_at,submitted_at,expires_at,current_position,current_section,listening_expires_at,reading_expires_at,audio_plays,window_leave_count,answers,flagged,question_snapshot,score,listening_score,reading_score,correct_count,total_questions,exam_sets(code,title,version,instructions,answer_review_policy,answer_review_available_at),exam_highlights(id,selected_text,color,section,question_id,source_field,source_index,prefix_text,suffix_text,review_list_id,review_saved_at)")
+    .select("id,exam_id,user_id,status,attempt_mode,exam_version,started_at,submitted_at,expires_at,current_position,current_section,listening_expires_at,reading_expires_at,audio_plays,window_leave_count,answers,flagged,question_snapshot,score,listening_score,reading_score,correct_count,total_questions,exam_sets(code,title,level,version,instructions,answer_review_policy,answer_review_available_at),exam_highlights(id,selected_text,color,section,question_id,source_field,source_index,prefix_text,suffix_text,review_list_id,review_saved_at)")
     .eq("id", attemptId)
     .eq("user_id", userId)
     .maybeSingle();
