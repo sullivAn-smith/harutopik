@@ -10,6 +10,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { getPublishedVocabularyByLesson } from "@/lib/data/published-vocabulary";
 import {
   buildPublishedCourses,
+  compactPublishedCatalogRowsForShells,
   type PublishedCatalogRow,
 } from "@/lib/data/published-catalog-normalizer";
 import { publishedLearningCacheTag } from "@/lib/data/published-cache";
@@ -31,21 +32,27 @@ const loadPublishedCatalogRows = async (): Promise<PublishedCatalogRow[] | null>
 
 const getPublishedCatalogRowsAcrossRequests = unstable_cache(
   loadPublishedCatalogRows,
-  ["published-catalog-rows-v2"],
+  // v3 invalidates the cached local fallback that could hide newly published
+  // courses and lessons after the curriculum library migration.
+  ["published-catalog-rows-v3"],
   { tags: [publishedLearningCacheTag], revalidate: 300 },
 );
 
 const loadPublishedCourseShells = async () => {
-  const rows = await getPublishedCatalogRowsAcrossRequests();
+  // Do not read the full-payload row cache here. The shelf result only needs
+  // lightweight lesson metadata and must stay below Next.js' 2 MB item limit.
+  const rows = await loadPublishedCatalogRows();
   if (!rows) return sourceCourses;
 
-  const databaseCourses = buildPublishedCourses(rows);
+  const databaseCourses = buildPublishedCourses(
+    compactPublishedCatalogRowsForShells(rows),
+  );
   return databaseCourses.length > 0 ? databaseCourses : sourceCourses;
 };
 
 const getPublishedCourseShellsAcrossRequests = unstable_cache(
   loadPublishedCourseShells,
-  ["published-course-shells-v2"],
+  ["published-course-shells-v3"],
   { tags: [publishedLearningCacheTag], revalidate: 300 },
 );
 
@@ -68,7 +75,7 @@ const loadPublishedCourses = async () => {
 
 const getPublishedCoursesAcrossRequests = unstable_cache(
   loadPublishedCourses,
-  ["published-courses-v2"],
+  ["published-courses-v3"],
   { tags: [publishedLearningCacheTag], revalidate: 300 },
 );
 
@@ -117,7 +124,7 @@ const loadPublishedLessonRouteData = async (
 
 const getPublishedLessonAcrossRequests = unstable_cache(
   loadPublishedLessonRouteData,
-  ["published-lesson-route-v2"],
+  ["published-lesson-route-v3"],
   { tags: [publishedLearningCacheTag], revalidate: 300 },
 );
 

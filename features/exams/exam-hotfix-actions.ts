@@ -34,6 +34,7 @@ export async function hotfixPublishedExam(examId: string, _state: { ok: boolean;
   revalidatePath("/luyen-de");
   revalidatePath(`/luyen-de/${examId}`);
   revalidatePath(`/luyen-de/${examId}/lam-bai`);
+  revalidatePath(`/bien-tap/de-thi/${examId}/xem-truoc`);
   revalidatePath(`/quan-tri/de-thi/${examId}`);
   return { ok: true, message: `Đã áp dụng phiên bản ${data}. Lượt thi mở lại sẽ tự dùng nội dung mới.` };
 }

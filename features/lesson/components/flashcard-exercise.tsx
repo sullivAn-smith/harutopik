@@ -145,14 +145,15 @@ export function FlashcardExercise({
         </button>
 
         <div className="flex flex-wrap items-center justify-center gap-3 px-5 py-5">
-          <SaveToListButton lessonId={lessonId} item={word} variant="button" />
           <button
             type="button"
             onClick={onPrevious}
             disabled={first}
-            className="rounded-xl border-2 border-[#10243e] bg-blue-50 px-5 py-3 text-base font-black text-[#10243e] shadow-[0_5px_0_#10243e] disabled:cursor-not-allowed disabled:opacity-35"
+            aria-label="Thẻ trước"
+            title="Thẻ trước"
+            className="grid h-12 w-12 place-items-center rounded-full border-2 border-[#10243e] bg-blue-50 text-3xl font-black leading-none text-[#10243e] shadow-[0_4px_0_#10243e] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35"
           >
-            ← Trước
+            ‹
           </button>
           <div className="flex gap-2">
             <button
@@ -182,9 +183,11 @@ export function FlashcardExercise({
             type="button"
             onClick={onNext}
             disabled={last}
-            className="rounded-xl border-2 border-[#10243e] bg-[#10243e] px-5 py-3 text-base font-black text-white shadow-[0_5px_0_#071224] disabled:cursor-not-allowed disabled:opacity-35"
+            aria-label="Thẻ sau"
+            title="Thẻ sau"
+            className="grid h-12 w-12 place-items-center rounded-full border-2 border-[#10243e] bg-[#10243e] text-3xl font-black leading-none text-white shadow-[0_4px_0_#071224] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35"
           >
-            Sau →
+            ›
           </button>
           {last && (
             <button

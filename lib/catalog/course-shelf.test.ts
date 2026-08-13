@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildTopikShelf,
   getAdditionalPublishedCourses,
+  getTopikBookLevelLabel,
 } from "./course-shelf";
 
 describe("course shelf", () => {
@@ -22,5 +23,21 @@ describe("course shelf", () => {
 
     expect(buildTopikShelf(courses)[1].course).toBeNull();
     expect(getAdditionalPublishedCourses(courses)).toEqual(courses);
+  });
+
+  it("hiển thị đúng số quyển trên nhãn cấp độ bài học", () => {
+    expect(
+      [1, 2, 3, 4, 5, 6].map((number) =>
+        getTopikBookLevelLabel(`topik-${number}`),
+      ),
+    ).toEqual([
+      "SƠ CẤP 1",
+      "SƠ CẤP 2",
+      "SƠ CẤP 3",
+      "SƠ CẤP 4",
+      "SƠ CẤP 5",
+      "SƠ CẤP 6",
+    ]);
+    expect(getTopikBookLevelLabel("topik-2-testing")).toBeUndefined();
   });
 });

@@ -71,6 +71,7 @@ type LessonExperienceOptions = {
   vocabularyOnly?: boolean;
   contextLabel?: string;
   statusLabel?: string;
+  speedTestHref?: string;
 };
 
 function LessonContent({
@@ -82,6 +83,7 @@ function LessonContent({
   vocabularyOnly = false,
   contextLabel,
   statusLabel,
+  speedTestHref,
 }: LessonExperienceOptions) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -115,6 +117,10 @@ function LessonContent({
   const [skipFlipAnimation, setSkipFlipAnimation] = useState(false);
   const [learnedIndices, setLearnedIndices] = useState<number[]>([]);
   const [shuffleSeed, setShuffleSeed] = useState(1);
+
+  useEffect(() => {
+    router.prefetch("/");
+  }, [router]);
 
   const [quizAnswer, setQuizAnswer] = useState<string | null>(null);
   const [quizCorrectCount, setQuizCorrectCount] = useState(0);
@@ -824,6 +830,7 @@ function LessonContent({
               activeMode={mode}
               availableModes={availableStudyModes}
               onChange={changeMode}
+              speedTestHref={speedTestHref}
             />
 
             {mode === "flashcard" && (
@@ -856,12 +863,14 @@ function LessonContent({
                 onMarkLearned={() => {
                   addUniqueIndex(setLearnedIndices, current);
                   void rateContent("flashcard", activeWord.id, "good");
+                  move(1);
                 }}
                 onMarkUnlearned={() => {
                   setLearnedIndices((items) =>
                     items.filter((item) => item !== current),
                   );
                   void rateContent("flashcard", activeWord.id, "again");
+                  move(1);
                 }}
                 onPrevious={() => move(-1)}
                 onNext={() => move(1)}

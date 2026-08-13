@@ -3,6 +3,12 @@ import "server-only";
 import { requirePermission } from "@/lib/auth/authorize";
 import { createClient } from "@/lib/supabase/server";
 import { lessonSchema, type Lesson } from "@/content/schema";
+import {
+  isMissingPublishedSummaryRpc,
+  mapPublishedLessonSummaryRows,
+  type PublishedLessonSummary,
+  type PublishedLessonSummaryRow,
+} from "@/lib/data/admin-published-summary";
 
 export type ContentRevisionDTO = {
   id: string;
@@ -187,8 +193,7 @@ export async function getAdminContentStats() {
   }, {});
 }
 
-export async function getPublishedLessonsForHotfix() {
-  await requirePermission("content:publish");
+async function getPublishedLessonsFromPayload(): Promise<PublishedLessonSummary[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("published_catalog")
@@ -213,6 +218,24 @@ export async function getPublishedLessonsForHotfix() {
         }]
       : [];
   });
+}
+
+export async function getPublishedLessonsForHotfix(): Promise<PublishedLessonSummary[]> {
+  await requirePermission("content:publish");
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .rpc("get_published_lesson_admin_summaries");
+
+  // Keep deployments safe if application code reaches production before the
+  // migration. Permission and database errors must never bypass the RPC.
+  if (error) {
+    if (isMissingPublishedSummaryRpc(error)) return getPublishedLessonsFromPayload();
+    throw new Error("Không thể tải các bài đang phát hành.");
+  }
+
+  return mapPublishedLessonSummaryRows(
+    (data ?? []) as PublishedLessonSummaryRow[],
+  );
 }
 
 export type VocabularyDuplicateLocation = {

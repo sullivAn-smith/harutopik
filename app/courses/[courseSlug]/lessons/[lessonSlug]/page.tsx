@@ -4,6 +4,7 @@ import {
   getLessonParams,
 } from "@/content/catalog";
 import { LessonExperience } from "@/features/lesson/lesson-experience";
+import { getTopikBookLevelLabel } from "@/lib/catalog/course-shelf";
 import { getPublishedLessonRouteData } from "@/lib/data/published-catalog";
 import { getCurrentActor } from "@/lib/auth/authorize";
 
@@ -45,5 +46,13 @@ export default async function LessonPage({ params }: LessonPageProps) {
   const data = await lessonData;
   if (!data) notFound();
 
-  return <LessonExperience lesson={data.lesson} />;
+  return (
+    <LessonExperience
+      lesson={data.lesson}
+      backHref="/thu-vien/1"
+      backLabel="Danh sách quyển"
+      statusLabel={getTopikBookLevelLabel(courseSlug)}
+      speedTestHref={`/courses/${encodeURIComponent(courseSlug)}/lessons/${encodeURIComponent(lessonSlug)}/speed-test`}
+    />
+  );
 }

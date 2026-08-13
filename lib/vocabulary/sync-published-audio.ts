@@ -38,11 +38,13 @@ export async function syncPublishedVocabularyAudio(
       admin
         .from("content_revisions")
         .select("id,payload")
-        .eq("content_type", "lesson"),
+        .eq("content_type", "lesson")
+        .contains("payload", { vocabulary: [{ id: vocabularyId }] }),
       admin
         .from("published_catalog")
         .select("content_id,payload")
-        .eq("content_type", "lesson"),
+        .eq("content_type", "lesson")
+        .contains("payload", { vocabulary: [{ id: vocabularyId }] }),
     ]);
   if (revisionReadError || catalogReadError) return false;
 

@@ -17,7 +17,7 @@ export type ExamTemplateGroup = {
 
 export const examTemplateGroups: readonly ExamTemplateGroup[] = [
   { id: "i-l-1-14", level: "topik_i", section: "listening", range: "1–14", target: 14, label: "Audio riêng từng câu", flow: "single" },
-  { id: "i-l-15-16", level: "topik_i", section: "listening", range: "15–16", target: 2, label: "Một audio chung · 4 đáp án ảnh", flow: "shared", answerType: "image" },
+  { id: "i-l-15-16", level: "topik_i", section: "listening", range: "15–16", target: 2, label: "Audio riêng từng câu · 4 đáp án ảnh", flow: "single", answerType: "image" },
   { id: "i-l-17-24", level: "topik_i", section: "listening", range: "17–24", target: 8, label: "Audio riêng từng câu", flow: "single" },
   { id: "i-l-25-26", level: "topik_i", section: "listening", range: "25–26", target: 2, label: "Một audio chung cho câu 25–26", flow: "shared" },
   { id: "i-l-27-28", level: "topik_i", section: "listening", range: "27–28", target: 2, label: "Một audio chung cho câu 27–28", flow: "shared" },
@@ -29,7 +29,7 @@ export const examTemplateGroups: readonly ExamTemplateGroup[] = [
   { id: "i-r-51-52", level: "topik_i", section: "reading", range: "21–22", target: 2, label: "Câu 51–52 · chung bài đọc", flow: "shared", readingTypes: ["long_passage"] },
   { id: "i-r-53-54", level: "topik_i", section: "reading", range: "23–24", target: 2, label: "Câu 53–54 · chung bài đọc", flow: "shared", readingTypes: ["long_passage"] },
   { id: "i-r-55-56", level: "topik_i", section: "reading", range: "25–26", target: 2, label: "Câu 55–56 · chung bài đọc", flow: "shared", readingTypes: ["long_passage"] },
-  { id: "i-r-57-58", level: "topik_i", section: "reading", range: "27–28", target: 2, label: "Câu 57–58 · chung bài đọc", flow: "shared", readingTypes: ["long_passage"] },
+  { id: "i-r-57-58", level: "topik_i", section: "reading", range: "27–28", target: 2, label: "Câu 57–58 · nhập riêng từng câu", flow: "single", readingTypes: ["long_passage"] },
   { id: "i-r-59-60", level: "topik_i", section: "reading", range: "29–30", target: 2, label: "Câu 59–60 · chung bài đọc + tiêu đề", flow: "shared", readingTypes: ["long_passage"] },
   { id: "i-r-61-62", level: "topik_i", section: "reading", range: "31–32", target: 2, label: "Câu 61–62 · chung bài đọc", flow: "shared", readingTypes: ["long_passage"] },
   { id: "i-r-63-64", level: "topik_i", section: "reading", range: "33–34", target: 2, label: "Câu 63–64 · chung ảnh đề + tiêu đề", flow: "shared", readingTypes: ["practical_info"] },
@@ -61,6 +61,93 @@ export function getExamTemplateGroups(level: ExamLevel): readonly ExamTemplateGr
   return examTemplateGroups.filter((row) => row.level === level);
 }
 
+type FixedExamQuestionCopy = Partial<Pick<ExamQuestionInput, "instruction" | "prompt">>;
+
+export function isTopikIBoxedReadingQuestion(
+  level: ExamLevel,
+  section: ExamSection,
+  position: number,
+) {
+  return level === "topik_i" && section === "reading" && position >= 1 && position <= 9;
+}
+
+export function shouldHideTopikIReadingPassage(
+  level: ExamLevel,
+  section: ExamSection,
+  position: number,
+) {
+  return level === "topik_i" && section === "reading" && position >= 1 && position <= 18;
+}
+
+/**
+ * TOPIK I listening questions 1–28 always use the same official-style
+ * instructions. Keeping them in the template prevents editors and imports
+ * from having to re-enter (or accidentally change) this fixed copy per exam.
+ */
+export function getFixedExamQuestionCopy(
+  level: ExamLevel,
+  section: ExamSection,
+  position: number,
+): FixedExamQuestionCopy | null {
+  if (isTopikIBoxedReadingQuestion(level, section, position)) {
+    return {
+      instruction: position <= 3
+        ? "무엇에 대한 이야기입니까? 알맞은 것을 고르십시오."
+        : "빈칸에 들어갈 가장 알맞은 것을 고르십시오.",
+    };
+  }
+
+  if (level !== "topik_i" || section !== "listening" || position < 1 || position > 28) {
+    return null;
+  }
+
+  if (position <= 4) {
+    return { instruction: "다음을 듣고 물음에 맞는 대답을 고르십시오.", prompt: "" };
+  }
+  if (position <= 6) {
+    return { instruction: "다음을 듣고 이어지는 말을 고르십시오.", prompt: "" };
+  }
+  if (position <= 10) {
+    return { instruction: "여기는 어디입니까? 알맞은 것을 고르십시오.", prompt: "" };
+  }
+  if (position <= 14) {
+    return { instruction: "다음은 무엇에 대해 말하고 있습니까? 알맞은 것을 고르십시오.", prompt: "" };
+  }
+  if (position <= 16) {
+    return { instruction: "다음 대화를 듣고 알맞은 그림을 고르십시오.", prompt: "" };
+  }
+  if (position <= 21) {
+    return { instruction: "다음을 듣고 대화 내용과 같은 것을 고르십시오.", prompt: "" };
+  }
+  if (position <= 24) {
+    return { instruction: "다음을 듣고 여자의 중심 생각을 고르십시오.", prompt: "" };
+  }
+  if (position === 25) {
+    return {
+      instruction: "어떤 이야기를 하고 있는지 고르십시오.",
+      prompt: "어떤 이야기를 하고 있는지 고르십시오.",
+    };
+  }
+  if (position === 26) {
+    return { instruction: "", prompt: "들은 내용과 같은 것을 고르십시오." };
+  }
+  if (position === 27) {
+    return {
+      instruction: "다음을 듣고 물음에 답하십시오.",
+      prompt: "두 사람이 무엇에 대해 이야기를 하고 있는지 고르십시오.",
+    };
+  }
+  return { instruction: "", prompt: "들은 내용과 같은 것을 고르십시오." };
+}
+
+export function applyFixedExamQuestionCopy(
+  level: ExamLevel,
+  question: ExamQuestionInput,
+): ExamQuestionInput {
+  const fixedCopy = getFixedExamQuestionCopy(level, question.section, question.position);
+  return fixedCopy ? { ...question, ...fixedCopy } : question;
+}
+
 function rangeOf(row: ExamTemplateGroup) {
   const [start, end] = row.range.split("–").map(Number);
   return { start, end };
@@ -73,7 +160,7 @@ export function buildExamSkeleton(level: ExamLevel): ExamQuestionInput[] {
       const position = start + offset;
       const sharedPair = row.flow === "shared" ? Math.floor(offset / (row.sharedSize ?? 2)) + 1 : null;
       const readingType = row.readingTypes?.[0] ?? "standard";
-      return {
+      const question = {
         position,
         section: row.section,
         audioBlockKey: row.section === "listening" && sharedPair ? `${row.id}-audio-${sharedPair}` : "",
@@ -83,6 +170,7 @@ export function buildExamSkeleton(level: ExamLevel): ExamQuestionInput[] {
         answerType: row.answerType ?? "text",
         instruction: "",
         prompt: "",
+        underlinedText: "",
         audioUrl: "",
         audioText: "",
         imageUrl: "",
@@ -92,6 +180,7 @@ export function buildExamSkeleton(level: ExamLevel): ExamQuestionInput[] {
         correctOption: 1,
         explanation: "",
       } satisfies ExamQuestionInput;
+      return applyFixedExamQuestionCopy(level, question);
     });
   });
 }
@@ -113,14 +202,23 @@ export function completeExamSkeleton(level: ExamLevel, existing: ExamQuestionInp
   return buildExamSkeleton(level).map((slot) => {
     const saved = byPosition.get(`${slot.section}:${slot.position}`);
     if (!saved) return slot;
-    return {
+    const clearsReadingPassage = shouldHideTopikIReadingPassage(level, slot.section, slot.position);
+    const normalized = {
       ...saved,
       audioBlockKey: slot.audioBlockKey,
       readingType: slot.readingType,
       passageBlockKey: slot.passageBlockKey,
+      passage: clearsReadingPassage ? "" : saved.passage,
       answerType: slot.answerType,
       instruction: generatedTemplateLabels.has(saved.instruction) ? "" : saved.instruction,
       options: slot.answerType === "image" && saved.options.every((option) => !option.trim()) ? slot.options : saved.options,
+    };
+    const fixedCopy = getFixedExamQuestionCopy(level, slot.section, slot.position);
+    if (!fixedCopy) return normalized;
+    return {
+      ...normalized,
+      instruction: normalized.instruction.trim() ? normalized.instruction : fixedCopy.instruction ?? normalized.instruction,
+      prompt: normalized.prompt.trim() ? normalized.prompt : fixedCopy.prompt ?? normalized.prompt,
     };
   });
 }

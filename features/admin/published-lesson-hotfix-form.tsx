@@ -7,6 +7,7 @@ import {
   applyPublishedLessonHotfix,
 } from "./hotfix-actions";
 import { SentenceAudioButton } from "./sentence-audio-button";
+import { VocabularyListAudioButton } from "./vocabulary-list-audio-button";
 import {
   GrammarExerciseImport,
   type GrammarExerciseDraft,
@@ -619,6 +620,10 @@ export function PublishedLessonHotfixForm({ lesson }: { lesson: Lesson }) {
                   Từ {index + 1} →
                 </span>
               </Link>
+              <VocabularyListAudioButton
+                vocabularyId={item.id}
+                currentAudioUrl={item.audioUrl}
+              />
             </article>
           ))}
         </div>

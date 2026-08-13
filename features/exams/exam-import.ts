@@ -1,9 +1,21 @@
 import type { ExamQuestionInput, ExamSection } from "@/lib/exams/types";
 
-const requiredHeaders = [
-  "section", "number", "instruction", "question", "option_1", "option_2",
-  "option_3", "option_4", "correct_option", "explanation",
-] as const;
+const requiredHeaders = ["section", "number"] as const;
+
+const headerAliases: Record<string, readonly string[]> = {
+  section: ["section", "phan", "phần"],
+  number: ["number", "so_cau", "số_câu"],
+  instruction: ["instruction", "tieu_de", "tiêu_đề"],
+  question: ["question", "cau_hoi_hien_thi", "câu_hỏi_hiển_thị"],
+  secondary_question: ["secondary_question", "cau_hoi_rieng_2", "câu_hỏi_riêng_2"],
+  underlined_text: ["underlined_text", "tu_gach_chan", "từ_gạch_chân"],
+  passage: ["passage", "bai_doc", "bài_đọc"],
+  audio_text: ["audio_text", "noi_dung_audio", "nội_dung_audio"],
+  audio_url: ["audio_url"],
+  image_url: ["image_url", "anh_de_url", "ảnh_đề_url"],
+  correct_option: ["correct_option", "dap_an_dung", "đáp_án_đúng"],
+  explanation: ["explanation", "giai_thich", "giải_thích"],
+};
 
 const readingTypes = new Set(["standard", "fill_blank", "image_match", "practical_info", "same_topic", "main_idea", "sentence_order", "insert_sentence", "equivalent_expression", "title_match", "long_passage"]);
 
@@ -29,26 +41,39 @@ export function parseCsv(source: string): string[][] {
 
 export function parseExamImportRows(rows: unknown[][]): ExamQuestionInput[] {
   if (rows.length < 2) throw new Error("File chưa có dữ liệu.");
-  const headers = rows[0].map((cell) => String(cell ?? "").trim().toLowerCase());
-  const missing = requiredHeaders.filter((header) => !headers.includes(header));
+  const headerRowIndex = rows.findIndex((row) => {
+    const normalized = row.map((cell) => String(cell ?? "").trim().toLowerCase());
+    return normalized.includes("section") && normalized.includes("number");
+  });
+  if (headerRowIndex < 0) throw new Error("Không tìm thấy dòng tiêu đề có cột section và number.");
+  const headers = rows[headerRowIndex].map((cell) => String(cell ?? "").trim().toLowerCase());
+  const findHeaderIndex = (name: string) => {
+    const aliases = headerAliases[name] ?? [name];
+    return headers.findIndex((header) => aliases.includes(header));
+  };
+  const missing = requiredHeaders.filter((header) => findHeaderIndex(header) < 0);
   if (missing.length) throw new Error(`Thiếu cột: ${missing.join(", ")}.`);
-  const value = (row: unknown[], name: string) =>
-    String(row[headers.indexOf(name)] ?? "").trim();
+  const value = (row: unknown[], name: string) => {
+    const index = findHeaderIndex(name);
+    const result = String(index >= 0 ? row[index] ?? "" : "").trim();
+    return /(?:🔒\s*)?KHÓA/i.test(result) ? "" : result;
+  };
   const positions = new Set<string>();
-  const parsed = rows.slice(1).filter((row) => row.some((cell) => cell !== null && cell !== "")).map((row, rowIndex) => {
-    const section = value(row, "section") as ExamSection;
+  const parsed = rows.slice(headerRowIndex + 1).filter((row) => row.some((cell) => cell !== null && cell !== "")).map((row, rowIndex) => {
+    const rawSection = value(row, "section").toLowerCase();
+    const section = (rawSection === "nghe" ? "listening" : rawSection === "đọc" || rawSection === "doc" ? "reading" : rawSection) as ExamSection;
     if (section !== "listening" && section !== "reading") {
-      throw new Error(`Dòng ${rowIndex + 2}: section phải là listening hoặc reading.`);
+      throw new Error(`Dòng ${rowIndex + headerRowIndex + 2}: section phải là listening hoặc reading.`);
     }
     const position = Number(value(row, "number"));
-    const answer = Number(value(row, "correct_option"));
+    const answer = Number(value(row, "correct_option") || "1");
     const answerType = value(row, "answer_type") === "image" ? "image" as const : "text" as const;
     const rawReadingType = value(row, "reading_type") || "standard";
-    if (!readingTypes.has(rawReadingType)) throw new Error(`Dòng ${rowIndex + 2}: reading_type không hợp lệ.`);
-    if (!Number.isInteger(position) || position < 1) throw new Error(`Dòng ${rowIndex + 2}: number không hợp lệ.`);
-    if (!Number.isInteger(answer) || answer < 1 || answer > 4) throw new Error(`Dòng ${rowIndex + 2}: correct_option phải từ 1 đến 4.`);
+    if (!readingTypes.has(rawReadingType)) throw new Error(`Dòng ${rowIndex + headerRowIndex + 2}: reading_type không hợp lệ.`);
+    if (!Number.isInteger(position) || position < 1) throw new Error(`Dòng ${rowIndex + headerRowIndex + 2}: number không hợp lệ.`);
+    if (!Number.isInteger(answer) || answer < 1 || answer > 4) throw new Error(`Dòng ${rowIndex + headerRowIndex + 2}: correct_option phải từ 1 đến 4.`);
     const key = `${section}:${position}`;
-    if (positions.has(key)) throw new Error(`Dòng ${rowIndex + 2}: số câu bị trùng trong phần ${section}.`);
+    if (positions.has(key)) throw new Error(`Dòng ${rowIndex + headerRowIndex + 2}: số câu bị trùng trong phần ${section}.`);
     positions.add(key);
     const options = [1, 2, 3, 4].map((index) => value(row, `option_${index}`));
     const optionImages = [1, 2, 3, 4].map((index) => value(row, `option_image_${index}`));
@@ -65,8 +90,9 @@ export function parseExamImportRows(rows: unknown[][]): ExamQuestionInput[] {
       answerType,
       instruction: value(row, "instruction"),
       prompt: value(row, "question"),
-      audioUrl: "",
-      audioText: value(row, "audio_text"),
+      audioUrl: value(row, "audio_url"),
+      audioText: value(row, "secondary_question") || value(row, "audio_text"),
+      underlinedText: value(row, "underlined_text"),
       imageUrl: value(row, "image_url"),
       playLimit: 1,
       options,

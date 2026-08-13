@@ -299,12 +299,20 @@ export function VocabularyListsManager({ backHref }: { backHref: string }) {
                   </div>
                   <div className="flex gap-2">
                     {!!active.itemCount && (
-                      <Link
-                        href={`/tu-cua-toi/${active.id}/hoc?back=${encodeURIComponent(backHref)}`}
-                        className="rounded-xl bg-emerald-600 px-4 py-2.5 font-black text-white transition hover:-translate-y-0.5 hover:bg-emerald-700"
-                      >
-                        Học bộ này
-                      </Link>
+                      <>
+                        <Link
+                          href={`/speed-test?listId=${active.id}`}
+                          className="rounded-xl bg-amber-100 px-4 py-2.5 font-black text-amber-800 transition hover:-translate-y-0.5 hover:bg-amber-200"
+                        >
+                          ⚡ Speed Test
+                        </Link>
+                        <Link
+                          href={`/tu-cua-toi/${active.id}/hoc?back=${encodeURIComponent(backHref)}`}
+                          className="rounded-xl bg-emerald-600 px-4 py-2.5 font-black text-white transition hover:-translate-y-0.5 hover:bg-emerald-700"
+                        >
+                          Học bộ này
+                        </Link>
+                      </>
                     )}
                     {active.kind === "custom" && (
                       <button

@@ -29,14 +29,16 @@ export async function getNotifications(limit = 30) {
   return data ?? [];
 }
 
-export async function getUnreadNotificationCount() {
-  const actor = await getCurrentActor();
-  if (!actor) return 0;
+export async function getUnreadNotificationCount(knownUserId?: string | null) {
+  const userId = knownUserId === undefined
+    ? (await getCurrentActor())?.id ?? null
+    : knownUserId;
+  if (!userId) return 0;
   const supabase = await createClient();
   const { count } = await supabase
     .from("notifications")
     .select("id", { count: "exact", head: true })
-    .eq("user_id", actor.id)
+    .eq("user_id", userId)
     .is("read_at", null);
   return count ?? 0;
 }

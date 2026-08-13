@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { StudyMode } from "@/features/lesson/types";
 
 const modes: ReadonlyArray<{
@@ -16,12 +17,14 @@ type ModeNavigationProps = {
   activeMode: StudyMode;
   availableModes: readonly StudyMode[];
   onChange: (mode: StudyMode) => void;
+  speedTestHref?: string;
 };
 
 export function ModeNavigation({
   activeMode,
   availableModes,
   onChange,
+  speedTestHref,
 }: ModeNavigationProps) {
   return (
     <nav
@@ -43,6 +46,14 @@ export function ModeNavigation({
           {mode.label}
         </button>
       ))}
+      {speedTestHref && (
+        <Link
+          href={speedTestHref}
+          className="ml-auto shrink-0 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-3 text-sm font-black text-[#10243e] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+        >
+          ⚡ Speed Test
+        </Link>
+      )}
     </nav>
   );
 }

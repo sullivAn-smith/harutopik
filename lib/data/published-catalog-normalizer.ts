@@ -8,6 +8,42 @@ export type PublishedCatalogRow = {
   payload: unknown;
 };
 
+/**
+ * Course shelves only need lesson identity and display metadata. Keeping the
+ * complete vocabulary, grammar and exercise payload in this list can exceed
+ * Next.js' 2 MB Data Cache item limit. Full lesson content is still loaded by
+ * the dedicated lesson route.
+ */
+export function compactPublishedCatalogRowsForShells(
+  rows: PublishedCatalogRow[],
+): PublishedCatalogRow[] {
+  return rows.map((row) => {
+    if (row.content_type !== "lesson") return row;
+
+    const lesson = row.payload as Partial<Lesson> | null;
+    if (!lesson) return row;
+
+    return {
+      ...row,
+      payload: {
+        id: lesson.id,
+        slug: lesson.slug,
+        courseId: lesson.courseId,
+        moduleId: lesson.moduleId,
+        order: lesson.order,
+        version: lesson.version,
+        status: lesson.status,
+        title: lesson.title,
+        summary: lesson.summary,
+        objectives: lesson.objectives,
+        vocabulary: [],
+        grammar: [],
+        exercises: [],
+      },
+    };
+  });
+}
+
 type ModulePayload = {
   id?: string;
   slug?: string;

@@ -135,14 +135,8 @@ export async function generateVocabularyAudioForActor(input: {
         })
         .eq("id", item.id);
     }
-    const snapshotsSynced = await syncPublishedVocabularyAudio(
-      admin,
-      item.id,
-      result.publicUrl,
-    );
-    if (!snapshotsSynced) {
-      throw new Error("Audio đã tạo nhưng chưa đồng bộ được sang bài học.");
-    }
+    // processAudioJob already updates the vocabulary record and every lesson
+    // snapshot. Repeating that work here made each new audio scan/sync twice.
     await admin.from("audit_logs").insert({
       actor_id: input.actorId,
       action: "vocabulary.audio.generated",

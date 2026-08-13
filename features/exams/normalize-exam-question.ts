@@ -38,6 +38,7 @@ export function normalizeExamQuestion(item: StoredExamQuestion): ExamQuestionInp
     answerType: item.answer_type === "image" ? "image" : "text",
     instruction: item.instruction,
     prompt: item.prompt,
+    underlinedText: item.section === "reading" && [3, 4, 42, 48].includes(item.position) ? item.audio_text ?? "" : "",
     audioUrl: item.audio_url ?? "",
     audioText: item.audio_text ?? "",
     imageUrl: item.image_url ?? "",

@@ -112,6 +112,7 @@ export default async function StudyVocabularyListPage({
       vocabularyOnly
       contextLabel="Bộ từ cá nhân"
       statusLabel="LUYỆN BỘ TỪ"
+      speedTestHref={`/speed-test?listId=${list.id}`}
     />
   );
 }

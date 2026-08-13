@@ -150,6 +150,10 @@ export async function saveExamDraft(examId: string, _state: { message: string; o
   const { error: historyError } = await supabase.rpc("record_exam_revision", { p_exam_id: examId });
   if (historyError && historyError.code !== "PGRST202" && historyError.code !== "42883") return { ok: false, message: `Đã lưu đề nhưng chưa ghi được lịch sử: ${message(historyError)}` };
   revalidatePath(`/bien-tap/de-thi/${examId}`);
+  revalidatePath(`/bien-tap/de-thi/${examId}/xem-truoc`);
+  revalidatePath("/luyen-de");
+  revalidatePath(`/luyen-de/${examId}`);
+  revalidatePath(`/luyen-de/${examId}/lam-bai`);
   return {
     ok: true,
     message: `Đã lưu ${parsed.data.questions.length} câu ${parsed.data.level === "topik_ii" ? "TOPIK II" : "TOPIK I"}.`,

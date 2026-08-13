@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildPublishedCourses, type PublishedCatalogRow } from "./published-catalog-normalizer";
+import {
+  buildPublishedCourses,
+  compactPublishedCatalogRowsForShells,
+  type PublishedCatalogRow,
+} from "./published-catalog-normalizer";
 
 const lesson = {
   id: "lesson-topik-2-01",
@@ -18,6 +22,32 @@ const lesson = {
 };
 
 describe("buildPublishedCourses", () => {
+  it("thu gọn nội dung bài cho catalog danh sách nhưng giữ metadata điều hướng", () => {
+    const rows: PublishedCatalogRow[] = [{
+      content_id: lesson.id,
+      content_type: "lesson",
+      parent_id: lesson.moduleId,
+      payload: {
+        ...lesson,
+        vocabulary: [{ id: "word-1", korean: "한국", vietnamese: "Hàn Quốc" }],
+        grammar: [{ id: "grammar-1" }],
+        exercises: [{ id: "exercise-1" }],
+      },
+    }];
+
+    const compact = compactPublishedCatalogRowsForShells(rows);
+
+    expect(compact[0].payload).toMatchObject({
+      id: lesson.id,
+      slug: lesson.slug,
+      order: lesson.order,
+      title: lesson.title,
+      vocabulary: [],
+      grammar: [],
+      exercises: [],
+    });
+  });
+
   it("ghép khóa học, chương và bài đã phát hành từ catalog động", () => {
     const rows: PublishedCatalogRow[] = [
       {
