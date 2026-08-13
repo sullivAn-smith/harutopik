@@ -71,6 +71,7 @@ type LessonExperienceOptions = {
   vocabularyOnly?: boolean;
   contextLabel?: string;
   statusLabel?: string;
+  speedTestHref?: string;
 };
 
 function LessonContent({
@@ -82,6 +83,7 @@ function LessonContent({
   vocabularyOnly = false,
   contextLabel,
   statusLabel,
+  speedTestHref,
 }: LessonExperienceOptions) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -828,6 +830,7 @@ function LessonContent({
               activeMode={mode}
               availableModes={availableStudyModes}
               onChange={changeMode}
+              speedTestHref={speedTestHref}
             />
 
             {mode === "flashcard" && (

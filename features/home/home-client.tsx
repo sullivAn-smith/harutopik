@@ -179,6 +179,10 @@ export function HomeClient({
   const [streakData, setStreakData] = useState<HomeStreakData | undefined>(undefined);
   const publishedCourses = initialCourses.length ? initialCourses : fallbackCourses;
   const primaryCourse = publishedCourses.find((course) => course.slug === "topik-1") ?? publishedCourses[0];
+  const dailyLesson = primaryCourse.lessons[0];
+  const dailySpeedTestHref = dailyLesson
+    ? `/courses/${encodeURIComponent(primaryCourse.slug)}/lessons/${encodeURIComponent(dailyLesson.slug)}/speed-test?daily=1`
+    : "/speed-test?daily=1";
 
   useEffect(() => {
     const supabase = createClient();
@@ -256,6 +260,7 @@ export function HomeClient({
           <Link href="/#thu-vien" className="flex w-full items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-black text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-blue-100 text-[#087eba]"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-none stroke-current" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11a2 2 0 0 1 2 2v15a2 2 0 0 0-2-2H6.5A2.5 2.5 0 0 0 4 20.5z" /><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v17a2 2 0 0 1 2-2h2.5a2.5 2.5 0 0 1 2.5 2.5z" /></svg></span><span>Thư viện học</span></Link>
           <Link href="/tu-cua-toi" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-cyan-100 text-[#087eba]"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-none stroke-current" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="3" /><path d="M7 9h10M7 13h6" /><path d="M17.5 12.5v4M15.5 14.5h4" /></svg></span><span>Quản lý bộ từ</span></Link>
           <Link href="/luyen-de" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-[#087eba]">✎</span><span>Luyện đề</span></Link>
+          <Link href="/speed-test" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-700">⚡</span><span>Speed Test</span></Link>
           <Link href="/tro-ly" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-[#087eba]">✦</span><span>Trợ lý Haru AI</span></Link>
         </nav>
         <div className="mt-auto space-y-3">
@@ -292,9 +297,8 @@ export function HomeClient({
         </div>
 
         <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <Link
+          <div
             id="khoa-hoc-dang-mo"
-            href="/thu-vien/1"
             className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#087eba] via-[#168fd0] to-[#20a9d8] p-5 text-white shadow-[0_18px_38px_rgba(8,126,186,0.28)] transition hover:-translate-y-1 hover:shadow-[0_24px_46px_rgba(8,126,186,0.36)] md:col-span-2"
           >
             <div className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-white/12" />
@@ -305,10 +309,15 @@ export function HomeClient({
             <p className="mt-2 max-w-md font-semibold leading-7 text-white/80">
               Học từ vựng, ngữ pháp, nghe chép, ghép từ và kiểm tra ngay trong từng bài.
             </p>
-            <span className="mt-5 inline-flex rounded-2xl bg-white px-4 py-2.5 font-black text-[#087eba] shadow-lg transition group-hover:translate-x-1">
-              Bắt đầu học →
-            </span>
-          </Link>
+            <div className="relative mt-5 flex flex-wrap items-center gap-3">
+              <Link href="/thu-vien/1" className="inline-flex rounded-2xl bg-white px-4 py-2.5 font-black text-[#087eba] shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl">
+                Bắt đầu học →
+              </Link>
+              <Link href={dailySpeedTestHref} className="inline-flex items-center gap-2 rounded-2xl border border-amber-200/80 bg-amber-300 px-4 py-2.5 font-black text-amber-950 shadow-lg transition hover:-translate-y-0.5 hover:bg-amber-200 hover:shadow-xl">
+                ⚡ Speed Test
+              </Link>
+            </div>
+          </div>
 
           <Link href="/kien-thuc" className="group relative min-h-52 overflow-hidden rounded-[2rem] border border-violet-100 bg-gradient-to-br from-[#f0edff] via-[#f3f0ff] to-[#e7e4ff] p-5 shadow-[0_16px_34px_rgba(92,72,190,0.16)] transition hover:-translate-y-1 hover:shadow-[0_22px_42px_rgba(92,72,190,0.23)]">
             <span className="absolute right-7 top-7 rotate-6 text-4xl font-black text-violet-500/90">가</span>

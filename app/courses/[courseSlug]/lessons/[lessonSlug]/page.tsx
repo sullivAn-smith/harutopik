@@ -52,6 +52,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
       backHref="/thu-vien/1"
       backLabel="Danh sách quyển"
       statusLabel={getTopikBookLevelLabel(courseSlug)}
+      speedTestHref={`/courses/${encodeURIComponent(courseSlug)}/lessons/${encodeURIComponent(lessonSlug)}/speed-test`}
     />
   );
 }
