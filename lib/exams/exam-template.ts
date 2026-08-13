@@ -170,6 +170,7 @@ export function buildExamSkeleton(level: ExamLevel): ExamQuestionInput[] {
         answerType: row.answerType ?? "text",
         instruction: "",
         prompt: "",
+        underlinedText: "",
         audioUrl: "",
         audioText: "",
         imageUrl: "",
@@ -202,7 +203,7 @@ export function completeExamSkeleton(level: ExamLevel, existing: ExamQuestionInp
     const saved = byPosition.get(`${slot.section}:${slot.position}`);
     if (!saved) return slot;
     const clearsReadingPassage = shouldHideTopikIReadingPassage(level, slot.section, slot.position);
-    return applyFixedExamQuestionCopy(level, {
+    const normalized = {
       ...saved,
       audioBlockKey: slot.audioBlockKey,
       readingType: slot.readingType,
@@ -211,6 +212,13 @@ export function completeExamSkeleton(level: ExamLevel, existing: ExamQuestionInp
       answerType: slot.answerType,
       instruction: generatedTemplateLabels.has(saved.instruction) ? "" : saved.instruction,
       options: slot.answerType === "image" && saved.options.every((option) => !option.trim()) ? slot.options : saved.options,
-    });
+    };
+    const fixedCopy = getFixedExamQuestionCopy(level, slot.section, slot.position);
+    if (!fixedCopy) return normalized;
+    return {
+      ...normalized,
+      instruction: normalized.instruction.trim() ? normalized.instruction : fixedCopy.instruction ?? normalized.instruction,
+      prompt: normalized.prompt.trim() ? normalized.prompt : fixedCopy.prompt ?? normalized.prompt,
+    };
   });
 }

@@ -52,6 +52,25 @@ describe("parseExamImportRows", () => {
       ["reading", 1, "", "문제", "1", "2", "3", "4", 1, "", "", "", "unknown_type"],
     ])).toThrow("reading_type không hợp lệ");
   });
+
+  it("đọc được workbook có phần hướng dẫn phía trên dòng tiêu đề", () => {
+    const result = parseExamImportRows([
+      ["TOPIK I · MẪU NHẬP ĐỀ HARUTOPIK"],
+      ["Chỉ điền ô màu trắng."],
+      [],
+      headers,
+      ["reading", 1, "", "문제", "1", "2", "3", "4", 2, "", "", ""],
+    ]);
+    expect(result[0]).toMatchObject({ section: "reading", position: 1, correctOption: 2 });
+  });
+
+  it("coi ô đánh dấu KHÓA là ô trống", () => {
+    const result = parseExamImportRows([
+      headers,
+      ["listening", 1, "🔒 KHÓA", "🔒 KHÓA", "1", "2", "3", "4", 1, "", "", ""],
+    ]);
+    expect(result[0]).toMatchObject({ instruction: "", prompt: "" });
+  });
 });
 
 describe("parseCsv", () => {

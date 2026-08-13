@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { boxesTopikIIReadingPrimaryPrompt, boxesTopikIIReadingSecondaryPrompt, getTopikIITextAnswerLayout, showsTopikIIReadingImageAbove, showsTopikIIReadingTitleAbove, usesCompactTopikIIReadingImageFrame } from "@/lib/exams/exam-question-layout";
 import type { ExamSection } from "@/lib/exams/types";
 import { ExamHighlightListPicker } from "./exam-highlight-list-picker";
 
@@ -17,6 +18,7 @@ type Question = {
   passage?: string;
   answerType: "text" | "image";
   prompt: string;
+  underlinedText?: string;
   secondaryPrompt?: string;
   audioUrl: string;
   imageUrl: string;
@@ -71,8 +73,24 @@ function colorClass(color: HighlightColor) {
   return "bg-yellow-200";
 }
 
-function HighlightedText({ text, highlights, onHighlightClick }: {
+function UnderlinedText({ text, underlinedText, start = 0, end = text.length }: {
   text: string;
+  underlinedText?: string;
+  start?: number;
+  end?: number;
+}) {
+  const target = underlinedText?.trim() ?? "";
+  const underlineStart = target ? text.indexOf(target) : -1;
+  const underlineEnd = underlineStart + target.length;
+  if (underlineStart < 0 || underlineEnd <= start || underlineStart >= end) return text.slice(start, end);
+  const overlapStart = Math.max(start, underlineStart);
+  const overlapEnd = Math.min(end, underlineEnd);
+  return <>{text.slice(start, overlapStart)}<u className="decoration-2 underline-offset-4">{text.slice(overlapStart, overlapEnd)}</u>{text.slice(overlapEnd, end)}</>;
+}
+
+function HighlightedText({ text, underlinedText, highlights, onHighlightClick }: {
+  text: string;
+  underlinedText?: string;
   highlights: ExamHighlight[];
   onHighlightClick: (highlight: ExamHighlight, element: HTMLElement) => void;
 }) {
@@ -98,11 +116,11 @@ function HighlightedText({ text, highlights, onHighlightClick }: {
     .sort((left, right) => left.start - right.start)
     .filter((highlight, index, all) => index === 0 || highlight.start >= all[index - 1].end);
 
-  if (ranges.length === 0) return text;
+  if (ranges.length === 0) return <UnderlinedText text={text} underlinedText={underlinedText} />;
   const output: ReactNode[] = [];
   let cursor = 0;
   for (const highlight of ranges) {
-    if (highlight.start > cursor) output.push(text.slice(cursor, highlight.start));
+    if (highlight.start > cursor) output.push(<UnderlinedText key={`plain-${cursor}`} text={text} underlinedText={underlinedText} start={cursor} end={highlight.start} />);
     output.push(
       <mark
         key={highlight.id}
@@ -121,12 +139,12 @@ function HighlightedText({ text, highlights, onHighlightClick }: {
         }}
         className={`${colorClass(highlight.color)} cursor-pointer rounded px-0.5 outline-none ring-[#087eba] transition hover:ring-2 focus:ring-2`}
       >
-        {text.slice(highlight.start, highlight.end)}
+        <UnderlinedText text={text} underlinedText={underlinedText} start={highlight.start} end={highlight.end} />
       </mark>,
     );
     cursor = highlight.end;
   }
-  if (cursor < text.length) output.push(text.slice(cursor));
+  if (cursor < text.length) output.push(<UnderlinedText key={`plain-${cursor}`} text={text} underlinedText={underlinedText} start={cursor} />);
   return output;
 }
 
@@ -584,16 +602,24 @@ export function ExamRunner({
   const shouldShareLearnerFrame = (first?: Question, second?: Question) => Boolean(
     first
     && second
-    && levelLabel === "TOPIK I"
     && second.position === first.position + 1
     && (
-      (activeSection === "listening"
+      (levelLabel === "TOPIK I"
+        && activeSection === "listening"
         && first.position >= 25
         && first.position <= 29
         && first.position % 2 === 1
         && first.audioBlockKey
         && first.audioBlockKey === second.audioBlockKey)
-      || (activeSection === "reading"
+      || (levelLabel === "TOPIK II"
+        && activeSection === "listening"
+        && first.position >= 21
+        && first.position <= 49
+        && first.position % 2 === 1
+        && first.audioBlockKey
+        && first.audioBlockKey === second.audioBlockKey)
+      || (levelLabel === "TOPIK I"
+        && activeSection === "reading"
         && ((first.position >= 19 && first.position <= 25)
           || (first.position >= 29 && first.position <= 31)
           || (first.position >= 33 && first.position <= 39))
@@ -606,6 +632,19 @@ export function ExamRunner({
   for (let index = 0; index < sectionQuestions.length; index += 1) {
     const question = sectionQuestions[index];
     const nextQuestion = sectionQuestions[index + 1];
+    const keepsSeparateTopikIReading57To58 = levelLabel === "TOPIK I" && question.position >= 27 && question.position <= 28;
+    if (activeSection === "reading" && question.passageBlockKey && !keepsSeparateTopikIReading57To58) {
+      const sharedQuestions = sectionQuestions.slice(index).filter((candidate, candidateIndex, remaining) =>
+        candidate.passageBlockKey === question.passageBlockKey
+        && candidate.position === question.position + candidateIndex
+        && (candidateIndex === 0 || remaining[candidateIndex - 1]?.passageBlockKey === question.passageBlockKey),
+      );
+      if (sharedQuestions.length > 1) {
+        learnerQuestionBlocks.push(sharedQuestions);
+        index += sharedQuestions.length - 1;
+        continue;
+      }
+    }
     if (shouldShareLearnerFrame(question, nextQuestion)) {
       learnerQuestionBlocks.push([question, nextQuestion]);
       index += 1;
@@ -770,26 +809,33 @@ export function ExamRunner({
                 && (separatesTopikIReading57To58 || !question.passageBlockKey || previousQuestion?.passageBlockKey !== question.passageBlockKey);
               const showSideImage = Boolean(question.imageUrl && question.answerType !== "image")
                 && (separatesTopikIReading57To58 || !question.passageBlockKey || previousQuestion?.passageBlockKey !== question.passageBlockKey);
+              const topikIIAnswerLayout = getTopikIITextAnswerLayout(level, question.section, question.position);
+              const isTopikIIReadingImageAbove = showsTopikIIReadingImageAbove(level, question.section, question.position);
+              const usesCompactTopikIIImageFrame = usesCompactTopikIIReadingImageFrame(level, question.section, question.position);
+              const isTopikIIReadingTitleAbove = showsTopikIIReadingTitleAbove(level, question.section, question.position);
+              const boxesTopikIIPrimaryPrompt = boxesTopikIIReadingPrimaryPrompt(level, question.section, question.position);
+              const boxesTopikIISecondaryPrompt = boxesTopikIIReadingSecondaryPrompt(level, question.section, question.position);
               return <article key={question.id} id={`question-${question.id}`} data-question-id={question.id} className="scroll-mt-32 px-6 py-8 md:px-8 md:py-10">
                 {firstOfSharedReading && question.instruction && <h3 className="mb-5 rounded-2xl bg-slate-50 px-5 py-4 text-lg font-bold text-slate-900 ring-1 ring-slate-200">[{sharedReadingRange}] {question.instruction}</h3>}
                 {firstOfSharedAudio && question.instruction && <h3 className="mb-5 rounded-2xl bg-cyan-50 px-5 py-4 text-lg font-bold text-slate-900 ring-1 ring-cyan-100">[{sharedAudioRange}] {question.instruction}</h3>}
                 {separatesTopikIReading57To58 && question.instruction && <h3 onMouseUp={(event) => prepareHighlight(question, event.currentTarget, "instruction", question.instruction)} className="mb-5 text-lg font-bold text-slate-900"><HighlightedText text={question.instruction} highlights={questionHighlights.filter((highlight) => highlight.sourceField === "instruction")} onHighlightClick={openSavedHighlight} /></h3>}
+                {isTopikIIReadingTitleAbove && question.instruction && <h3 onMouseUp={(event) => prepareHighlight(question, event.currentTarget, "instruction", question.instruction)} className="mb-5 text-lg font-bold text-slate-900"><HighlightedText text={question.instruction} highlights={questionHighlights.filter((highlight) => highlight.sourceField === "instruction")} onHighlightClick={openSavedHighlight} /></h3>}
                 {showReadingPassage && <div className="exam-material-frame mb-7 border-[3px] border-black bg-white p-5 md:p-7">
                   {!isTopikISharedReadingPair && <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-black uppercase tracking-[0.18em] text-[#087eba]">Ngữ liệu đọc</p>{question.passageBlockKey && <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-slate-500 ring-1 ring-slate-200">Dùng cho nhiều câu</span>}</div>}
-                  {question.passage && <p className="whitespace-pre-wrap text-lg font-normal leading-9 text-slate-800">{question.passage}</p>}
+                  {question.passage && <p className="whitespace-pre-wrap text-lg font-normal leading-9 text-slate-800"><UnderlinedText text={question.passage} underlinedText={question.underlinedText} /></p>}
                 </div>}
                 <div className="flex gap-4">
                   <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full text-lg font-black ${answers[question.id] ? "bg-[#087eba] text-white" : "bg-sky-100 text-[#087eba]"}`}>{displayPosition}</span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-start justify-between gap-3">
-                      {!sharedReadingRange && !sharedAudioRange && !separatesTopikIReading57To58 && <div onMouseUp={(event) => prepareHighlight(question, event.currentTarget, "instruction", question.instruction)} className="min-w-0 flex-1">
+                      {!sharedReadingRange && !sharedAudioRange && !separatesTopikIReading57To58 && !isTopikIIReadingTitleAbove && <div onMouseUp={(event) => prepareHighlight(question, event.currentTarget, "instruction", question.instruction)} className="min-w-0 flex-1">
                         <h3 className="text-lg font-bold"><HighlightedText text={question.instruction} highlights={questionHighlights.filter((highlight) => highlight.sourceField === "instruction")} onHighlightClick={openSavedHighlight} /></h3>
                       </div>}
                       <button type="button" onClick={() => toggleFlag(question)} className={`rounded-full px-4 py-2 text-sm font-black ${flagged.includes(question.id) ? "bg-amber-200 text-amber-900" : "bg-slate-100 text-slate-600 hover:bg-amber-50"}`}>⚑ {flagged.includes(question.id) ? "Đã đánh dấu" : "Xem lại"}</button>
                     </div>
 
-                    {question.prompt && <div onMouseUp={(event) => prepareHighlight(question, event.currentTarget, "prompt", question.prompt)}><p className={isTopikIBoxedReading ? "exam-material-frame mt-4 border-[3px] border-black bg-white px-5 py-4 text-lg font-normal leading-8 text-slate-800" : "mt-4 text-lg font-normal leading-8 text-slate-700"}><HighlightedText text={question.prompt} highlights={questionHighlights.filter((highlight) => highlight.sourceField === "prompt")} onHighlightClick={openSavedHighlight} /></p></div>}
-                    {question.secondaryPrompt && <div className={isTopikIReadingQuestion59 ? "mt-4 border border-slate-500 bg-white px-5 py-4" : "mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"}>{!isTopikIReadingQuestion59 && <p className="mb-2 text-center text-xs font-black tracking-[0.2em] text-slate-500">＜보기＞</p>}<p className="whitespace-pre-wrap text-lg font-normal leading-8 text-slate-800">{question.secondaryPrompt}</p></div>}
+                    {question.prompt && <div onMouseUp={(event) => prepareHighlight(question, event.currentTarget, "prompt", question.prompt)}><p className={isTopikIBoxedReading || boxesTopikIIPrimaryPrompt ? "exam-material-frame mt-4 border-[3px] border-black bg-white px-5 py-4 text-lg font-normal leading-8 text-slate-800" : "mt-4 text-lg font-normal leading-8 text-slate-700"}><HighlightedText text={question.prompt} underlinedText={question.underlinedText} highlights={questionHighlights.filter((highlight) => highlight.sourceField === "prompt")} onHighlightClick={openSavedHighlight} /></p></div>}
+                    {question.secondaryPrompt && <div className={isTopikIReadingQuestion59 ? "mt-4 border border-slate-500 bg-white px-5 py-4" : boxesTopikIISecondaryPrompt ? "exam-material-frame mt-4 border-[3px] border-black bg-white px-5 py-4" : "mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"}>{!isTopikIReadingQuestion59 && <p className="mb-2 text-center text-xs font-black tracking-[0.2em] text-slate-500">＜보기＞</p>}<p className="whitespace-pre-wrap text-lg font-normal leading-8 text-slate-800">{question.secondaryPrompt}</p></div>}
 
                     {showListeningAudio && (question.audioUrl
                       ? <div className="mt-5 rounded-2xl bg-cyan-50 p-4 ring-1 ring-cyan-100">
@@ -830,9 +876,11 @@ export function ExamRunner({
                         </div>
                       : <p className="mt-5 rounded-2xl bg-slate-100 p-4 font-bold text-slate-600">Câu này không có audio.</p>)}
 
-                    <div className={`mt-6 ${showSideImage && !isTopikILargeImageReading ? "grid items-start gap-6 xl:grid-cols-[minmax(220px,0.8fr)_minmax(340px,1.2fr)]" : ""}`}>
-                      {showSideImage && <Image unoptimized width={1200} height={900} src={question.imageUrl} alt={`Ngữ liệu câu ${question.position}`} className={isTopikILargeImageReading ? "exam-material-frame mx-auto h-auto max-h-[760px] w-full max-w-[920px] rounded-xl border-[3px] border-black bg-white object-contain p-3" : "exam-material-frame h-auto max-h-[620px] w-full max-w-[560px] justify-self-center rounded-2xl border-[3px] border-black bg-white object-contain p-2"} />}
-                      <div className={`grid ${question.answerType === "image" ? "mx-auto w-full max-w-[532px] grid-cols-2 gap-2.5" : isTopikILargeImageReading ? "mx-auto mt-6 w-full max-w-[920px] grid-cols-1 gap-3" : showSideImage ? "grid-cols-1 gap-3" : isTopikIVerticalListeningAnswer || isTopikIVerticalSharedReadingAnswer ? "grid-cols-1 gap-3" : isTopikIReadingQuestion59 || isTopikIHorizontalBoxedReading ? "grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4" : isTopikIBoxedReading ? "grid-cols-1 gap-3" : "gap-3 sm:grid-cols-2"}`}>
+                    <div className={`mt-6 ${showSideImage && !isTopikILargeImageReading && !isTopikIIReadingImageAbove ? "grid items-start gap-6 xl:grid-cols-[minmax(220px,0.8fr)_minmax(340px,1.2fr)]" : ""}`}>
+                      {showSideImage && (usesCompactTopikIIImageFrame
+                        ? <span className="exam-material-frame relative mx-auto block h-40 w-full max-w-[820px] overflow-hidden rounded-xl border-[3px] border-black bg-white sm:h-44"><Image unoptimized width={1200} height={900} src={question.imageUrl} alt={`Ngữ liệu câu ${question.position}`} className="absolute inset-0 h-full w-full object-cover object-center" /></span>
+                        : <Image unoptimized width={1200} height={900} src={question.imageUrl} alt={`Ngữ liệu câu ${question.position}`} className={isTopikILargeImageReading || isTopikIIReadingImageAbove ? "exam-material-frame mx-auto h-auto max-h-[760px] w-full max-w-[920px] rounded-xl border-[3px] border-black bg-white object-contain p-3" : "exam-material-frame h-auto max-h-[620px] w-full max-w-[560px] justify-self-center rounded-2xl border-[3px] border-black bg-white object-contain p-2"} />)}
+                      <div className={`grid ${question.answerType === "image" ? "mx-auto w-full max-w-[532px] grid-cols-2 gap-2.5" : topikIIAnswerLayout === "vertical" ? "mt-6 grid-cols-1 gap-3" : topikIIAnswerLayout === "two_columns" ? "mt-6 grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2" : topikIIAnswerLayout === "horizontal" ? "mt-6 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4" : isTopikILargeImageReading ? "mx-auto mt-6 w-full max-w-[920px] grid-cols-1 gap-3" : showSideImage ? "grid-cols-1 gap-3" : isTopikIVerticalListeningAnswer || isTopikIVerticalSharedReadingAnswer ? "grid-cols-1 gap-3" : isTopikIReadingQuestion59 || isTopikIHorizontalBoxedReading ? "grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4" : isTopikIBoxedReading ? "grid-cols-1 gap-3" : "gap-3 sm:grid-cols-2"}`}>
                       {question.options.map((option, index) => question.answerType === "image"
                         ? <button
                             type="button"
@@ -866,9 +914,9 @@ export function ExamRunner({
               </article>;
               });
 
-              if (questionBlock.length === 2) {
+              if (questionBlock.length > 1) {
                 const blockOffset = questionBlock[0].section === "reading" ? readingNumberOffset : 0;
-                const range = `${questionBlock[0].position + blockOffset}-${questionBlock[1].position + blockOffset}`;
+                const range = `${questionBlock[0].position + blockOffset}-${questionBlock[questionBlock.length - 1].position + blockOffset}`;
                 const isReadingPairFrame = questionBlock[0].section === "reading";
                 return <div
                   key={`shared-question-frame-${range}`}

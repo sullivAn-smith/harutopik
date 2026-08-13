@@ -32,6 +32,22 @@ const question = {
 };
 
 describe("ExamRunner listening", () => {
+  it("gạch chân đúng cụm từ đã cấu hình trong câu hỏi TOPIK II", () => {
+    const readingQuestion = {
+      ...question,
+      id: "topik-ii-reading-3",
+      position: 3,
+      section: "reading" as const,
+      instruction: "Chọn đáp án đúng",
+      prompt: "어제 본 공연은 눈물이 날 정도로 감동적이었다.",
+      underlinedText: "날 정도로",
+      audioUrl: "",
+    };
+    render(<ExamRunner attemptId="00000000-0000-4000-8000-000000000010" examId="00000000-0000-4000-8000-000000000020" title="TOPIK II" level="topik_ii" section="reading" expiresAt={new Date(Date.now() + 60_000).toISOString()} initialPosition={3} initialAnswers={{}} initialFlagged={[]} initialAudioPlays={{}} initialWindowLeaveCount={0} questions={[readingQuestion]} />);
+
+    expect(screen.getByText("날 정도로").tagName).toBe("U");
+  });
+
   it("xếp đáp án câu nghe TOPIK I từ 17 đến 30 theo chiều dọc", () => {
     const listeningQuestion17 = { ...question, id: "topik-i-listening-17", position: 17 };
     render(<ExamRunner attemptId="00000000-0000-4000-8000-000000000010" examId="00000000-0000-4000-8000-000000000020" title="TOPIK I" level="topik_i" section="listening" expiresAt={new Date(Date.now() + 60_000).toISOString()} initialPosition={17} initialAnswers={{}} initialFlagged={[]} initialAudioPlays={{}} initialWindowLeaveCount={0} questions={[listeningQuestion17]} />);
@@ -191,6 +207,30 @@ describe("ExamRunner listening", () => {
       expect(frame.querySelectorAll("article")).toHaveLength(2);
     }
     expect(screen.getAllByRole("button", { name: /Phát audio câu/ })).toHaveLength(3);
+  });
+
+  it("gộp câu nghe 21-50 của TOPIK II thành 15 khung đôi và chỉ hiện tiêu đề chung một lần", () => {
+    const pairedQuestions = Array.from({ length: 30 }, (_, index) => {
+      const position = index + 21;
+      const pairStart = position % 2 === 1 ? position : position - 1;
+      return {
+        ...question,
+        id: `topik-ii-listening-${position}`,
+        position,
+        instruction: `Tiêu đề chung ${pairStart}-${pairStart + 1}`,
+        prompt: `Câu hỏi ${position}`,
+        audioBlockKey: `topik-ii-audio-${pairStart}-${pairStart + 1}`,
+      };
+    });
+
+    render(<ExamRunner attemptId="00000000-0000-4000-8000-000000000010" examId="00000000-0000-4000-8000-000000000020" title="TOPIK II" level="topik_ii" section="listening" expiresAt={new Date(Date.now() + 60_000).toISOString()} initialPosition={21} initialAnswers={{}} initialFlagged={[]} initialAudioPlays={{}} initialWindowLeaveCount={0} questions={pairedQuestions} />);
+
+    for (let start = 21; start <= 49; start += 2) {
+      const range = `${start}-${start + 1}`;
+      expect(screen.getByTestId(`shared-question-frame-${range}`).querySelectorAll("article")).toHaveLength(2);
+      expect(screen.getAllByText(`[${start}~${start + 1}] Tiêu đề chung ${range}`)).toHaveLength(1);
+    }
+    expect(screen.getAllByRole("button", { name: /Phát audio câu/ })).toHaveLength(15);
   });
 
   it("hiển thị ảnh đề, bốn ảnh đáp án và câu hỏi hiển thị thứ hai", () => {

@@ -46,7 +46,7 @@ describe("fixed exam templates", () => {
     expect(getFixedExamQuestionCopy("topik_ii", "listening", 1)).toBeNull();
   });
 
-  it("không cho dữ liệu đã lưu ghi đè nội dung cố định của câu 1–28", () => {
+  it("cho phép bản biên tập đã lưu ghi đè nội dung mặc định của câu 1–28", () => {
     const existing = buildExamSkeleton("topik_i").map((question) => question.position === 25 && question.section === "listening"
       ? { ...question, instruction: "Tiêu đề tự nhập", prompt: "Câu hỏi tự nhập" }
       : question.position === 29 && question.section === "listening"
@@ -55,8 +55,8 @@ describe("fixed exam templates", () => {
 
     const completed = completeExamSkeleton("topik_i", existing);
     expect(completed.find((question) => question.section === "listening" && question.position === 25)).toMatchObject({
-      instruction: "어떤 이야기를 하고 있는지 고르십시오.",
-      prompt: "어떤 이야기를 하고 있는지 고르십시오.",
+      instruction: "Tiêu đề tự nhập",
+      prompt: "Câu hỏi tự nhập",
     });
     expect(completed.find((question) => question.section === "listening" && question.position === 29)).toMatchObject({
       instruction: "Tiêu đề câu 29",
@@ -77,7 +77,7 @@ describe("fixed exam templates", () => {
     expect(reading.filter((question) => question.position >= 33 && question.position <= 34).every((question) => question.readingType === "practical_info")).toBe(true);
   });
 
-  it("cố định tiêu đề câu 31–39, giữ nội dung câu và loại bỏ ngữ liệu đọc câu 31–48", () => {
+  it("giữ tiêu đề đã sửa của câu 31–39, giữ nội dung câu và loại bỏ ngữ liệu đọc câu 31–48", () => {
     const existing = buildExamSkeleton("topik_i").map((question) => {
       if (question.section !== "reading") return question;
       if (question.position === 1) {
@@ -91,7 +91,7 @@ describe("fixed exam templates", () => {
 
     const completed = completeExamSkeleton("topik_i", existing);
     expect(completed.find((question) => question.section === "reading" && question.position === 1)).toMatchObject({
-      instruction: "무엇에 대한 이야기입니까? 알맞은 것을 고르십시오.",
+      instruction: "Tiêu đề cũ",
       prompt: "오늘은 1월 1일입니다.",
       passage: "",
     });

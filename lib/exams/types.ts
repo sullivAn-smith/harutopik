@@ -27,6 +27,7 @@ export const examQuestionSchema = z.object({
   answerType: examAnswerTypeSchema.default("text"),
   instruction: z.string().trim().max(500).default(""),
   prompt: z.string().trim().max(1000).default(""),
+  underlinedText: z.string().trim().max(500).optional(),
   audioUrl: z.union([z.literal(""), z.string().url("Audio phải là URL hợp lệ.")]),
   audioText: z.string().trim().max(500).default(""),
   imageUrl: z.union([z.literal(""), z.string().url()]).default(""),
@@ -94,6 +95,7 @@ export function formatExamValidationError(error: z.ZodError, input?: ExamValidat
     if (questionField === "correctOption") return `${prefix}: đáp án đúng phải là một lựa chọn từ 1 đến 4.`;
     if (questionField === "instruction") return `${prefix}: hướng dẫn không được dài quá 500 ký tự.`;
     if (questionField === "prompt") return `${prefix}: nội dung câu hỏi không được dài quá 1.000 ký tự.`;
+    if (questionField === "underlinedText") return `${prefix}: từ được gạch chân không được dài quá 500 ký tự.`;
     if (questionField === "audioText") return `${prefix}: nội dung tạo audio không được dài quá 500 ký tự.`;
     if (questionField === "passage") return `${prefix}: ngữ liệu đọc không được dài quá 10.000 ký tự.`;
     if (questionField === "explanation") return `${prefix}: giải thích không được dài quá 2.000 ký tự.`;

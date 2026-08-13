@@ -44,7 +44,9 @@ export default async function VocabularyImportPreviewPage({
           </p>
           <h1 className="mt-2 text-3xl font-black">{batch.fileName}</h1>
           <p className="mt-2 text-ink-600">
-            Chưa có dòng nào được ghi vào thư viện khi bạn chưa xác nhận.
+            {completed
+              ? "Các từ mới đã được tạo ở trạng thái bản nháp; từ trùng được bỏ qua."
+              : "Chưa có dòng nào được ghi vào thư viện khi bạn chưa xác nhận."}
           </p>
         </div>
         {completed ? (
@@ -70,16 +72,16 @@ export default async function VocabularyImportPreviewPage({
       )}
       {(query.completed || completed) && (
         <p className="mt-5 rounded-2xl bg-emerald-50 p-4 font-bold text-emerald-800">
-          Đã tạo {batch.validRows} từ vựng ở trạng thái bản nháp. Các dòng lỗi
-          và các từ đã tồn tại được bỏ qua.
+          Đã tạo {batch.validRows} từ vựng ở trạng thái bản nháp. Đã bỏ qua{" "}
+          {batch.duplicateRows} từ tồn tại sẵn; các dòng lỗi không được nhập.
         </p>
       )}
       <section className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
           ["Tổng số dòng", batch.totalRows, "bg-slate-50"],
-          ["Sẵn sàng nhập", batch.validRows, "bg-emerald-50"],
+          [completed ? "Đã nhập" : "Sẵn sàng nhập", batch.validRows, "bg-emerald-50"],
           ["Có lỗi", batch.invalidRows, "bg-red-50"],
-          ["Đã có trong thư viện", batch.duplicateRows, "bg-amber-50"],
+          [completed ? "Đã bỏ qua" : "Đã có trong thư viện", batch.duplicateRows, "bg-amber-50"],
         ].map(([label, value, color]) => (
           <div key={String(label)} className={`rounded-3xl border p-5 ${color}`}>
             <p className="text-sm font-bold text-ink-600">{label}</p>
