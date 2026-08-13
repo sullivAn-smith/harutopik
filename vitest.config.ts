@@ -9,6 +9,7 @@ export default defineConfig({
   },
   test: {
     clearMocks: true,
+    execArgv: ["--no-experimental-webstorage"],
     exclude: ["tests/e2e/**", "node_modules/**"],
   },
 });
