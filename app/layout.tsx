@@ -51,14 +51,14 @@ export const metadata: Metadata = {
     title: "Harutopik — Học tiếng Hàn có lộ trình",
     description:
       "Học từ vựng nhớ lâu, hiểu ngữ pháp dễ dàng và tiến bộ mỗi ngày cùng Harutopik.",
-    images: [{ url: "/og.png", width: 1200, height: 630, alt: "Harutopik — Học tiếng Hàn có lộ trình" }],
+    images: [{ url: "/Harutopik.jpg", width: 1200, height: 630, alt: "Harutopik — Học tiếng Hàn có lộ trình" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Harutopik — Học tiếng Hàn có lộ trình",
     description:
       "Học từ vựng nhớ lâu, hiểu ngữ pháp dễ dàng và tiến bộ mỗi ngày cùng Harutopik.",
-    images: ["/og.png"],
+    images: ["/Harutopik.jpg"],
   },
 };
 
