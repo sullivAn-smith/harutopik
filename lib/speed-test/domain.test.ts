@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   calculateSpeedRating,
+  adaptivePriorityScore,
   classifySpeedTestAnswer,
   deriveSpeedTestAchievements,
   isCorrectSpeedTestAnswer,
@@ -18,6 +19,11 @@ const word = {
 };
 
 describe("speed test domain", () => {
+  it("xếp ưu tiên adaptive cao hơn cho từ yếu, chậm và lâu chưa ôn", () => {
+    const weak = adaptivePriorityScore({ masteryScore: 35, wrongCount: 4, nearMissCount: 1, averageResponseTimeMs: 2800, lastSeenAt: "2026-07-01T00:00:00Z" }, Date.parse("2026-08-15T00:00:00Z"));
+    const strong = adaptivePriorityScore({ masteryScore: 95, wrongCount: 0, nearMissCount: 0, averageResponseTimeMs: 600, lastSeenAt: "2026-08-14T00:00:00Z" }, Date.parse("2026-08-15T00:00:00Z"));
+    expect(weak).toBeGreaterThan(strong);
+  });
   it("chấm đúng theo cả hai chiều và đáp án thay thế", () => {
     expect(isCorrectSpeedTestAnswer("사 과", word, "vi_ko")).toBe(true);
     expect(isCorrectSpeedTestAnswer("Táo!", word, "ko_vi")).toBe(true);

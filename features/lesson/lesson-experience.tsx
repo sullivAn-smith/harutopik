@@ -4,6 +4,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
+  type CSSProperties,
   Suspense,
   useCallback,
   useEffect,
@@ -62,6 +63,8 @@ const TranslationExercise = dynamic(
 
 type Tab = "vocabulary" | "grammar";
 
+const FLASHCARD_AUTO_AUDIO_KEY = "haru:flashcard-auto-audio";
+
 type LessonExperienceOptions = {
   lesson: Lesson;
   previewMode?: boolean;
@@ -117,14 +120,24 @@ function LessonContent({
   const [skipFlipAnimation, setSkipFlipAnimation] = useState(false);
   const [learnedIndices, setLearnedIndices] = useState<number[]>([]);
   const [shuffleSeed, setShuffleSeed] = useState(1);
+  const [flashcardAutoAudio, setFlashcardAutoAudio] = useState(true);
+  const [flashcardAutoAudioReady, setFlashcardAutoAudioReady] = useState(false);
 
   useEffect(() => {
     router.prefetch("/");
   }, [router]);
 
+  useEffect(() => {
+    setFlashcardAutoAudio(
+      window.localStorage.getItem(FLASHCARD_AUTO_AUDIO_KEY) !== "off",
+    );
+    setFlashcardAutoAudioReady(true);
+  }, []);
+
   const [quizAnswer, setQuizAnswer] = useState<string | null>(null);
   const [quizCorrectCount, setQuizCorrectCount] = useState(0);
   const [quizWrongIndices, setQuizWrongIndices] = useState<number[]>([]);
+  const [quizReviewIndices, setQuizReviewIndices] = useState<number[]>([]);
 
   const [typedWord, setTypedWord] = useState("");
   const [typingChecked, setTypingChecked] = useState(false);
@@ -182,6 +195,7 @@ function LessonContent({
       setQuizAnswer(session.quizAnswer);
       setQuizCorrectCount(session.quizCorrectCount);
       setQuizWrongIndices(validVocabularyIndices(session.quizWrongIndices));
+      setQuizReviewIndices(validVocabularyIndices(session.quizReviewIndices));
       setTypedWord(session.typedWord);
       setTypingChecked(session.typingChecked);
       setTypingWrongIndices(validVocabularyIndices(session.typingWrongIndices));
@@ -240,6 +254,7 @@ function LessonContent({
       quizAnswer,
       quizCorrectCount,
       quizWrongIndices,
+      quizReviewIndices,
       typedWord,
       typingChecked,
       typingWrongIndices,
@@ -277,6 +292,7 @@ function LessonContent({
       mode,
       quizAnswer,
       quizCorrectCount,
+      quizReviewIndices,
       quizWrongIndices,
       selectedKorean,
       shuffleSeed,
@@ -311,7 +327,33 @@ function LessonContent({
   });
 
   const activeWord = vocabulary[current];
-  const quizAnsweredCount = current + (quizAnswer ? 1 : 0);
+
+  useEffect(() => {
+    if (
+      !flashcardAutoAudioReady ||
+      !flashcardAutoAudio ||
+      mode !== "flashcard" ||
+      !activeWord?.audioUrl
+    ) {
+      return;
+    }
+
+    void enqueueAudioPlayback({ audioUrl: activeWord.audioUrl }).catch(() => {
+      // Trình duyệt có thể chặn autoplay trước tương tác đầu tiên.
+    });
+  }, [
+    activeWord?.audioUrl,
+    current,
+    flashcardAutoAudio,
+    flashcardAutoAudioReady,
+    mode,
+  ]);
+  const quizReviewPosition = quizReviewIndices.indexOf(current);
+  const quizQuestionPosition =
+    quizReviewIndices.length > 0 ? Math.max(0, quizReviewPosition) : current;
+  const quizQuestionTotal =
+    quizReviewIndices.length > 0 ? quizReviewIndices.length : vocabulary.length;
+  const quizAnsweredCount = quizQuestionPosition + (quizAnswer ? 1 : 0);
   const quizScore = `${quizCorrectCount}/${quizAnsweredCount}`;
 
   const matchStart = Math.floor(current / 4) * 4;
@@ -381,8 +423,15 @@ function LessonContent({
     translationTotal: translationExercises.length,
     translationChecked,
   });
+  const quizPracticeComplete =
+    quizAnswer !== null &&
+    (quizReviewIndices.length > 0
+      ? quizReviewPosition === quizReviewIndices.length - 1
+      : current === vocabulary.length - 1);
   const practiceComplete =
-    mode === "matching" && matchingReviewMode
+    mode === "quiz"
+      ? quizPracticeComplete
+      : mode === "matching" && matchingReviewMode
       ? matchingReviewIndices.length > 0 &&
         matchingReviewIndices.every((index) => matchedIndices.includes(index))
       : mode === "translation"
@@ -401,6 +450,7 @@ function LessonContent({
 
   useEffect(() => {
     if (!practiceComplete) return;
+    if (mode === "quiz" && quizReviewIndices.length > 0) return;
     const sessionKey = `${mode}:${shuffleSeed}`;
     if (completedSessions.current.has(sessionKey)) return;
     completedSessions.current.add(sessionKey);
@@ -427,6 +477,7 @@ function LessonContent({
     mode,
     practiceComplete,
     quizWrongIndices,
+    quizReviewIndices.length,
     shuffleSeed,
     translationExercises.length,
     translationWrongIndices,
@@ -446,6 +497,7 @@ function LessonContent({
     setQuizAnswer(null);
     setQuizCorrectCount(0);
     setQuizWrongIndices([]);
+    setQuizReviewIndices([]);
     setTypedWord("");
     setTypingChecked(false);
     setTypingWrongIndices([]);
@@ -523,6 +575,17 @@ function LessonContent({
     );
   }
 
+  function toggleFlashcardAutoAudio() {
+    setFlashcardAutoAudio((enabled) => {
+      const nextEnabled = !enabled;
+      window.localStorage.setItem(
+        FLASHCARD_AUTO_AUDIO_KEY,
+        nextEnabled ? "on" : "off",
+      );
+      return nextEnabled;
+    });
+  }
+
   function chooseQuizAnswer(answer: string) {
     if (quizAnswer) return;
 
@@ -537,7 +600,13 @@ function LessonContent({
   }
 
   function nextQuizQuestion() {
-    move(1);
+    if (quizReviewIndices.length > 0) {
+      const nextReviewIndex = quizReviewIndices[quizReviewPosition + 1];
+      if (nextReviewIndex === undefined) return;
+      setCurrent(nextReviewIndex);
+    } else {
+      move(1);
+    }
     setQuizAnswer(null);
   }
 
@@ -671,7 +740,13 @@ function LessonContent({
 
     if (mistakes.length === 0) return;
 
-    if (mode === "dictation") {
+    if (mode === "quiz") {
+      setQuizReviewIndices(mistakes);
+      setQuizWrongIndices([]);
+      setQuizCorrectCount(0);
+      setCurrent(mistakes[0]);
+      setQuizAnswer(null);
+    } else if (mode === "dictation") {
       setDictationIndex(mistakes[0]);
       setDictationInput("");
       setDictationChecked(false);
@@ -843,10 +918,10 @@ function LessonContent({
                 learned={learnedIndices.includes(current)}
                 flipped={flipped}
                 skipFlipAnimation={skipFlipAnimation}
+                autoAudioEnabled={flashcardAutoAudio}
+                autoAudioReady={flashcardAutoAudioReady}
                 onFlip={() => setFlipped((value) => !value)}
-                onSpeak={() =>
-                  playAudioOrSpeak(activeWord.audioUrl, activeWord.korean)
-                }
+                onToggleAutoAudio={toggleFlashcardAutoAudio}
                 onToggleLearned={() => {
                   const learned = learnedIndices.includes(current);
                   setLearnedIndices((items) =>
@@ -878,7 +953,7 @@ function LessonContent({
               />
             )}
 
-            {mode === "quiz" && (
+            {mode === "quiz" && !practiceComplete && (
               <QuizExercise
                 word={[
                   activeWord.korean,
@@ -888,7 +963,13 @@ function LessonContent({
                 options={quizOptions}
                 selectedAnswer={quizAnswer}
                 score={quizScore}
-                isLastQuestion={current === vocabulary.length - 1}
+                position={quizQuestionPosition + 1}
+                total={quizQuestionTotal}
+                isLastQuestion={
+                  quizReviewIndices.length > 0
+                    ? quizReviewPosition === quizReviewIndices.length - 1
+                    : current === vocabulary.length - 1
+                }
                 onAnswer={chooseQuizAnswer}
                 onNext={nextQuizQuestion}
               />
@@ -994,7 +1075,65 @@ function LessonContent({
               />
             )}
 
-            {practiceComplete && (
+            {practiceComplete && mode === "quiz" && (
+              <section
+                aria-labelledby="quiz-complete-title"
+                className="quiz-completion relative mt-7 overflow-hidden rounded-[2rem] border-2 border-[#10243e] bg-white px-6 py-12 text-center shadow-[7px_8px_0_#10243e] md:px-12 md:py-16"
+              >
+                <div className="quiz-fireworks" aria-hidden="true">
+                  {Array.from({ length: 24 }, (_, index) => (
+                    <span
+                      key={index}
+                      style={
+                        {
+                          "--angle": `${(index % 8) * 45}deg`,
+                          "--delay": `${(index % 6) * 90}ms`,
+                          "--left": `${16 + (index % 4) * 23}%`,
+                          "--particle-color": `hsl(${22 + (index % 5) * 48} 90% 56%)`,
+                          "--top": `${24 + (index % 3) * 22}%`,
+                        } as CSSProperties
+                      }
+                    />
+                  ))}
+                </div>
+                <div className="relative z-10">
+                  <p className="text-sm font-black uppercase tracking-[0.24em] text-[#087eba]">
+                    Hoàn thành trắc nghiệm
+                  </p>
+                  <h2
+                    id="quiz-complete-title"
+                    className="mt-3 text-4xl font-black tracking-tight text-[#10243e] md:text-5xl"
+                  >
+                    Chúc mừng, bạn đã hoàn thành!
+                  </h2>
+                  <p className="mx-auto mt-4 max-w-2xl text-lg font-bold text-[#52637a]">
+                    Bạn trả lời đúng {quizCorrectCount}/{quizQuestionTotal} câu.
+                    {quizWrongIndices.length > 0
+                      ? ` Còn ${quizWrongIndices.length} từ cần luyện lại.`
+                      : " Bạn đã trả lời đúng toàn bộ từ vựng."}
+                  </p>
+                  <div className="mt-8 grid gap-3 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={restartPractice}
+                      className="rounded-2xl border-2 border-[#10243e] bg-gradient-to-r from-[#087eba] to-sky-500 px-6 py-4 text-lg font-black text-white shadow-[3px_4px_0_#10243e] transition hover:-translate-y-0.5"
+                    >
+                      Ôn lại từ đầu
+                    </button>
+                    <button
+                      type="button"
+                      onClick={retryMistakes}
+                      disabled={!modeHasMistakes}
+                      className="rounded-2xl border-2 border-[#10243e] bg-gradient-to-r from-amber-300 to-orange-400 px-6 py-4 text-lg font-black text-[#10243e] shadow-[3px_4px_0_#10243e] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-none disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none disabled:hover:translate-y-0"
+                    >
+                      Làm lại các từ đã sai
+                    </button>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {practiceComplete && mode !== "quiz" && (
               <div className="mt-7 rounded-3xl border-2 border-[#10243e] bg-white p-6 text-center shadow-[5px_6px_0_#10243e]">
                 <p className="text-2xl font-black">Hoàn thành ôn tập! 🎉</p>
                 <div className="mt-5 flex flex-wrap justify-center gap-3">

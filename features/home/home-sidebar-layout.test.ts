@@ -13,7 +13,8 @@ describe("desktop home sidebar layout", () => {
     expect(source).toContain('<nav className="mt-6 min-h-0 flex-1');
   });
 
-  it("keeps the upgrade and account actions anchored at the bottom", () => {
+  it("keeps the account action anchored at the bottom and hides upgrade entry points", () => {
     expect(source).toContain('<div className="mt-auto space-y-3">');
+    expect(source).not.toContain('href="/nang-cap"');
   });
 });

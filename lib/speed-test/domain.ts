@@ -90,7 +90,24 @@ export type SpeedTestWordProgress = {
   wrongCount: number;
   nearMissCount: number;
   lastWrongAt?: string | null;
+  averageResponseTimeMs?: number;
+  lastSeenAt?: string | null;
+  memoryStrength?: number;
 };
+
+export function adaptivePriorityScore(progress: SpeedTestWordProgress | undefined, now = Date.now()) {
+  if (!progress) return 35;
+  const weakness = Math.max(0, 100 - progress.masteryScore);
+  const mistakes = Math.min(30, progress.wrongCount * 5 + progress.nearMissCount * 2);
+  const slowness = Math.min(20, Math.max(0, (progress.averageResponseTimeMs ?? 0) - 1_200) / 140);
+  const lastSeen = progress.lastSeenAt ? Date.parse(progress.lastSeenAt) : Number.NaN;
+  const daysSinceSeen = Number.isFinite(lastSeen) ? Math.max(0, (now - lastSeen) / 86_400_000) : 30;
+  const forgetting = Math.min(25, daysSinceSeen * 1.5);
+  const recentWrong = progress.lastWrongAt && Number.isFinite(Date.parse(progress.lastWrongAt))
+    ? Math.max(0, 15 - (now - Date.parse(progress.lastWrongAt)) / 86_400_000)
+    : 0;
+  return weakness * 0.45 + mistakes + slowness + forgetting + recentWrong;
+}
 
 export function acceptedAnswersForDirection(
   item: SpeedTestVocabularySnapshot,
