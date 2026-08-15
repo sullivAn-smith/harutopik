@@ -15,16 +15,16 @@ describe("CurriculumSeriesCover", () => {
 
     const link = screen.getByRole("link", { name: "Mở bộ 1" });
     expect(link.getAttribute("href")).toBe("/thu-vien/1");
-    expect(link.getAttribute("data-cover-variant")).toBe("topik-original");
+    expect(link.getAttribute("data-cover-variant")).toBe("reference-1");
     expect(screen.getByText("Bộ sách")).toBeTruthy();
     expect(screen.getByText("TOPIK")).toBeTruthy();
-    expect(link.textContent).toContain("Nền tảng chongười Việt");
+    expect(link.textContent).toContain("Nền tảng cho\nngười Việt");
     expect(screen.getByText("HỌC NGAY")).toBeTruthy();
     expect(screen.getByText("1")).toBeTruthy();
   });
 
   it.each(curriculumSeriesDefinitions.slice(1))(
-    "opens series $id using a numbered cover without a curriculum name",
+    "opens series $id using its reference cover and curriculum name",
     (series) => {
       render(<CurriculumSeriesCover series={series} />);
 
@@ -33,7 +33,9 @@ describe("CurriculumSeriesCover", () => {
       expect(link.textContent).toContain("Bộ sách");
       expect(link.textContent).toContain(series.id);
       expect(link.getAttribute("data-theme")).toBe(series.theme);
-      expect(screen.queryByText(/TOPIK/i)).toBeNull();
+      expect(link.getAttribute("data-cover-variant")).toBe(`reference-${series.id}`);
+      expect(link.textContent).toContain(series.id === "2" ? "서울 한국어" : "세종 한국어");
+      expect(screen.getByText("HỌC NGAY")).toBeTruthy();
     },
   );
 });

@@ -10,8 +10,10 @@ type FlashcardExerciseProps = {
   learned: boolean;
   flipped: boolean;
   skipFlipAnimation: boolean;
+  autoAudioEnabled: boolean;
+  autoAudioReady: boolean;
   onFlip: () => void;
-  onSpeak: () => void;
+  onToggleAutoAudio: () => void;
   onToggleLearned: () => void;
   onMarkLearned: () => void;
   onMarkUnlearned: () => void;
@@ -33,8 +35,10 @@ export function FlashcardExercise({
   learned,
   flipped,
   skipFlipAnimation,
+  autoAudioEnabled,
+  autoAudioReady,
   onFlip,
-  onSpeak,
+  onToggleAutoAudio,
   onToggleLearned,
   onMarkLearned,
   onMarkUnlearned,
@@ -64,8 +68,8 @@ export function FlashcardExercise({
         </p>
       </aside>
 
-      <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-white/80 bg-white/80 shadow-[0_16px_35px_rgba(16,36,62,0.12)] backdrop-blur-xl">
-        <div className="flex items-center justify-between border-b border-[#10243e]/10 px-5 py-4">
+      <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-[#d6e7f3] bg-[#dceef9] shadow-[0_16px_35px_rgba(16,36,62,0.12)] backdrop-blur-xl">
+        <div className="flex items-center justify-between border-b border-[#b9d9e8] bg-gradient-to-r from-[#dceef9] to-[#d3e7f5] px-5 py-4">
           <span className="font-black">
             {position + 1} / {total}
           </span>
@@ -73,12 +77,21 @@ export function FlashcardExercise({
             <SaveToListButton lessonId={lessonId} item={word} />
             <button
               type="button"
-              onClick={onSpeak}
-              disabled={!word.audioUrl}
-              className="rounded-xl border-2 border-[#10243e] bg-white px-3 py-2 font-black hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-35"
-              aria-label={word.audioUrl ? `Phát âm ${word.korean}` : `Chưa có audio Azure cho ${word.korean}`}
+              onClick={onToggleAutoAudio}
+              disabled={!autoAudioReady}
+              aria-pressed={autoAudioEnabled}
+              className={`grid h-11 w-11 place-items-center rounded-xl border-2 border-[#10243e] text-xl transition disabled:cursor-wait disabled:opacity-50 ${
+                autoAudioEnabled
+                  ? "bg-[#087eba] text-white hover:bg-[#066a9e]"
+                  : "bg-white text-[#52637a] hover:bg-blue-50"
+              }`}
+              aria-label={
+                autoAudioEnabled
+                  ? "Tắt tự động đọc flashcard"
+                  : "Bật tự động đọc flashcard"
+              }
             >
-              🔊
+              <span aria-hidden="true">{autoAudioEnabled ? "🔊" : "🔇"}</span>
             </button>
             <button
               type="button"
@@ -107,7 +120,7 @@ export function FlashcardExercise({
               flipped ? "is-flipped" : ""
             } ${skipFlipAnimation ? "skip-flip-animation" : ""}`}
           >
-            <span className="flashcard-face flashcard-front bg-gradient-to-br from-[#8ec5ff] to-[#cbe6ff]">
+            <span className="flashcard-face flashcard-front bg-gradient-to-br from-[#dceef9] via-[#edf6fc] to-[#d3e7f5]">
               {word.imageUrl && (
                 <span
                   aria-hidden="true"
@@ -127,7 +140,7 @@ export function FlashcardExercise({
                 Nhấn để xem nghĩa tiếng Việt
               </span>
             </span>
-            <span className="flashcard-face flashcard-back bg-gradient-to-br from-[#c9e7ff] to-[#f0f8ff]">
+            <span className="flashcard-face flashcard-back bg-gradient-to-br from-[#e9faf5] via-[#f4fcf9] to-[#dff5ef]">
               <span className="text-xs font-black uppercase tracking-widest text-blue-800">
                 Nghĩa tiếng Việt
               </span>
@@ -144,7 +157,7 @@ export function FlashcardExercise({
           </span>
         </button>
 
-        <div className="flex flex-wrap items-center justify-center gap-3 px-5 py-5">
+        <div className="flex flex-wrap items-center justify-center gap-3 border-t border-[#b9e4da] bg-gradient-to-r from-[#e9faf5] to-[#e3f7f2] px-5 py-5">
           <button
             type="button"
             onClick={onPrevious}
@@ -153,7 +166,7 @@ export function FlashcardExercise({
             title="Thẻ trước"
             className="grid h-12 w-12 place-items-center rounded-full border-2 border-[#10243e] bg-blue-50 text-3xl font-black leading-none text-[#10243e] shadow-[0_4px_0_#10243e] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35"
           >
-            ‹
+            ←
           </button>
           <div className="flex gap-2">
             <button
@@ -187,7 +200,7 @@ export function FlashcardExercise({
             title="Thẻ sau"
             className="grid h-12 w-12 place-items-center rounded-full border-2 border-[#10243e] bg-[#10243e] text-3xl font-black leading-none text-white shadow-[0_4px_0_#071224] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35"
           >
-            ›
+            →
           </button>
           {last && (
             <button

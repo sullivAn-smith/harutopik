@@ -51,7 +51,7 @@ export function ModeNavigation({
           href={speedTestHref}
           className="ml-auto shrink-0 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-3 text-sm font-black text-[#10243e] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
         >
-          ⚡ Speed Test
+          ⚡ Speed Test Arena
         </Link>
       )}
     </nav>

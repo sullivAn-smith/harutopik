@@ -5,6 +5,8 @@ type QuizExerciseProps = {
   options: readonly string[];
   selectedAnswer: string | null;
   score: string;
+  position: number;
+  total: number;
   isLastQuestion: boolean;
   onAnswer: (answer: string) => void;
   onNext: () => void;
@@ -19,6 +21,8 @@ export function QuizExercise({
   options,
   selectedAnswer,
   score,
+  position,
+  total,
   isLastQuestion,
   onAnswer,
   onNext,
@@ -27,9 +31,17 @@ export function QuizExercise({
 
   return (
     <section className="mt-7 rounded-3xl border-2 border-[#10243e] bg-white p-6 shadow-[6px_7px_0_#10243e] md:p-10">
-      <p className="text-xs font-black uppercase tracking-widest text-blue-700">
-        Ôn tập toàn bộ từ vựng
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs font-black uppercase tracking-widest text-blue-700">
+          Ôn tập toàn bộ từ vựng
+        </p>
+        <p
+          aria-label={`Câu ${position} trên ${total}`}
+          className="rounded-full bg-[#dcecff] px-4 py-2 text-sm font-black tabular-nums text-[#10243e]"
+        >
+          Câu {position}/{total}
+        </p>
+      </div>
       <h2 className="mt-2 text-3xl font-black">Từ này nghĩa là gì?</h2>
       <p
         lang="ko"

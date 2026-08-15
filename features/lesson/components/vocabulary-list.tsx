@@ -72,9 +72,9 @@ export function VocabularyList({
             return (
               <article
                 key={item.id}
-                className="overflow-hidden rounded-3xl border border-white/80 bg-white/80 shadow-[0_12px_28px_rgba(16,36,62,0.11)] transition hover:-translate-y-1 hover:shadow-[0_18px_34px_rgba(16,36,62,0.16)]"
+                className="overflow-hidden rounded-3xl border border-[#d6e7f3] bg-[#dceef9] shadow-[0_12px_28px_rgba(16,36,62,0.11)] transition hover:-translate-y-1 hover:shadow-[0_18px_34px_rgba(16,36,62,0.16)]"
               >
-                <div className="flex min-h-32 items-start gap-4 p-6">
+                <div className="flex min-h-32 items-start gap-4 bg-gradient-to-br from-[#dceef9] to-[#d3e7f5] p-6">
                   <span className="pt-1 text-sm font-black text-[#087eba]/65">
                     {sourceIndex + 1}.
                   </span>
@@ -115,7 +115,7 @@ export function VocabularyList({
                   </div>
                 </div>
                 {example && (
-                  <div className="flex items-center gap-3 border-t border-emerald-200/70 bg-emerald-50/80 px-6 py-4">
+                  <div className="flex items-center gap-3 border-t border-[#b9e4da] bg-gradient-to-r from-[#e9faf5] to-[#e3f7f2] px-6 py-4">
                     <div className="min-w-0 flex-1">
                       <p
                         lang="ko"

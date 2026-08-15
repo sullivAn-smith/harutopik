@@ -19,6 +19,7 @@ export const studySessionStateSchema = z.object({
   quizAnswer: z.string().nullable(),
   quizCorrectCount: z.number().int().nonnegative(),
   quizWrongIndices: indexListSchema,
+  quizReviewIndices: indexListSchema.default([]),
   typedWord: z.string().max(500),
   typingChecked: z.boolean(),
   typingWrongIndices: indexListSchema,

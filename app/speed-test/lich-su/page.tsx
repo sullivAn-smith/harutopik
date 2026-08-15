@@ -22,6 +22,16 @@ type Attempt = {
   rating: string;
   finish_reason: "completed" | "timed_out";
   is_daily: boolean;
+  game_type: "typing_sprint" | "audio_reaction" | "flash_reaction" | "card_reaction";
+  answer_mode: "choose" | "type" | null;
+  score: number;
+  total_time_ms: number;
+  perfect_count: number;
+  game_over: boolean;
+  difficulty_level: "easy" | "medium" | "hard" | null;
+  cleared_cards: number;
+  revenge_count: number;
+  reaction_direction: "ko_vi" | "vi_ko" | "mixed" | null;
   created_at: string;
 };
 
@@ -53,7 +63,7 @@ export default async function SpeedTestHistoryPage({
   const supabase = await createClient();
   let attemptsQuery = supabase
     .from("speed_test_attempts")
-    .select("id,list_name,direction,total_questions,answered_count,correct_count,near_miss_count,accuracy,remaining_seconds,best_combo,rating,finish_reason,is_daily,created_at")
+    .select("id,list_name,direction,total_questions,answered_count,correct_count,near_miss_count,accuracy,remaining_seconds,best_combo,rating,finish_reason,is_daily,game_type,answer_mode,score,total_time_ms,perfect_count,game_over,difficulty_level,cleared_cards,revenge_count,reaction_direction,created_at")
     .eq("user_id", actor.id)
     .order("created_at", { ascending: false })
     .limit(30);
@@ -180,9 +190,9 @@ export default async function SpeedTestHistoryPage({
         <section className="mt-7 rounded-[2rem] bg-white/95 p-6 shadow-2xl sm:p-8">
           <h2 className="text-2xl font-black text-ink-900">Các lần gần đây</h2>
           {attempts.length ? <div className="mt-5 space-y-3">{attempts.map((attempt) => <article key={attempt.id} className="grid items-center gap-4 rounded-2xl border border-sky-100 bg-sky-50/70 p-5 sm:grid-cols-[1fr_auto_auto]">
-            <div><div className="flex flex-wrap items-center gap-2"><b className="text-lg text-ink-900">{attempt.list_name}</b>{attempt.is_daily && <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-black text-amber-800">📅 DAILY</span>}</div><span className="mt-1 block text-sm font-semibold text-ink-500">{new Intl.DateTimeFormat("vi-VN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(attempt.created_at))} · {attempt.direction === "vi_ko" ? "Việt → Hàn" : "Hàn → Việt"}</span></div>
-            <div className="text-sm font-bold text-ink-600"><span className="mr-4">{attempt.correct_count}/{attempt.answered_count} đúng</span><span>🔥 {attempt.best_combo}</span></div>
-            <div className="flex items-center gap-3"><b className="text-xl text-brand-700">{Number(attempt.accuracy)}%</b><span className="grid h-11 w-11 place-items-center rounded-full bg-brand-600 font-black text-white">{attempt.rating}</span></div>
+            <div><div className="flex flex-wrap items-center gap-2"><b className="text-lg text-ink-900">{attempt.list_name}</b>{attempt.is_daily && <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-black text-amber-800">📅 DAILY</span>}{attempt.game_type === "audio_reaction" && <span className="rounded-full bg-cyan-100 px-2.5 py-1 text-xs font-black text-cyan-800">🎧 AUDIO · {attempt.answer_mode === "type" ? "GÕ" : "CHỌN"}</span>}{attempt.game_type === "flash_reaction" && <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-black text-emerald-800">⚡ FLASH · {attempt.answer_mode === "type" ? "GÕ" : "CHỌN"}</span>}{attempt.game_type === "card_reaction" && <span className="rounded-full bg-fuchsia-100 px-2.5 py-1 text-xs font-black text-fuchsia-800">🃏 CARD · {attempt.difficulty_level?.toUpperCase()} · {attempt.answer_mode === "type" ? "GÕ" : "CHỌN"}</span>}</div><span className="mt-1 block text-sm font-semibold text-ink-500">{new Intl.DateTimeFormat("vi-VN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(attempt.created_at))} · {attempt.game_type === "card_reaction" ? `${attempt.cleared_cards}/${attempt.total_questions} thẻ · ${(attempt.total_time_ms / 1000).toFixed(2)}s` : attempt.game_type !== "typing_sprint" ? `${(attempt.total_time_ms / 1000).toFixed(2)}s · 💎 ${attempt.perfect_count} hoàn hảo` : attempt.direction === "vi_ko" ? "Việt → Hàn" : "Hàn → Việt"}</span></div>
+            <div className="text-sm font-bold text-ink-600"><span className="mr-4">{attempt.correct_count}/{attempt.answered_count} đúng</span><span>🔥 {attempt.best_combo}</span>{attempt.game_type !== "typing_sprint" && <span className="ml-4 text-amber-700">⚡ {attempt.score.toLocaleString("vi-VN")}</span>}</div>
+            <div className="flex items-center gap-3"><b className="text-xl text-brand-700">{Number(attempt.accuracy)}%</b><span className="grid h-11 w-11 place-items-center rounded-full bg-brand-600 font-black text-white">{attempt.game_over ? "GO" : attempt.rating}</span></div>
           </article>)}</div> : <Empty text="Chưa có lịch sử Speed Test cho nội dung này." />}
         </section>
       </section>

@@ -238,7 +238,7 @@ export function HomeClient({
   }, []);
 
   return (
-    <main data-home-viewport="fixed-desktop" className="elegant-blue home-landing min-h-screen overflow-x-hidden text-[#101820]">
+    <main data-home-viewport="fixed-desktop" className="elegant-blue home-landing min-h-screen overflow-x-hidden text-[#101820] lg:grid lg:grid-cols-[16rem_minmax(0,1fr)]">
       <header className="relative z-30 flex items-center justify-between border-b border-white/70 bg-white/70 px-4 py-3 backdrop-blur lg:hidden">
         <Link href="/" className="flex items-center gap-2 font-black">
           <span className="grid h-11 w-11 place-items-center rounded-2xl bg-white/80 p-1 shadow-[0_8px_20px_rgba(16,36,62,0.14)] ring-1 ring-white">
@@ -247,11 +247,10 @@ export function HomeClient({
           Harutopik
         </Link>
         <nav aria-label="Điều hướng di động" className="flex items-center gap-2 text-sm font-bold">
-          <Link href="/nang-cap" className="rounded-xl bg-amber-300 px-3 py-2 text-amber-950">Pro</Link>
           <AccountLink user={user} compact />
         </nav>
       </header>
-      <aside className="sidebar-shell fixed inset-y-0 left-0 z-20 hidden w-64 flex-col border-r border-white/50 px-5 py-7 shadow-xl backdrop-blur lg:flex">
+      <aside className="sidebar-shell z-20 hidden h-dvh w-64 flex-col border-r border-white/50 px-5 py-7 backdrop-blur lg:sticky lg:top-0 lg:flex">
         <Link href="/" className="block border-b border-[#10243e]/10 pb-6">
           <Image src="/harutopik-logo-white.png" alt="Harutopik - Học tiếng Hàn" width={220} height={220} className="harutopik-logo logo-penguin-wave h-auto w-full" priority />
         </Link>
@@ -264,7 +263,6 @@ export function HomeClient({
           <Link href="/tro-ly" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-[#087eba]">✦</span><span>Trợ lý Haru AI</span></Link>
         </nav>
         <div className="mt-auto space-y-3">
-          <Link href="/nang-cap" className="sidebar-upgrade flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-center font-black">♕ <span>Nâng cấp</span></Link>
           <AccountLink user={user} />
         </div>
       </aside>
@@ -273,7 +271,7 @@ export function HomeClient({
       <div className="home-aurora home-aurora-two pointer-events-none absolute" />
       <div className="home-aurora home-aurora-three pointer-events-none absolute" />
 
-      <section className="home-desktop-content relative mx-auto max-w-[1380px] px-6 pb-32 pt-5 md:px-8 lg:ml-64 lg:pb-5">
+      <section className="home-desktop-content relative w-full min-w-0 px-6 pb-32 pt-5 md:px-8 lg:pb-5">
         <div className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,1.08fr)_minmax(0,.92fr)]">
           <div className="flex min-h-[8.5rem] min-w-0 flex-col justify-center rounded-3xl border border-white/60 bg-white/38 px-5 py-3.5 shadow-[0_12px_28px_rgba(16,36,62,.08)] backdrop-blur">
             <div className="border-l-4 border-[#087eba] pl-4">

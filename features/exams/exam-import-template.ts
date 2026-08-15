@@ -31,6 +31,24 @@ export type ExamImportPermission = {
   optionImages: boolean;
 };
 
+function displayImportNumber(level: ExamLevel, question: ExamQuestionInput) {
+  return level === "topik_i" && question.section === "reading"
+    ? question.position + 30
+    : question.position;
+}
+
+function internalImportPosition(level: ExamLevel, question: ExamQuestionInput) {
+  if (
+    level === "topik_i"
+    && question.section === "reading"
+    && question.position >= 31
+    && question.position <= 70
+  ) {
+    return question.position - 30;
+  }
+  return question.position;
+}
+
 function isFirstBlockMember(
   questions: readonly ExamQuestionInput[],
   question: ExamQuestionInput,
@@ -105,7 +123,7 @@ export function buildExamImportRows(
       const permission = getExamImportPermission(level, allQuestions, question);
       return [
         question.section,
-        String(question.position),
+        String(displayImportNumber(level, question)),
         permission.instruction ? question.instruction : "",
         permission.prompt ? question.prompt : "",
         permission.secondaryPrompt ? question.audioText : "",
@@ -126,7 +144,10 @@ export function mergeExamImportQuestions(
 ) {
   const current = completeExamSkeleton(level, [...currentQuestions]);
   const importedBySlot = new Map(
-    importedQuestions.map((question) => [`${question.section}:${question.position}`, question]),
+    importedQuestions.map((question) => [
+      `${question.section}:${internalImportPosition(level, question)}`,
+      question,
+    ]),
   );
 
   const merged = current.map((question) => {

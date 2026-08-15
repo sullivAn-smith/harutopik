@@ -30,6 +30,11 @@ describe("HomeClient library navigation", () => {
     expect(screen.queryByRole("button", { name: /Quyển/ })).toBeNull();
     expect(container.querySelector("[data-home-viewport='fixed-desktop']")).toBeTruthy();
     expect(container.querySelector("[data-home-series-grid='full-width']")).toBeTruthy();
+    expect(container.querySelector(".home-landing")?.className).toContain("lg:grid-cols-[16rem_minmax(0,1fr)]");
+    expect(container.querySelector(".sidebar-shell")?.className).toContain("lg:sticky");
+    expect(container.querySelector(".home-desktop-content")?.className).toContain("min-w-0");
+    expect(container.querySelector(".home-desktop-content")?.className).not.toContain("max-w-");
+    expect(container.querySelector(".home-desktop-content")?.className).not.toContain("lg:ml-64");
     expect(screen.queryByRole("link", { name: "Xem toàn bộ →" })).toBeNull();
   });
 });

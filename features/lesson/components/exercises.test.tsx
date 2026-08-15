@@ -26,7 +26,7 @@ describe("FlashcardExercise", () => {
 
   it("lật thẻ, phát âm và quản lý trạng thái đã thuộc", () => {
     const onFlip = vi.fn();
-    const onSpeak = vi.fn();
+    const onToggleAutoAudio = vi.fn();
     const onMarkLearned = vi.fn();
     render(
       <FlashcardExercise
@@ -38,8 +38,10 @@ describe("FlashcardExercise", () => {
         learned={false}
         flipped={false}
         skipFlipAnimation={false}
+        autoAudioEnabled
+        autoAudioReady
         onFlip={onFlip}
-        onSpeak={onSpeak}
+        onToggleAutoAudio={onToggleAutoAudio}
         onToggleLearned={vi.fn()}
         onMarkLearned={onMarkLearned}
         onMarkUnlearned={vi.fn()}
@@ -50,11 +52,13 @@ describe("FlashcardExercise", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Lật flashcard" }));
-    fireEvent.click(screen.getByRole("button", { name: "Phát âm 한국" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Tắt tự động đọc flashcard" }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "✓ Đã thuộc" }));
 
     expect(onFlip).toHaveBeenCalledOnce();
-    expect(onSpeak).toHaveBeenCalledOnce();
+    expect(onToggleAutoAudio).toHaveBeenCalledOnce();
     expect(onMarkLearned).toHaveBeenCalledOnce();
     expect(
       screen.getByRole("button", { name: "Thẻ trước" }).hasAttribute("disabled"),
@@ -102,6 +106,8 @@ describe("QuizExercise", () => {
         options={["Hàn Quốc", "Việt Nam", "Nhật Bản", "Mỹ"]}
         selectedAnswer={null}
         score="0/0"
+        position={1}
+        total={55}
         isLastQuestion={false}
         onAnswer={onAnswer}
         onNext={vi.fn()}
@@ -117,6 +123,8 @@ describe("QuizExercise", () => {
         options={["Hàn Quốc", "Việt Nam", "Nhật Bản", "Mỹ"]}
         selectedAnswer="Hàn Quốc"
         score="1/1"
+        position={1}
+        total={55}
         isLastQuestion={false}
         onAnswer={onAnswer}
         onNext={vi.fn()}
@@ -139,6 +147,8 @@ describe("QuizExercise", () => {
         options={["Hàn Quốc", "Việt Nam"]}
         selectedAnswer="Việt Nam"
         score="0/1"
+        position={55}
+        total={55}
         isLastQuestion
         onAnswer={vi.fn()}
         onNext={vi.fn()}
@@ -147,6 +157,7 @@ describe("QuizExercise", () => {
 
     expect(screen.queryByText("Câu tiếp theo →")).toBeNull();
     expect(screen.getByText(/Đáp án đúng/)).toBeTruthy();
+    expect(screen.getByText("Câu 55/55")).toBeTruthy();
   });
 });
 

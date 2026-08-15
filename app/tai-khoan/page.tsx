@@ -132,14 +132,6 @@ export default async function AccountPage({
               Quyền học được đồng bộ theo tài khoản trên mọi thiết bị.
             </p>
           </div>
-          {!entitlement.isPro && (
-            <Link
-              href="/nang-cap"
-              className="rounded-xl bg-amber-400 px-4 py-2.5 font-black text-amber-950"
-            >
-              Nâng cấp Pro
-            </Link>
-          )}
         </div>
 
         <Link
