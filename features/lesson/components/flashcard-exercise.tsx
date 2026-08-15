@@ -64,8 +64,8 @@ export function FlashcardExercise({
         </p>
       </aside>
 
-      <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-white/80 bg-white/80 shadow-[0_16px_35px_rgba(16,36,62,0.12)] backdrop-blur-xl">
-        <div className="flex items-center justify-between border-b border-[#10243e]/10 px-5 py-4">
+      <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-[#d6e7f3] bg-[#dceef9] shadow-[0_16px_35px_rgba(16,36,62,0.12)] backdrop-blur-xl">
+        <div className="flex items-center justify-between border-b border-[#b9d9e8] bg-gradient-to-r from-[#dceef9] to-[#d3e7f5] px-5 py-4">
           <span className="font-black">
             {position + 1} / {total}
           </span>
@@ -107,7 +107,7 @@ export function FlashcardExercise({
               flipped ? "is-flipped" : ""
             } ${skipFlipAnimation ? "skip-flip-animation" : ""}`}
           >
-            <span className="flashcard-face flashcard-front bg-gradient-to-br from-[#8ec5ff] to-[#cbe6ff]">
+            <span className="flashcard-face flashcard-front bg-gradient-to-br from-[#dceef9] via-[#edf6fc] to-[#d3e7f5]">
               {word.imageUrl && (
                 <span
                   aria-hidden="true"
@@ -127,7 +127,7 @@ export function FlashcardExercise({
                 Nhấn để xem nghĩa tiếng Việt
               </span>
             </span>
-            <span className="flashcard-face flashcard-back bg-gradient-to-br from-[#c9e7ff] to-[#f0f8ff]">
+            <span className="flashcard-face flashcard-back bg-gradient-to-br from-[#e9faf5] via-[#f4fcf9] to-[#dff5ef]">
               <span className="text-xs font-black uppercase tracking-widest text-blue-800">
                 Nghĩa tiếng Việt
               </span>
@@ -144,7 +144,7 @@ export function FlashcardExercise({
           </span>
         </button>
 
-        <div className="flex flex-wrap items-center justify-center gap-3 px-5 py-5">
+        <div className="flex flex-wrap items-center justify-center gap-3 border-t border-[#b9e4da] bg-gradient-to-r from-[#e9faf5] to-[#e3f7f2] px-5 py-5">
           <button
             type="button"
             onClick={onPrevious}

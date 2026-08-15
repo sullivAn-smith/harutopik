@@ -23,6 +23,26 @@ describe("exam import template", () => {
     expect(header).not.toContain("audio_url");
     expect(header).not.toContain("image_url");
     expect(header).not.toContain("option_image_1");
+
+    const topikIReading = buildExamImportRows("topik_i", topikI, "reading");
+    expect(topikIReading[1][1]).toBe("31");
+    expect(topikIReading.at(-1)?.[1]).toBe("70");
+  });
+
+  it("nhập số câu đọc TOPIK I từ 31–70 vào đúng vị trí nội bộ 1–40", () => {
+    const questions = buildExamSkeleton("topik_i");
+    const rows = buildExamImportRows("topik_i", questions, "reading");
+    const header = rows[0];
+    const optionIndex = header.indexOf("option_1");
+    rows[1][optionIndex] = "답안 câu 31";
+    rows.at(-1)![optionIndex] = "답안 câu 70";
+
+    const merged = mergeExamImportQuestions("topik_i", questions, parseExamImportRows(rows));
+
+    expect(merged.find((question) => question.section === "reading" && question.position === 1)?.options[0])
+      .toBe("답안 câu 31");
+    expect(merged.find((question) => question.section === "reading" && question.position === 40)?.options[0])
+      .toBe("답안 câu 70");
   });
 
   it("khóa tiêu đề ở cả TOPIK I và TOPIK II", () => {

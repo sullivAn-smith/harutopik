@@ -8,6 +8,7 @@ import {
 } from "./hotfix-actions";
 import { SentenceAudioButton } from "./sentence-audio-button";
 import { VocabularyListAudioButton } from "./vocabulary-list-audio-button";
+import { VocabularyExampleAudioButton } from "./vocabulary-example-audio-button";
 import {
   GrammarExerciseImport,
   type GrammarExerciseDraft,
@@ -583,7 +584,7 @@ export function PublishedLessonHotfixForm({ lesson }: { lesson: Lesson }) {
           {visibleVocabulary.map((item, index) => (
             <article
               key={item.id}
-              className={`flex items-center gap-3 rounded-2xl border-2 bg-white p-4 transition ${
+              className={`flex items-start gap-3 rounded-2xl border-2 bg-white p-4 transition ${
                 selectedVocabularyIds.includes(item.id)
                   ? "border-sky-500 bg-sky-100/70 shadow-sm"
                   : "border-white hover:border-sky-300"
@@ -604,26 +605,62 @@ export function PublishedLessonHotfixForm({ lesson }: { lesson: Lesson }) {
                   className="h-5 w-5 accent-sky-600"
                 />
               </label>
-              <Link
-                href={`/quan-tri/hotfix/${lesson.id}/tu-vung/${item.id}`}
-                className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-4"
-              >
-                <span className="min-w-0">
-                  <strong lang="ko" className="block truncate text-xl">
-                    {item.korean}
-                  </strong>
-                  <span className="mt-1 block truncate text-sm font-bold text-orange-700">
-                    {item.vietnamese}
-                  </span>
-                </span>
-                <span className="shrink-0 text-sm font-black text-sky-700">
-                  Từ {index + 1} →
-                </span>
-              </Link>
-              <VocabularyListAudioButton
-                vocabularyId={item.id}
-                currentAudioUrl={item.audioUrl}
-              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start gap-3">
+                  <Link
+                    href={`/quan-tri/hotfix/${lesson.id}/tu-vung/${item.id}`}
+                    className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-4"
+                  >
+                    <span className="min-w-0">
+                      <strong lang="ko" className="block truncate text-xl">
+                        {item.korean}
+                      </strong>
+                      <span className="mt-1 block truncate text-sm font-bold text-orange-700">
+                        {item.vietnamese}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-sm font-black text-sky-700">
+                      Từ {index + 1} →
+                    </span>
+                  </Link>
+                  <VocabularyListAudioButton
+                    vocabularyId={item.id}
+                    currentAudioUrl={item.audioUrl}
+                  />
+                </div>
+
+                <div className="mt-3 space-y-2 border-t border-sky-100 pt-3">
+                  {item.examples.length > 0 ? (
+                    item.examples.map((example, exampleIndex) => (
+                      <div
+                        key={example.id}
+                        className="flex flex-col gap-2 rounded-xl bg-slate-50 px-3 py-2 sm:flex-row sm:items-center"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[11px] font-black uppercase tracking-wide text-sky-700">
+                            Ví dụ {exampleIndex + 1}
+                          </p>
+                          <p lang="ko" className="mt-0.5 text-sm font-bold text-ink-900">
+                            {example.korean}
+                          </p>
+                          <p className="mt-0.5 text-xs font-semibold text-ink-600">
+                            {example.vietnamese}
+                          </p>
+                        </div>
+                        <VocabularyExampleAudioButton
+                          vocabularyId={item.id}
+                          exampleId={example.id}
+                          currentAudioUrl={example.audioUrl}
+                        />
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs font-semibold text-slate-500">
+                      Chưa có câu ví dụ. Mở “Từ {index + 1}” để thêm câu.
+                    </p>
+                  )}
+                </div>
+              </div>
             </article>
           ))}
         </div>
