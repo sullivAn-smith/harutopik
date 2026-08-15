@@ -12,6 +12,7 @@ import {
   type SpeedTestVocabularySnapshot,
   type SpeedTestWordProgress,
 } from "@/lib/speed-test/domain";
+import { GameMusicControl, useGameBackgroundMusic } from "./game-background-music";
 
 type SpeedList = { id: string; name: string; items: SpeedTestVocabularySnapshot[] };
 type SpeedTestSource =
@@ -50,6 +51,7 @@ export function SpeedTestExperience({ lists, initialListId, initialDailyMode = f
   const activeList = lists.find((list) => list.id === listId) ?? null;
   const question = questions[position];
   const hasLearningData = Object.keys(progressById).length > 0;
+  const gameMusic = useGameBackgroundMusic(stage === "countdown" || stage === "playing");
 
   const selectQuestions = useCallback((items: readonly SpeedTestVocabularySnapshot[]) =>
     selectAdaptiveSpeedTestQuestions(items, dailyMode ? 20 : requested, progressById),
@@ -101,6 +103,7 @@ export function SpeedTestExperience({ lists, initialListId, initialDailyMode = f
     setQuestions(selectQuestions(activeList.items)); setStage("preview");
   }
   function start(nextQuestions = questions) {
+    gameMusic.playFromUserGesture();
     const selected = nextQuestions.length ? nextQuestions : selectQuestions(activeList?.items ?? []);
     setQuestions(selected); setPosition(0); setAnswers([]); setValue(""); setRemainingMs(speedTestRules.startingSeconds * 1000);
     setCombo(0); setBestCombo(0); setFeedback(null); setCountdown(3); setAttemptId(crypto.randomUUID());
@@ -145,7 +148,7 @@ export function SpeedTestExperience({ lists, initialListId, initialDailyMode = f
         {stage === "setup" && <Setup lists={lists} listId={listId} setListId={setListId} direction={direction} setDirection={setDirection} requested={requested} setRequested={setRequested} dailyMode={dailyMode} setDailyMode={setDailyMode} dailyCompletedToday={dailyCompleted} dailyBestAccuracy={dailyBestAccuracy} activeList={activeList} onNext={prepare} lockList={Boolean(fixedSource)} />}
         {stage === "preview" && activeList && <Preview list={activeList} direction={direction} count={questions.length} adaptive={hasLearningData} dailyMode={dailyMode} dailyCompletedToday={dailyCompleted} onBack={() => setStage("setup")} onStart={() => start()} />}
         {stage === "countdown" && <div className="mt-16 text-center text-white"><p className="text-xl font-black uppercase tracking-[.25em]">Sẵn sàng</p><p className="mt-6 text-[10rem] font-black leading-none drop-shadow-xl">{countdown || "GO!"}</p></div>}
-        {stage === "playing" && question && <Game question={question} direction={direction} value={value} setValue={setValue} inputRef={inputRef} submit={submit} remaining={Math.ceil(remainingMs / 1000)} combo={combo} position={position} total={questions.length} feedback={feedback} />}
+        {stage === "playing" && question && <Game question={question} direction={direction} value={value} setValue={setValue} inputRef={inputRef} submit={submit} remaining={Math.ceil(remainingMs / 1000)} combo={combo} position={position} total={questions.length} feedback={feedback} music={gameMusic} />}
         {stage === "result" && <Result completed={completed} total={questions.length} answered={answers.length} correct={correctCount} nearMiss={nearMissCount} accuracy={accuracy} bestCombo={bestCombo} remaining={Math.max(0, Math.ceil(remainingMs / 1000))} rating={calculateSpeedRating({ accuracy, completed })} wrongItems={wrongItems} syncState={syncState} dailyMode={dailyMode} dailyCompletedToday={dailyCompletedToday} onRetry={() => start(selectQuestions(activeList?.items ?? []))} onReview={() => { setDailyMode(false); start(wrongItems); }} backHref={backHref} backLabel={backLabel} historyHref={historyHref} />}
       </section>
     </main>
@@ -167,8 +170,8 @@ function Setup({ lists, listId, setListId, direction, setDirection, requested, s
 }
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label><span className="mb-2 block text-sm font-black text-ink-700">{label}</span>{children}</label>; }
 function Preview({ list, direction, count, adaptive, dailyMode, dailyCompletedToday, onBack, onStart }: { list: SpeedList; direction: SpeedTestDirection; count: number; adaptive: boolean; dailyMode: boolean; dailyCompletedToday: boolean; onBack: () => void; onStart: () => void }) { const sample = list.items[0]; return <section className="mt-8 rounded-[2rem] bg-white/95 p-7 shadow-2xl sm:p-10"><button onClick={onBack} className="font-black text-brand-700">← Chỉnh thiết lập</button><div className="mt-7 grid gap-6 lg:grid-cols-[1fr_.8fr]"><div><p className="text-sm font-black uppercase tracking-[.18em] text-brand-600">{dailyMode ? "📅 Daily Challenge" : list.name}</p><h1 className="mt-2 text-4xl font-black text-ink-900">{count} câu · 60 giây</h1>{dailyMode && <p className="mt-3 inline-flex rounded-full bg-emerald-100 px-4 py-2 text-sm font-black text-emerald-800">{dailyCompletedToday ? "Lượt làm lại chỉ cập nhật kỷ lục" : "Hoàn thành để giữ streak hôm nay"}</p>}{adaptive && <p className="mt-3 ml-2 inline-flex rounded-full bg-amber-100 px-4 py-2 text-sm font-black text-amber-800">🧠 Adaptive · Đã xen kẽ từ yếu và từ từng sai</p>}<ul className="mt-5 space-y-3 font-semibold text-ink-600"><li>✓ Đúng +2 giây, sai -1 giây</li><li>✓ Combo 5 và 10 có thưởng thời gian</li><li>✓ Thời gian tối đa 120 giây</li><li>✓ Nhấn Enter để trả lời, tự chuyển câu</li></ul></div><div className="rounded-3xl bg-gradient-to-br from-sky-50 to-cyan-100 p-6 text-center"><p className="text-sm font-black text-brand-700">Ví dụ</p><p className="mt-5 text-3xl font-black text-ink-900">{direction === "vi_ko" ? sample?.vietnamese : sample?.korean}</p><div className="mt-5 rounded-xl bg-white px-4 py-3 text-slate-400">Nhập {direction === "vi_ko" ? "tiếng Hàn" : "tiếng Việt"}...</div></div></div><button onClick={onStart} className="mt-8 w-full rounded-2xl bg-emerald-600 px-6 py-4 text-xl font-black text-white shadow-xl">{dailyMode ? "Bắt đầu Daily Challenge 📅" : "Bắt đầu Speed Test ⚡"}</button></section>; }
-type GameProps = { question: SpeedTestVocabularySnapshot; direction: SpeedTestDirection; value: string; setValue: Dispatch<SetStateAction<string>>; inputRef: RefObject<HTMLInputElement | null>; submit: (event: FormEvent) => void; remaining: number; combo: number; position: number; total: number; feedback: null | { result: "correct" | "near_miss" | "wrong"; expected: string; delta: number } };
-function Game({ question, direction, value, setValue, inputRef, submit, remaining, combo, position, total, feedback }: GameProps) {
+type GameProps = { question: SpeedTestVocabularySnapshot; direction: SpeedTestDirection; value: string; setValue: Dispatch<SetStateAction<string>>; inputRef: RefObject<HTMLInputElement | null>; submit: (event: FormEvent) => void; remaining: number; combo: number; position: number; total: number; feedback: null | { result: "correct" | "near_miss" | "wrong"; expected: string; delta: number }; music: ReturnType<typeof useGameBackgroundMusic> };
+function Game({ question, direction, value, setValue, inputRef, submit, remaining, combo, position, total, feedback, music }: GameProps) {
   const feedbackTone = feedback?.result === "correct"
     ? "border-emerald-500 bg-emerald-50 shadow-[0_0_0_8px_rgba(16,185,129,.12),0_18px_40px_rgba(16,185,129,.2)]"
     : feedback?.result === "near_miss"
@@ -185,7 +188,7 @@ function Game({ question, direction, value, setValue, inputRef, submit, remainin
   return <section className={`relative mx-auto mt-8 max-w-4xl overflow-hidden rounded-[2.5rem] border border-white/70 bg-white/95 p-6 text-center shadow-2xl sm:p-10 ${feedbackClass}`}>
     {feedback && <div aria-hidden="true" className={`speed-feedback-wash ${feedback.result}`} />}
     {feedback?.result === "correct" && <div aria-hidden="true" className="speed-success-sparks"><i /><i /><i /><i /><i /><i /></div>}
-    <div className="relative z-10 flex items-center justify-between"><b className={`rounded-full bg-amber-100 px-4 py-2 text-xl text-amber-800 ${feedback?.delta ? "speed-time-pop" : ""}`}>⚡ {remaining}s</b><b className="rounded-full bg-orange-100 px-4 py-2 text-orange-700">🔥 COMBO {combo}</b></div>
+    <div className="relative z-10 flex flex-wrap items-center justify-between gap-3"><b className={`rounded-full bg-amber-100 px-4 py-2 text-xl text-amber-800 ${feedback?.delta ? "speed-time-pop" : ""}`}>⚡ {remaining}s</b><GameMusicControl inline enabled={music.enabled} volume={music.volume} toggle={music.toggle} setVolume={music.setVolume} /><b className="rounded-full bg-orange-100 px-4 py-2 text-orange-700">🔥 COMBO {combo}</b></div>
     <p className="relative z-10 mt-12 text-sm font-black uppercase tracking-[.24em] text-brand-600">{direction === "vi_ko" ? "Gõ tiếng Hàn" : "Gõ nghĩa tiếng Việt"}</p>
     <h1 lang={direction === "ko_vi" ? "ko" : undefined} className="relative z-10 mt-5 text-5xl font-black text-ink-900 sm:text-7xl">{direction === "vi_ko" ? question.vietnamese : question.korean}</h1>
     <form onSubmit={submit} className="relative z-10 mx-auto mt-10 max-w-2xl"><input ref={inputRef} disabled={!!feedback} value={value} onChange={(e) => setValue(e.target.value)} autoComplete="off" className={`w-full rounded-2xl border-4 bg-white px-6 py-5 text-center text-2xl font-black outline-none transition ${feedback ? feedbackTone : "border-sky-200 focus:border-brand-600"}`} placeholder="Nhập đáp án rồi nhấn Enter" /></form>
