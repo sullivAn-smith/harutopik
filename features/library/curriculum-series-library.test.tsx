@@ -17,7 +17,13 @@ const books: CurriculumBook[] = [
     status: "published",
     courseSlug: "topik-1",
     lessons: [
-      { id: "lesson-1", slug: "bai-1", order: 1, title: "Giới thiệu bản thân" },
+      {
+        id: "lesson-1",
+        slug: "bai-1",
+        order: 1,
+        title: "Giới thiệu bản thân",
+        progressPercent: 45,
+      },
     ],
   },
   {
@@ -25,7 +31,13 @@ const books: CurriculumBook[] = [
     status: "published",
     courseSlug: "topik-2",
     lessons: [
-      { id: "lesson-2", slug: "bai-2", order: 1, title: "Gia đình" },
+      {
+        id: "lesson-2",
+        slug: "bai-2",
+        order: 1,
+        title: "Gia đình",
+        progressPercent: 100,
+      },
     ],
   },
   { number: 3, status: "locked", courseSlug: null, lessons: [] },
@@ -94,5 +106,22 @@ describe("CurriculumSeriesLibrary", () => {
 
     expect(lessonLink?.className).toContain("from-[#edf9ff]");
     expect(lessonLink?.className).toContain("border-sky-300/85");
+  });
+
+  it("shows lesson progress in the circle and turns completed lessons green", () => {
+    render(
+      <CurriculumSeriesLibrary
+        series={curriculumSeriesDefinitions[0]}
+        books={books}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Quyển 1" }));
+    expect(screen.getByLabelText("Tiến độ bài 1: 45%").textContent).toContain("45%");
+
+    fireEvent.click(screen.getByRole("button", { name: "Quyển 2" }));
+    const completedProgress = screen.getByLabelText("Tiến độ bài 1: 100%");
+    expect(completedProgress.textContent).toContain("✓");
+    expect(completedProgress.className).toContain("bg-emerald-500");
   });
 });

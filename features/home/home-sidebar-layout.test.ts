@@ -17,4 +17,9 @@ describe("desktop home sidebar layout", () => {
     expect(source).toContain('<div className="mt-auto space-y-3">');
     expect(source).not.toContain('href="/nang-cap"');
   });
+
+  it("shows the learner leaderboard in the left navigation", () => {
+    expect(source).toContain('href="/bang-xep-hang"');
+    expect(source).toContain("<span>Bảng xếp hạng</span>");
+  });
 });

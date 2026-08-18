@@ -1,6 +1,9 @@
 import { apiError, apiSuccess } from "@/lib/api/responses";
 import { getApiActor } from "@/lib/api/auth";
-import { updatePersonalVocabularyItemSchema } from "@/lib/vocabulary-lists/schema";
+import {
+  isCustomVocabularyItem,
+  updatePersonalVocabularyItemSchema,
+} from "@/lib/vocabulary-lists/schema";
 
 type RouteContext = {
   params: Promise<{ listId: string; vocabularyId: string }>;
@@ -82,13 +85,17 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (!savedItem) {
     return apiError("ITEM_NOT_FOUND", "Không tìm thấy từ trong bộ này.", 404);
   }
-  if (
-    !savedItem.vocabulary_id.startsWith("exam-highlight-") &&
-    !savedItem.lesson_id.startsWith("exam:")
-  ) {
+  const isHighlight =
+    savedItem.vocabulary_id.startsWith("exam-highlight-") ||
+    savedItem.lesson_id.startsWith("exam:");
+  const isCustom = isCustomVocabularyItem({
+    vocabularyId: savedItem.vocabulary_id,
+    lessonId: savedItem.lesson_id,
+  });
+  if (!isHighlight && !isCustom) {
     return apiError(
       "ITEM_EDIT_FORBIDDEN",
-      "Chỉ từ cá nhân được tạo từ highlight mới có thể sửa tại đây.",
+      "Chỉ từ highlight hoặc từ custom của bạn mới có thể sửa tại đây.",
       403,
     );
   }

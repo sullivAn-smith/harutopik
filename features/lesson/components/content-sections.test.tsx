@@ -139,6 +139,7 @@ describe("GrammarSection", () => {
     const onFeedback = vi.fn();
     render(
       <GrammarSection
+        lessonId="lesson-test"
         grammar={lessonOne.grammar}
         exercises={exercises}
         onSpeak={vi.fn()}
@@ -152,6 +153,28 @@ describe("GrammarSection", () => {
 
     expect(onFeedback).toHaveBeenCalledWith(true);
     expect(screen.getByText("✓ Chính xác!")).toBeTruthy();
+  });
+
+  it("gợi ý đáp án khi điền ngữ pháp sai", () => {
+    render(
+      <GrammarSection
+        lessonId="lesson-test"
+        grammar={lessonOne.grammar}
+        exercises={exercises}
+        onSpeak={vi.fn()}
+        onFeedback={vi.fn()}
+      />,
+    );
+
+    const inputs = screen.getAllByPlaceholderText("Nhập đáp án");
+    fireEvent.change(inputs[0], { target: { value: "sai" } });
+    fireEvent.click(screen.getAllByRole("button", { name: "Kiểm tra" })[0]);
+
+    expect(
+      screen.getByText(
+        `✕ Chưa đúng. Gợi ý đáp án: ${exercises[0].acceptedAnswers.join(" / ")}`,
+      ),
+    ).toBeTruthy();
   });
 
   it("gọi phát âm đúng ví dụ được chọn", () => {
@@ -173,6 +196,7 @@ describe("GrammarSection", () => {
     );
     render(
       <GrammarSection
+        lessonId="lesson-test"
         grammar={grammar}
         exercises={exercises}
         onSpeak={onSpeak}

@@ -261,7 +261,7 @@ export function ExamRunner({
 
   async function switchSection(nextSection: ExamSection) {
     if (nextSection === activeSection) {
-      document.getElementById(`exam-${nextSection}-top`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document.getElementById(`exam-${nextSection}-top`)?.scrollIntoView({ behavior: "auto", block: "start" });
       return;
     }
     const previousSection = activeSection;
@@ -273,6 +273,9 @@ export function ExamRunner({
     setActiveQuestionId(firstQuestion?.id ?? "");
     setPendingHighlight(null);
     setSaving(`Đang mở phần ${nextSection === "listening" ? "Nghe" : "Đọc"}...`);
+    window.requestAnimationFrame(() => {
+      document.getElementById(`exam-${nextSection}-top`)?.scrollIntoView({ behavior: "auto", block: "start" });
+    });
     const response = await fetch(`/api/v1/exam-attempts/${attemptId}/section`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -284,9 +287,6 @@ export function ExamRunner({
       return;
     }
     setSaving("");
-    window.requestAnimationFrame(() => {
-      document.getElementById(`exam-${nextSection}-top`)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
   }
 
   useEffect(() => {
@@ -580,7 +580,7 @@ export function ExamRunner({
 
   function jumpToQuestion(question: Question) {
     setActiveQuestionId(question.id);
-    document.getElementById(`question-${question.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    document.getElementById(`question-${question.id}`)?.scrollIntoView({ behavior: "auto", block: "center" });
   }
 
   const minutes = String(Math.floor(remaining / 60)).padStart(2, "0");
@@ -757,11 +757,6 @@ export function ExamRunner({
                 && previousQuestion?.audioBlockKey !== question.audioBlockKey;
               const showListeningAudio = activeSection === "listening"
                 && (!sharedAudioRange || firstOfSharedAudio);
-              const audioReady = !question.audioUrl
-                || finishedAudioKeys.has(playKey)
-                || isActiveAudio
-                || Boolean(answers[question.id])
-                || sharedAudioQuestions.some((item) => Boolean(answers[item.id]));
               const separatesTopikIReading57To58 = levelLabel === "TOPIK I"
                 && activeSection === "reading"
                 && question.position >= 27
@@ -886,9 +881,8 @@ export function ExamRunner({
                             type="button"
                             key={index}
                             aria-label={`Chọn ảnh đáp án ${index + 1}`}
-                            disabled={activeSection === "listening" && !audioReady}
                             onClick={() => void choose(question, index + 1)}
-                            className={`group relative aspect-[4/3] overflow-hidden border bg-slate-50 text-left transition disabled:cursor-not-allowed disabled:opacity-50 ${answers[question.id] === index + 1 ? "border-[3px] border-[#10243e] ring-2 ring-sky-300" : "border-slate-200 hover:border-cyan-600"}`}
+                            className={`group relative aspect-[4/3] overflow-hidden border bg-slate-50 text-left transition disabled:cursor-not-allowed ${answers[question.id] === index + 1 ? "border-[3px] border-[#10243e] ring-2 ring-sky-300" : "border-slate-200 hover:border-cyan-600"}`}
                           >
                             {question.optionImages[index] && <Image unoptimized src={question.optionImages[index]} alt={`Đáp án ${index + 1}`} fill sizes="(max-width: 640px) 45vw, 260px" className="bg-white object-contain p-1" />}
                             <span className="absolute left-2 top-2 grid h-7 w-7 place-items-center rounded-full border border-slate-300 bg-white/95 text-sm font-black text-slate-800 shadow-sm">{index + 1}</span>
@@ -897,7 +891,6 @@ export function ExamRunner({
                             type="button"
                             key={index}
                             aria-label={`Đáp án ${index + 1}: ${option}`}
-                            disabled={activeSection === "listening" && !audioReady}
                             onClick={() => {
                               if (selectionJustMadeRef.current) { selectionJustMadeRef.current = false; return; }
                               void choose(question, index + 1);
@@ -932,11 +925,6 @@ export function ExamRunner({
             })}
           </div>
 
-          <div className="border-t border-slate-200 bg-slate-50 px-6 py-7 text-center md:px-8">
-            {activeSection === "listening" && hasReading
-              ? <button type="button" onClick={() => void switchSection("reading")} className="rounded-2xl bg-[#087eba] px-7 py-4 font-black text-white shadow-sm transition hover:bg-[#066c9f]">Sang phần Đọc →</button>
-              : <button type="button" disabled={submitting} onClick={confirmSubmit} className="rounded-2xl bg-emerald-600 px-8 py-4 font-black text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50">{submitting ? "Đang nộp..." : "Nộp bài"}</button>}
-          </div>
         </section>
 
         <aside className="h-fit rounded-3xl bg-white p-5 shadow-sm lg:sticky lg:top-24">
@@ -946,6 +934,11 @@ export function ExamRunner({
               const numberOffset = activeSection === "reading" && sectionQuestions.length === 40 ? 30 : 0;
               return <button type="button" key={question.id} onClick={() => jumpToQuestion(question)} className={`relative aspect-square rounded-xl text-sm font-black transition ${activeQuestionId === question.id ? "ring-2 ring-[#10243e] ring-offset-2" : ""} ${answers[question.id] ? "bg-[#087eba] text-white" : "bg-slate-100 text-slate-500 hover:bg-sky-100"}`}>{question.position + numberOffset}{flagged.includes(question.id) && <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-amber-400" />}</button>;
             })}
+          </div>
+          <div className="mt-4 border-t border-slate-200 pt-4">
+            {activeSection === "listening" && hasReading
+              ? <button type="button" onClick={() => void switchSection("reading")} className="w-full rounded-2xl bg-[#087eba] px-5 py-3.5 font-black text-white shadow-sm transition hover:bg-[#066c9f]">Sang phần Đọc →</button>
+              : <button type="button" disabled={submitting} onClick={confirmSubmit} className="w-full rounded-2xl bg-emerald-600 px-5 py-3.5 font-black text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50">{submitting ? "Đang nộp..." : "Nộp bài"}</button>}
           </div>
           <div className="mt-5 space-y-2 border-t border-slate-200 pt-4 text-xs font-bold text-slate-500"><p><span className="mr-2 inline-block h-3 w-3 rounded bg-[#087eba]" />Đã trả lời</p><p><span className="mr-2 inline-block h-3 w-3 rounded bg-slate-100 ring-1 ring-slate-200" />Chưa trả lời</p><p><span className="mr-2 inline-block h-3 w-3 rounded-full bg-amber-400" />Đánh dấu xem lại</p></div>
           <p className="mt-5 min-h-5 text-center text-xs font-bold text-slate-500">{saving}</p>

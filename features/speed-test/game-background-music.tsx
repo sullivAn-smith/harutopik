@@ -7,7 +7,7 @@ const enabledKey = "haru:game-background-music-enabled:v1";
 const volumeKey = "haru:game-background-music-volume:v1";
 const defaultVolume = 0.18;
 
-export function useGameBackgroundMusic(active: boolean) {
+export function useGameBackgroundMusic(active: boolean, source = musicSource) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [enabled, setEnabled] = useState(() => {
     if (typeof window === "undefined") return true;
@@ -25,7 +25,7 @@ export function useGameBackgroundMusic(active: boolean) {
   });
 
   useEffect(() => {
-    const audio = new Audio(musicSource);
+    const audio = new Audio(source);
     audio.loop = true;
     audio.preload = "auto";
     audio.volume = defaultVolume;
@@ -36,7 +36,7 @@ export function useGameBackgroundMusic(active: boolean) {
       audio.load();
       audioRef.current = null;
     };
-  }, []);
+  }, [source]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -88,14 +88,13 @@ export function useGameBackgroundMusic(active: boolean) {
   return { enabled, volume, toggle, setVolume, playFromUserGesture };
 }
 
-export function GameMusicControl({ enabled, volume, toggle, setVolume, inline = false }: {
+export function GameMusicControl({ enabled, volume, toggle, setVolume }: {
   enabled: boolean;
   volume: number;
   toggle: () => void;
   setVolume: (volume: number) => void;
-  inline?: boolean;
 }) {
-  return <div className={`${inline ? "flex" : "fixed bottom-4 left-4 z-[70] flex"} items-center gap-2 rounded-full border border-white/30 bg-slate-950/85 p-2 text-white shadow-xl backdrop-blur-md`}>
+  return <div className="fixed bottom-4 left-4 z-[70] flex items-center gap-2 rounded-full border border-white/30 bg-slate-950/85 p-2 text-white shadow-xl backdrop-blur-md">
     <button type="button" onClick={toggle} aria-label={enabled ? "Tắt nhạc nền" : "Bật nhạc nền"} title={enabled ? "Tắt nhạc nền" : "Bật nhạc nền"} className="grid size-10 place-items-center rounded-full bg-white/10 text-xl transition hover:bg-white/20">
       {enabled ? "🔊" : "🔇"}
     </button>

@@ -10,6 +10,7 @@ export type CurriculumLesson = {
   slug: string;
   order: number;
   title: string;
+  progressPercent?: number;
 };
 
 export type CurriculumBook = {
@@ -119,6 +120,11 @@ export function CurriculumSeriesLibrary({
                   <div className="space-y-2">
                     {book.lessons.map((lesson) => {
                       const lessonHref = `/courses/${book.courseSlug}/lessons/${lesson.slug}`;
+                      const progressPercent = Math.min(
+                        100,
+                        Math.max(0, Math.round(lesson.progressPercent ?? 0)),
+                      );
+                      const completed = progressPercent === 100;
                       return (
                         <Link
                           key={lesson.id}
@@ -126,8 +132,28 @@ export function CurriculumSeriesLibrary({
                           href={signedIn ? lessonHref : `/dang-nhap?next=${encodeURIComponent(lessonHref)}`}
                           className="group/lesson flex items-center gap-4 rounded-2xl border border-sky-300/85 bg-gradient-to-r from-[#edf9ff] via-[#dff2ff] to-[#cfeaff] px-4 py-3 font-bold text-[#344b67] shadow-[0_5px_14px_rgba(8,126,186,.12)] transition hover:-translate-y-0.5 hover:border-sky-400 hover:from-[#f7fcff] hover:to-[#bfe3fb] hover:text-[#087eba] hover:shadow-[0_9px_20px_rgba(8,126,186,.2)]"
                         >
-                          <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border border-sky-200 text-sm font-black shadow-sm transition group-hover/lesson:scale-105 ${theme.accent}`}>
-                            {lesson.order}
+                          <span
+                            aria-label={`Tiến độ bài ${lesson.order}: ${progressPercent}%`}
+                            className={`grid h-11 w-11 shrink-0 place-items-center rounded-full p-[3px] text-[.64rem] font-black shadow-sm transition group-hover/lesson:scale-105 ${
+                              completed
+                                ? "bg-emerald-500 text-white shadow-emerald-200"
+                                : "text-[#087eba]"
+                            }`}
+                            style={
+                              completed
+                                ? undefined
+                                : {
+                                    background: `conic-gradient(#0ea5e9 ${progressPercent}%, rgba(255,255,255,.82) ${progressPercent}% 100%)`,
+                                  }
+                            }
+                          >
+                            <span
+                              className={`grid h-full w-full place-items-center rounded-full ${
+                                completed ? "bg-emerald-500" : "bg-white"
+                              }`}
+                            >
+                              {completed ? "✓" : `${progressPercent}%`}
+                            </span>
                           </span>
                           <span className="min-w-0 flex-1">
                             <strong className="font-black">Bài {lesson.order}</strong>

@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState, useState, useTransition } from "react";
 import type { Lesson } from "@/content/schema";
 import {
   applyPublishedLessonHotfix,
 } from "./hotfix-actions";
+import { clearPublishedLessonVocabularyImages } from "./bulk-vocabulary-image-actions";
 import { SentenceAudioButton } from "./sentence-audio-button";
 import { VocabularyListAudioButton } from "./vocabulary-list-audio-button";
 import { VocabularyExampleAudioButton } from "./vocabulary-example-audio-button";
@@ -82,6 +83,11 @@ export function PublishedLessonHotfixForm({ lesson }: { lesson: Lesson }) {
   const [selectedVocabularyIds, setSelectedVocabularyIds] = useState<
     string[]
   >([]);
+  const [clearingImages, startClearingImages] = useTransition();
+  const [imageActionMessage, setImageActionMessage] = useState<{
+    tone: "success" | "error";
+    text: string;
+  } | null>(null);
   const [removedVocabularyIds, setRemovedVocabularyIds] = useState<string[]>(
     [],
   );
@@ -540,6 +546,36 @@ export function PublishedLessonHotfixForm({ lesson }: { lesson: Lesson }) {
               </strong>
               <button
                 type="button"
+                disabled={selectedVocabularyIds.length === 0 || clearingImages}
+                onClick={() => {
+                  const ids = [...selectedVocabularyIds];
+                  const count = ids.length;
+                  if (
+                    !window.confirm(
+                      `Xoá ảnh flashcard của ${count} từ đã chọn? Ảnh sẽ mất ở admin, biên tập và trang học viên; bạn vẫn có thể mở từng từ để thêm ảnh mới.`,
+                    )
+                  ) return;
+                  setImageActionMessage(null);
+                  startClearingImages(async () => {
+                    const result = await clearPublishedLessonVocabularyImages(
+                      lesson.id,
+                      ids,
+                    );
+                    setImageActionMessage({
+                      tone: result.ok ? "success" : "error",
+                      text: result.message,
+                    });
+                    if (result.ok) {
+                      setSelectedVocabularyIds([]);
+                    }
+                  });
+                }}
+                className="rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-2 text-sm font-black text-amber-800 transition hover:border-amber-500 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {clearingImages ? "Đang xoá ảnh…" : "Xoá ảnh đã chọn"}
+              </button>
+              <button
+                type="button"
                 disabled={selectedVocabularyIds.length === 0}
                 onClick={() => {
                   const count = selectedVocabularyIds.length;
@@ -559,6 +595,19 @@ export function PublishedLessonHotfixForm({ lesson }: { lesson: Lesson }) {
               </button>
             </div>
           </div>
+        )}
+
+        {imageActionMessage && (
+          <p
+            role="status"
+            className={`mt-4 rounded-2xl border p-4 font-bold ${
+              imageActionMessage.tone === "success"
+                ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+                : "border-red-300 bg-red-50 text-red-700"
+            }`}
+          >
+            {imageActionMessage.text}
+          </p>
         )}
 
         {removedVocabularyIds.length > 0 && (

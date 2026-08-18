@@ -97,6 +97,33 @@ export function createCardReactionBoard({
   });
 }
 
+export function relocateWrongCard<T extends { id: string }>({
+  cards,
+  wrongCardId,
+  clearedCardIds,
+  random = Math.random,
+}: {
+  cards: readonly T[];
+  wrongCardId: string;
+  clearedCardIds: ReadonlySet<string>;
+  random?: () => number;
+}) {
+  const wrongIndex = cards.findIndex((card) => card.id === wrongCardId);
+  if (wrongIndex < 0) return [...cards];
+  const availableIndexes = cards.flatMap((card, index) =>
+    card.id !== wrongCardId && !clearedCardIds.has(card.id) ? [index] : []
+  );
+  if (!availableIndexes.length) return [...cards];
+  const targetIndex =
+    availableIndexes[Math.floor(random() * availableIndexes.length)];
+  const relocated = [...cards];
+  [relocated[wrongIndex], relocated[targetIndex]] = [
+    relocated[targetIndex],
+    relocated[wrongIndex],
+  ];
+  return relocated;
+}
+
 export function isCorrectCardAnswer(answer: string, card: CardReactionCard) {
   const normalized = normalizeAnswer(answer);
   return card.acceptedAnswers.some((candidate) => normalizeAnswer(candidate) === normalized);
@@ -129,6 +156,7 @@ export const cardReactionFinishSchema = z.object({
   level: z.enum(cardReactionLevels),
   direction: z.enum(cardReactionDirections),
   mode: z.enum(cardReactionModes),
+  ranked: z.boolean().default(false),
   boardCardIds: z.array(z.string().min(1).max(250)).min(1).max(25),
   answers: z.array(z.object({
     cardId: z.string().min(1).max(250),
@@ -146,5 +174,15 @@ export const cardReactionFinishSchema = z.object({
   }
   if (input.answers.some((answer, index) => answer.position !== index + 1 || !input.boardCardIds.includes(answer.cardId))) {
     context.addIssue({ code: "custom", path: ["answers"], message: "Câu trả lời không thuộc board." });
+  }
+  if (
+    input.ranked &&
+    (
+      input.level !== "medium" ||
+      input.direction !== "mixed" ||
+      input.mode !== "choose"
+    )
+  ) {
+    context.addIssue({ code: "custom", path: ["ranked"], message: "Cấu hình Card Reaction xếp hạng không hợp lệ." });
   }
 });

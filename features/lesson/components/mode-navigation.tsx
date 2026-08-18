@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { StudyMode } from "@/features/lesson/types";
+import type { LessonProgressSnapshot } from "@/lib/learning-core/lesson-progress";
 
 const modes: ReadonlyArray<{
   value: StudyMode;
@@ -18,6 +19,8 @@ type ModeNavigationProps = {
   availableModes: readonly StudyMode[];
   onChange: (mode: StudyMode) => void;
   speedTestHref?: string;
+  speedTestProgress?: LessonProgressSnapshot;
+  onLockedSpeedTestClick?: () => void;
 };
 
 export function ModeNavigation({
@@ -25,6 +28,8 @@ export function ModeNavigation({
   availableModes,
   onChange,
   speedTestHref,
+  speedTestProgress,
+  onLockedSpeedTestClick,
 }: ModeNavigationProps) {
   return (
     <nav
@@ -46,7 +51,8 @@ export function ModeNavigation({
           {mode.label}
         </button>
       ))}
-      {speedTestHref && (
+      {speedTestHref &&
+        (!speedTestProgress || speedTestProgress.speedTestUnlocked) && (
         <Link
           href={speedTestHref}
           className="ml-auto shrink-0 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-3 text-sm font-black text-[#10243e] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
@@ -54,6 +60,18 @@ export function ModeNavigation({
           ⚡ Speed Test Arena
         </Link>
       )}
+      {speedTestHref &&
+        speedTestProgress &&
+        !speedTestProgress.speedTestUnlocked && (
+          <button
+            type="button"
+            onClick={onLockedSpeedTestClick}
+            aria-label={`Speed Test chưa mở, tiến độ ${speedTestProgress.completionPercent}%`}
+            className="ml-auto shrink-0 rounded-xl border border-slate-300 bg-slate-100 px-4 py-3 text-sm font-black text-slate-500 transition hover:bg-slate-200"
+          >
+            🔒 Speed Test · {speedTestProgress.completionPercent}%
+          </button>
+        )}
     </nav>
   );
 }

@@ -18,6 +18,12 @@ export const learningEventSchema = z.object({
   total: z.number().int().positive().optional(),
   durationSeconds: z.number().int().min(0).max(86400),
   completedAt: z.iso.datetime(),
+  lessonSource: z
+    .object({
+      courseSlug: z.string().min(1).max(120),
+      lessonSlug: z.string().min(1).max(120),
+    })
+    .optional(),
   reviews: z
     .array(
       z.object({

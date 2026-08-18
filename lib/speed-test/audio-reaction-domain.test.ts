@@ -31,30 +31,30 @@ function word(index: number, withWordAudio = true, withExampleAudio = true): Voc
 }
 
 describe("Audio Reaction domain", () => {
-  it("chỉ tạo câu từ audio có sẵn trong lesson", () => {
+  it("chỉ tạo câu từ audio của từ đơn và bỏ qua audio câu ví dụ", () => {
     const pool = createAudioReactionPool([word(1), word(2, false, true), word(3, true, false)]);
     expect(pool.map((question) => question.id)).toEqual([
       "word:word-1",
-      "sentence:word-1:example-1",
-      "sentence:word-2:example-2",
       "word:word-3",
     ]);
+    expect(pool.every((question) => question.type === "word")).toBe(true);
   });
 
-  it("tạo gần 70% từ và 30% câu ví dụ, chỉ từ lesson hiện tại", () => {
+  it("tạo toàn bộ câu hỏi từ audio từ đơn của lesson hiện tại", () => {
     const vocabulary = Array.from({ length: 10 }, (_, index) => word(index + 1));
     const questions = buildAudioReactionQuestions({ vocabulary, questionCount: 10, random: () => 0.42 });
     expect(questions).toHaveLength(10);
-    expect(questions.filter((question) => question.type === "word")).toHaveLength(7);
-    expect(questions.filter((question) => question.type === "sentence")).toHaveLength(3);
+    expect(questions.every((question) => question.type === "word")).toBe(true);
     expect(questions.every((question) => vocabulary.some((item) => item.id === question.vocabularyId))).toBe(true);
   });
 
-  it("bù bằng word khi không đủ example audio", () => {
-    const vocabulary = Array.from({ length: 10 }, (_, index) => word(index + 1, true, index < 2));
+  it("không dùng audio câu ví dụ để bù khi thiếu audio từ đơn", () => {
+    const vocabulary = Array.from({ length: 10 }, (_, index) =>
+      word(index + 1, index < 8, true)
+    );
     const questions = buildAudioReactionQuestions({ vocabulary, questionCount: 10, random: () => 0.3 });
-    expect(questions).toHaveLength(10);
-    expect(questions.filter((question) => question.type === "sentence")).toHaveLength(2);
+    expect(questions).toHaveLength(8);
+    expect(questions.every((question) => question.id.startsWith("word:"))).toBe(true);
   });
 
   it("chấm grade, multiplier và score ổn định", () => {

@@ -70,16 +70,33 @@ describe("ExamRunner listening", () => {
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/window-event"))).toBe(false);
   });
 
-  it("ẩn điều khiển audio gốc và khóa đáp án trước khi bắt đầu nghe", () => {
+  it("ẩn điều khiển audio gốc nhưng vẫn cho chọn đáp án trước khi bắt đầu nghe", () => {
     const { container } = render(<ExamRunner attemptId="00000000-0000-4000-8000-000000000010" examId="00000000-0000-4000-8000-000000000020" title="TOPIK I" section="listening" expiresAt={new Date(Date.now() + 60_000).toISOString()} initialPosition={1} initialAnswers={{}} initialFlagged={[]} initialAudioPlays={{}} initialWindowLeaveCount={0} questions={[question]} />);
     expect(container.querySelector("audio")?.hasAttribute("controls")).toBe(false);
-    expect((screen.getByRole("button", { name: "Đáp án 1: 1" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "Đáp án 1: 1" }) as HTMLButtonElement).disabled).toBe(false);
     expect(screen.getByRole("button", { name: "Phát audio câu 1" })).toBeTruthy();
     expect((screen.getByRole("slider", { name: "Tua audio câu 1" }) as HTMLInputElement).disabled).toBe(true);
     expect(screen.getByText("Bạn có thể tạm dừng, tua và nghe lại không giới hạn.")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Listening" }).className).toContain("bg-[#087eba]");
     expect(screen.queryByRole("button", { name: "Reading" })).toBeNull();
     expect(screen.getByRole("button", { name: "Nộp bài" })).toBeTruthy();
+  });
+
+  it("cho chọn ảnh đáp án câu nghe trước khi bắt đầu phát audio", () => {
+    const imageQuestion = {
+      ...question,
+      id: "topik-i-listening-15",
+      position: 15,
+      answerType: "image" as const,
+      optionImages: [1, 2, 3, 4].map((index) => `https://cdn.example.com/listening-15-${index}.png`),
+    };
+
+    render(<ExamRunner attemptId="00000000-0000-4000-8000-000000000010" examId="00000000-0000-4000-8000-000000000020" title="TOPIK I" level="topik_i" section="listening" expiresAt={new Date(Date.now() + 60_000).toISOString()} initialPosition={15} initialAnswers={{}} initialFlagged={[]} initialAudioPlays={{}} initialWindowLeaveCount={0} questions={[imageQuestion]} />);
+
+    const imageAnswer = screen.getByRole("button", { name: "Chọn ảnh đáp án 1" }) as HTMLButtonElement;
+    expect(imageAnswer.disabled).toBe(false);
+    expect(imageAnswer.className).not.toContain("disabled:opacity-50");
+    expect(screen.getByAltText("Đáp án 1").className).toContain("object-contain");
   });
 
   it("cho phát, tua và nghe lại audio không giới hạn mà không gọi API lượt nghe", async () => {

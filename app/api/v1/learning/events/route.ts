@@ -8,6 +8,8 @@ import {
 } from "@/lib/learning-core/srs";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { recordStreakActivity } from "@/lib/streaks/record-activity";
+import { getPublishedLessonRouteData } from "@/lib/data/published-catalog";
+import { getLessonLearningProgress } from "@/lib/data/lesson-progress";
 
 export async function POST(request: Request) {
   if (!isSupabaseConfigured()) {
@@ -36,6 +38,26 @@ export async function POST(request: Request) {
   const { supabase, user } = actor;
 
   const event = parsed.data;
+  const lessonData = event.lessonSource
+    ? await getPublishedLessonRouteData(
+        event.lessonSource.courseSlug,
+        event.lessonSource.lessonSlug,
+      )
+    : null;
+  if (
+    event.lessonSource &&
+    (
+      !lessonData ||
+      lessonData.lesson.id !== event.lessonId ||
+      lessonData.lesson.version !== event.lessonVersion
+    )
+  ) {
+    return apiError(
+      "LESSON_VERSION_CHANGED",
+      "Bài học đã được cập nhật. Hãy tải lại trang để tiếp tục.",
+      409,
+    );
+  }
   const { error: eventError } = await supabase.from("learning_events").insert({
       id: event.eventId,
       user_id: user.id,
@@ -49,22 +71,8 @@ export async function POST(request: Request) {
       completed_at: event.completedAt,
     });
 
-  if (eventError?.code === "23505") {
-    if (event.eventType === "practice_completed") {
-      await recordStreakActivity({
-        userId: user.id,
-        completedAt: event.completedAt,
-        sourceType: event.mode === "flashcard" ? "review" : "lesson",
-        sourceId: event.lessonId,
-      });
-    }
-    return apiSuccess({
-      accepted: true,
-      duplicate: true,
-      eventId: event.eventId,
-    });
-  }
-  if (eventError) return databaseError();
+  const duplicate = eventError?.code === "23505";
+  if (eventError && !duplicate) return databaseError();
 
   if (event.eventType === "practice_completed") {
     const percentage =
@@ -96,17 +104,23 @@ export async function POST(request: Request) {
     const vocabularyCompleted = [...completedModes].some(
       (mode) => mode !== "grammar",
     );
-    const lessonCompleted = grammarCompleted && vocabularyCompleted;
+    const legacyLessonCompleted =
+      !lessonData && grammarCompleted && vocabularyCompleted;
+    const progressUpdate: Record<string, unknown> = {
+      user_id: user.id,
+      lesson_id: event.lessonId,
+      lesson_version: event.lessonVersion,
+      status: legacyLessonCompleted ? "completed" : "in_progress",
+      best_score: bestScore,
+      last_studied_at: event.completedAt,
+    };
+    if (!lessonData) {
+      progressUpdate.completed_at = legacyLessonCompleted
+        ? event.completedAt
+        : null;
+    }
     const { error } = await supabase.from("lesson_progress").upsert(
-      {
-        user_id: user.id,
-        lesson_id: event.lessonId,
-        lesson_version: event.lessonVersion,
-        status: lessonCompleted ? "completed" : "in_progress",
-        best_score: bestScore,
-        last_studied_at: event.completedAt,
-        completed_at: lessonCompleted ? event.completedAt : null,
-      },
+      progressUpdate,
       { onConflict: "user_id,lesson_id" },
     );
     if (error) return databaseError();
@@ -115,10 +129,19 @@ export async function POST(request: Request) {
   for (const review of event.reviews) {
     const { data: existing } = await supabase
       .from("review_cards")
-      .select("state,difficulty,stability_days,reps,lapses")
+      .select(
+        "state,difficulty,stability_days,reps,lapses,last_reviewed_at",
+      )
       .eq("user_id", user.id)
       .eq("content_id", review.contentId)
       .maybeSingle();
+    if (
+      existing?.last_reviewed_at &&
+      new Date(existing.last_reviewed_at).getTime() >=
+        new Date(event.completedAt).getTime()
+    ) {
+      continue;
+    }
     const card: ReviewCard = existing
       ? {
           state: existing.state,
@@ -161,7 +184,42 @@ export async function POST(request: Request) {
     });
   }
 
-  return apiSuccess({ accepted: true, eventId: event.eventId });
+  const progress = lessonData
+    ? await readLessonProgress(
+        supabase,
+        user.id,
+        lessonData.lesson,
+        event.completedAt,
+      )
+    : null;
+  if (progress === progressReadFailed) return databaseError();
+
+  return apiSuccess({
+    accepted: true,
+    duplicate,
+    eventId: event.eventId,
+    progress,
+  });
+}
+
+const progressReadFailed = Symbol("progress-read-failed");
+
+async function readLessonProgress(
+  supabase: Parameters<typeof getLessonLearningProgress>[0]["supabase"],
+  userId: string,
+  lesson: Parameters<typeof getLessonLearningProgress>[0]["lesson"],
+  activityAt: string,
+) {
+  try {
+    return await getLessonLearningProgress({
+      supabase,
+      userId,
+      lesson,
+      activityAt,
+    });
+  } catch {
+    return progressReadFailed;
+  }
 }
 
 function databaseError() {

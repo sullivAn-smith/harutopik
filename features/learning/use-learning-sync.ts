@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { StudyMode } from "@/features/lesson/types";
 import type { LearningEventInput } from "@/lib/learning-core/progress-schema";
+import type { LessonProgressSnapshot } from "@/lib/learning-core/lesson-progress";
 import type { ReviewRating } from "@/lib/learning-core/srs";
 
 const queueKey = "harutopik:pending-learning-events:v1";
@@ -11,12 +12,19 @@ const maxQueuedEvents = 50;
 type LearningSyncOptions = {
   lessonId: string;
   lessonVersion: number;
+  lessonSource?: {
+    courseSlug: string;
+    lessonSlug: string;
+  };
+  onProgress?: (progress: LessonProgressSnapshot) => void;
   enabled?: boolean;
 };
 
 export function useLearningSync({
   lessonId,
   lessonVersion,
+  lessonSource,
+  onProgress,
   enabled = true,
 }: LearningSyncOptions) {
   const startedAt = useRef(0);
@@ -51,13 +59,17 @@ export function useLearningSync({
         return;
       }
       if (!response.ok) throw new Error("Learning sync failed");
+      const payload = await response.json() as {
+        data?: { progress?: LessonProgressSnapshot | null };
+      };
+      if (payload.data?.progress) onProgress?.(payload.data.progress);
       removeQueuedEvent(event.eventId);
       setSyncState("synced");
     } catch {
       queueEvent(event);
       setSyncState("offline");
     }
-  }, [enabled]);
+  }, [enabled, onProgress]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -82,10 +94,11 @@ export function useLearningSync({
           score,
           total,
           durationSeconds: elapsedSeconds(startedAt.current),
+          lessonSource,
           reviews: [],
         }),
       ),
-    [lessonId, lessonVersion, send],
+    [lessonId, lessonSource, lessonVersion, send],
   );
 
   const rateContent = useCallback(
@@ -97,10 +110,11 @@ export function useLearningSync({
           lessonVersion,
           mode,
           durationSeconds: elapsedSeconds(startedAt.current),
+          lessonSource,
           reviews: [{ contentId, rating }],
         }),
       ),
-    [lessonId, lessonVersion, send],
+    [lessonId, lessonSource, lessonVersion, send],
   );
 
   return { syncState, completePractice, rateContent };

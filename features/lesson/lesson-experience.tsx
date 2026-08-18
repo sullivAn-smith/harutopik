@@ -16,6 +16,10 @@ import type { Lesson } from "@/content/schema";
 import { GrammarSection } from "@/features/lesson/components/grammar-section";
 import { ModeNavigation } from "@/features/lesson/components/mode-navigation";
 import {
+  LessonProgressDialog,
+  RestartLessonDialog,
+} from "@/features/lesson/components/lesson-status-dialogs";
+import {
   type TranslationDirection,
 } from "@/features/lesson/components/translation-exercise";
 import { VocabularyList } from "@/features/lesson/components/vocabulary-list";
@@ -31,6 +35,10 @@ import {
 } from "@/lib/learning-core/session";
 import { generateLessonPractice } from "@/lib/learning-core/practice-generator";
 import { enqueueAudioPlayback } from "@/lib/audio/playback-queue";
+import type {
+  LessonProgressMode,
+  LessonProgressSnapshot,
+} from "@/lib/learning-core/lesson-progress";
 
 function ExerciseLoading() {
   return <div className="min-h-72 animate-pulse rounded-3xl bg-gradient-to-br from-sky-50 to-slate-100" aria-label="Đang tải chế độ luyện tập" />;
@@ -63,7 +71,7 @@ const TranslationExercise = dynamic(
 
 type Tab = "vocabulary" | "grammar";
 
-const FLASHCARD_AUTO_AUDIO_KEY = "haru:flashcard-auto-audio";
+const LESSON_RESTART_AVAILABLE_PERCENT = 75;
 
 type LessonExperienceOptions = {
   lesson: Lesson;
@@ -75,6 +83,9 @@ type LessonExperienceOptions = {
   contextLabel?: string;
   statusLabel?: string;
   speedTestHref?: string;
+  courseSlug?: string;
+  lessonSlug?: string;
+  initialProgress?: LessonProgressSnapshot;
 };
 
 function LessonContent({
@@ -87,6 +98,9 @@ function LessonContent({
   contextLabel,
   statusLabel,
   speedTestHref,
+  courseSlug,
+  lessonSlug,
+  initialProgress,
 }: LessonExperienceOptions) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -120,19 +134,55 @@ function LessonContent({
   const [skipFlipAnimation, setSkipFlipAnimation] = useState(false);
   const [learnedIndices, setLearnedIndices] = useState<number[]>([]);
   const [shuffleSeed, setShuffleSeed] = useState(1);
-  const [flashcardAutoAudio, setFlashcardAutoAudio] = useState(true);
-  const [flashcardAutoAudioReady, setFlashcardAutoAudioReady] = useState(false);
+  const flashcardAutoAudioTimerRef = useRef<number | null>(null);
+  const flashcardAutoAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [lessonProgress, setLessonProgress] = useState(initialProgress);
+  const [progressDialogOpen, setProgressDialogOpen] = useState(false);
+  const [restartDialogOpen, setRestartDialogOpen] = useState(false);
+  const [unlockToastVisible, setUnlockToastVisible] = useState(false);
+  const previousSpeedTestUnlocked = useRef(
+    initialProgress?.speedTestUnlocked ?? false,
+  );
+  const lessonSource = useMemo(
+    () =>
+      courseSlug && lessonSlug
+        ? { courseSlug, lessonSlug }
+        : undefined,
+    [courseSlug, lessonSlug],
+  );
+  const redirectedFromLockedSpeedTest =
+    searchParams.get("speedTest") === "locked";
+  const progressDialogVisible =
+    progressDialogOpen || redirectedFromLockedSpeedTest;
+  const canRestartLesson =
+    (lessonProgress?.completionPercent ?? 0) >=
+    LESSON_RESTART_AVAILABLE_PERCENT;
+  const closeProgressDialog = useCallback(() => {
+    setProgressDialogOpen(false);
+    if (redirectedFromLockedSpeedTest) {
+      router.replace(
+        activeTab === "grammar" ? "?tab=grammar" : "?tab=vocabulary",
+        { scroll: false },
+      );
+    }
+  }, [activeTab, redirectedFromLockedSpeedTest, router]);
+  const handleLessonProgress = useCallback(
+    (nextProgress: LessonProgressSnapshot) => {
+      if (
+        !previousSpeedTestUnlocked.current &&
+        nextProgress.speedTestUnlocked
+      ) {
+        setUnlockToastVisible(true);
+      }
+      previousSpeedTestUnlocked.current = nextProgress.speedTestUnlocked;
+      setLessonProgress(nextProgress);
+    },
+    [],
+  );
 
   useEffect(() => {
     router.prefetch("/");
   }, [router]);
-
-  useEffect(() => {
-    setFlashcardAutoAudio(
-      window.localStorage.getItem(FLASHCARD_AUTO_AUDIO_KEY) !== "off",
-    );
-    setFlashcardAutoAudioReady(true);
-  }, []);
 
   const [quizAnswer, setQuizAnswer] = useState<string | null>(null);
   const [quizCorrectCount, setQuizCorrectCount] = useState(0);
@@ -311,12 +361,13 @@ function LessonContent({
   const { syncState, completePractice, rateContent } = useLearningSync({
     lessonId: lesson.id,
     lessonVersion: lesson.version,
+    lessonSource,
+    onProgress: handleLessonProgress,
     enabled: !previewMode,
   });
   const {
     syncState: sessionSyncState,
     restored,
-    dismissRestoreNotice,
     clearSession,
   } = useStudySession({
     lessonId: lesson.id,
@@ -326,28 +377,42 @@ function LessonContent({
     enabled: !previewMode,
   });
 
+  useEffect(() => {
+    if (!unlockToastVisible) return;
+    const timer = window.setTimeout(
+      () => setUnlockToastVisible(false),
+      5_000,
+    );
+    return () => window.clearTimeout(timer);
+  }, [unlockToastVisible]);
+
   const activeWord = vocabulary[current];
 
-  useEffect(() => {
-    if (
-      !flashcardAutoAudioReady ||
-      !flashcardAutoAudio ||
-      mode !== "flashcard" ||
-      !activeWord?.audioUrl
-    ) {
-      return;
+  const stopFlashcardAudio = useCallback(() => {
+    if (flashcardAutoAudioTimerRef.current !== null) {
+      window.clearTimeout(flashcardAutoAudioTimerRef.current);
+      flashcardAutoAudioTimerRef.current = null;
     }
+    if (flashcardAutoAudioRef.current) {
+      flashcardAutoAudioRef.current.pause();
+      flashcardAutoAudioRef.current.currentTime = 0;
+      flashcardAutoAudioRef.current = null;
+    }
+  }, []);
 
-    void enqueueAudioPlayback({ audioUrl: activeWord.audioUrl }).catch(() => {
-      // Trình duyệt có thể chặn autoplay trước tương tác đầu tiên.
-    });
-  }, [
-    activeWord?.audioUrl,
-    current,
-    flashcardAutoAudio,
-    flashcardAutoAudioReady,
-    mode,
-  ]);
+  const playFlashcardAudio = useCallback(
+    (audioUrl: string) => {
+      stopFlashcardAudio();
+      const audio = new Audio(audioUrl);
+      flashcardAutoAudioRef.current = audio;
+      void audio.play().catch(() => {
+        // Trình duyệt có thể chặn lần tự phát đầu tiên trước khi người dùng tương tác.
+      });
+    },
+    [stopFlashcardAudio],
+  );
+
+  useEffect(() => stopFlashcardAudio, [stopFlashcardAudio]);
   const quizReviewPosition = quizReviewIndices.indexOf(current);
   const quizQuestionPosition =
     quizReviewIndices.length > 0 ? Math.max(0, quizReviewPosition) : current;
@@ -521,6 +586,19 @@ function LessonContent({
     setTranslationWrongIndices([]);
   }
 
+  function continueRecommendedLearning(mode: LessonProgressMode | null) {
+    if (!mode) return;
+    setProgressDialogOpen(false);
+    if (mode === "grammar") {
+      router.replace("?tab=grammar", { scroll: false });
+      return;
+    }
+    if (activeTab !== "vocabulary" || redirectedFromLockedSpeedTest) {
+      router.replace("?tab=vocabulary", { scroll: false });
+    }
+    if (availableStudyModes.includes(mode)) changeMode(mode);
+  }
+
   function playAudioOrSpeak(audioUrl: string | undefined, text: string) {
     void text;
     if (!audioUrl) return;
@@ -558,32 +636,35 @@ function LessonContent({
     const next = current + step;
     if (next < 0 || next >= vocabulary.length) return;
 
+    stopFlashcardAudio();
     setSkipFlipAnimation(true);
     setFlipped(false);
     setCurrent(next);
+    const nextAudioUrl = vocabulary[next]?.audioUrl;
+    if (nextAudioUrl) {
+      flashcardAutoAudioTimerRef.current = window.setTimeout(() => {
+        playFlashcardAudio(nextAudioUrl);
+      }, 500);
+    }
     window.requestAnimationFrame(() =>
       window.requestAnimationFrame(() => setSkipFlipAnimation(false)),
     );
   }
 
   function restartFlashcards() {
+    stopFlashcardAudio();
     setSkipFlipAnimation(true);
     setFlipped(false);
     setCurrent(0);
+    const firstAudioUrl = vocabulary[0]?.audioUrl;
+    if (firstAudioUrl) {
+      flashcardAutoAudioTimerRef.current = window.setTimeout(() => {
+        playFlashcardAudio(firstAudioUrl);
+      }, 500);
+    }
     window.requestAnimationFrame(() =>
       window.requestAnimationFrame(() => setSkipFlipAnimation(false)),
     );
-  }
-
-  function toggleFlashcardAutoAudio() {
-    setFlashcardAutoAudio((enabled) => {
-      const nextEnabled = !enabled;
-      window.localStorage.setItem(
-        FLASHCARD_AUTO_AUDIO_KEY,
-        nextEnabled ? "on" : "off",
-      );
-      return nextEnabled;
-    });
   }
 
   function chooseQuizAnswer(answer: string) {
@@ -724,6 +805,7 @@ function LessonContent({
 
   async function restartEntireSession() {
     await clearSession();
+    setRestartDialogOpen(false);
     setLearnedIndices([]);
     setFlipped(false);
     changeMode("flashcard");
@@ -781,22 +863,21 @@ function LessonContent({
   }
 
   const saveLabel =
-    sessionSyncState === "saving"
-      ? "ĐANG LƯU PHIÊN"
-      : sessionSyncState === "saved"
-        ? "PHIÊN HỌC ĐÃ LƯU"
-        : sessionSyncState === "offline"
-          ? "ĐÃ LƯU TRÊN THIẾT BỊ"
-          : syncState === "syncing"
-            ? "ĐANG ĐỒNG BỘ"
-            : syncState === "synced"
-              ? "ĐÃ LƯU TIẾN ĐỘ"
-              : syncState === "offline"
-                ? "SẼ ĐỒNG BỘ KHI CÓ MẠNG"
-                : (statusLabel ?? "SƠ CẤP 1");
+    syncState === "offline"
+      ? "TIẾN ĐỘ CHỜ ĐỒNG BỘ"
+      : sessionSyncState === "offline"
+        ? "PHIÊN ĐÃ LƯU TRÊN THIẾT BỊ"
+        : syncState === "syncing" || sessionSyncState === "saving"
+          ? "ĐANG LƯU TIẾN ĐỘ"
+          : syncState === "synced"
+            ? "ĐÃ LƯU TIẾN ĐỘ"
+            : sessionSyncState === "saved"
+              ? "PHIÊN HỌC ĐÃ LƯU"
+              : (statusLabel ?? "SƠ CẤP 1");
 
   return (
-    <main className="elegant-blue min-h-screen text-[#10243e]">
+    <>
+      <main className="elegant-blue min-h-screen text-[#10243e]">
       <FloatingLanguageKeyboard />
       <header className="bg-transparent">
         <div className="mx-auto grid max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-3 px-5 py-4 md:px-8">
@@ -814,21 +895,65 @@ function LessonContent({
       </header>
 
       <div className="mx-auto max-w-7xl px-5 py-7 md:px-8">
-        <section className="flex flex-col justify-between gap-6 rounded-[2rem] border border-white/65 bg-white/35 p-6 shadow-[0_18px_45px_rgba(16,36,62,0.1)] backdrop-blur-xl md:flex-row md:items-end md:p-8">
-          <div>
+        <section className="rounded-[2rem] border border-white/65 bg-white/35 p-6 shadow-[0_18px_45px_rgba(16,36,62,0.1)] backdrop-blur-xl md:p-8">
+          <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex flex-wrap items-center gap-3">
-              <span className="rounded-full bg-[#087eba] px-5 py-2.5 text-xl font-black text-white shadow-[0_8px_18px_rgba(8,126,186,0.28)]">
+              <span className="rounded-full bg-[#087eba] px-4 py-2 text-lg font-black text-white shadow-[0_8px_18px_rgba(8,126,186,0.28)]">
                 {contextLabel ?? `Bài ${lesson.order}`}
               </span>
-              <span className="rounded-full bg-white/70 px-4 py-2 text-lg font-black text-[#52637a]">
+              <span className="rounded-full bg-white/70 px-3.5 py-2 text-base font-black text-[#52637a]">
                 {activeTab === "grammar"
                   ? `Ngữ pháp bài ${lesson.order}`
                   : `${vocabulary.length} từ vựng`}
               </span>
             </div>
+            {!vocabularyOnly && (
+              <div className="ml-auto flex flex-col items-end">
+                <div className="lesson-tab-switcher inline-flex rounded-2xl border border-white/80 bg-white/70 p-1.5 shadow-[0_10px_24px_rgba(16,36,62,0.12)]">
+                  <button
+                    type="button"
+                    onClick={() => changeTab("vocabulary")}
+                    className={`rounded-xl px-5 py-3 text-sm font-black transition ${
+                      activeTab === "vocabulary"
+                        ? "bg-[#087eba] text-white shadow-sm"
+                        : "text-[#52637a] hover:bg-white"
+                    }`}
+                  >
+                    Từ vựng
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => changeTab("grammar")}
+                    className={`rounded-xl px-5 py-3 text-sm font-black transition ${
+                      activeTab === "grammar"
+                        ? "bg-[#087eba] text-white shadow-sm"
+                        : "text-[#52637a] hover:bg-white"
+                    }`}
+                  >
+                    Ngữ pháp
+                  </button>
+                </div>
+                {restored && (
+                  <span className="mt-2 pr-1 text-right text-xs font-bold text-emerald-700">
+                    Đang tiếp tục phiên trước
+                  </span>
+                )}
+                {canRestartLesson && (
+                  <button
+                    type="button"
+                    onClick={() => setRestartDialogOpen(true)}
+                    className="mr-1 mt-5 rounded-full border border-slate-200 bg-white/65 px-4 py-2 text-xs font-black text-[#52637a] shadow-sm transition hover:-translate-y-0.5 hover:border-sky-200 hover:bg-white hover:text-[#087eba]"
+                  >
+                    ↻ Học lại từ đầu
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="mt-4">
             <h1
               lang="ko"
-              className="font-korean mt-4 text-5xl font-black tracking-[-0.04em]"
+              className="font-korean text-5xl font-black tracking-[-0.04em]"
             >
               {lesson.title.ko}
             </h1>
@@ -841,63 +966,7 @@ function LessonContent({
               </p>
             )}
           </div>
-          {!vocabularyOnly && (
-            <div className="lesson-tab-switcher inline-flex self-start rounded-2xl border border-white/80 bg-white/70 p-1.5 shadow-[0_10px_24px_rgba(16,36,62,0.12)]">
-              <button
-                type="button"
-                onClick={() => changeTab("vocabulary")}
-                className={`rounded-xl px-5 py-3 text-sm font-black transition ${
-                  activeTab === "vocabulary"
-                    ? "bg-[#087eba] text-white shadow-sm"
-                    : "text-[#52637a] hover:bg-white"
-                }`}
-              >
-                Từ vựng
-              </button>
-              <button
-                type="button"
-                onClick={() => changeTab("grammar")}
-                className={`rounded-xl px-5 py-3 text-sm font-black transition ${
-                  activeTab === "grammar"
-                    ? "bg-[#087eba] text-white shadow-sm"
-                    : "text-[#52637a] hover:bg-white"
-                }`}
-              >
-                Ngữ pháp
-              </button>
-            </div>
-          )}
         </section>
-
-        {restored && (
-          <div
-            role="status"
-            className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50/90 px-5 py-4 text-emerald-950 shadow-sm"
-          >
-            <div>
-              <p className="font-black">Đã khôi phục phiên học gần nhất</p>
-              <p className="mt-1 text-sm font-semibold text-emerald-800">
-                Bạn đang tiếp tục đúng chế độ và vị trí trước khi rời bài.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={dismissRestoreNotice}
-                className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-black text-white"
-              >
-                Tiếp tục
-              </button>
-              <button
-                type="button"
-                onClick={() => void restartEntireSession()}
-                className="rounded-xl border border-emerald-300 bg-white px-4 py-2 text-sm font-black text-emerald-900"
-              >
-                Học lại từ đầu
-              </button>
-            </div>
-          </div>
-        )}
 
         {activeTab === "vocabulary" ? (
           <>
@@ -906,6 +975,8 @@ function LessonContent({
               availableModes={availableStudyModes}
               onChange={changeMode}
               speedTestHref={speedTestHref}
+              speedTestProgress={lessonProgress}
+              onLockedSpeedTestClick={() => setProgressDialogOpen(true)}
             />
 
             {mode === "flashcard" && (
@@ -918,10 +989,10 @@ function LessonContent({
                 learned={learnedIndices.includes(current)}
                 flipped={flipped}
                 skipFlipAnimation={skipFlipAnimation}
-                autoAudioEnabled={flashcardAutoAudio}
-                autoAudioReady={flashcardAutoAudioReady}
                 onFlip={() => setFlipped((value) => !value)}
-                onToggleAutoAudio={toggleFlashcardAutoAudio}
+                onReplayAudio={() => {
+                  if (activeWord.audioUrl) playFlashcardAudio(activeWord.audioUrl);
+                }}
                 onToggleLearned={() => {
                   const learned = learnedIndices.includes(current);
                   setLearnedIndices((items) =>
@@ -1169,6 +1240,7 @@ function LessonContent({
           </>
         ) : (
           <GrammarSection
+            lessonId={lesson.id}
             grammar={lesson.grammar}
             exercises={fillBlankExercises}
             onSpeak={(text, audioUrl) => playAudioOrSpeak(audioUrl, text)}
@@ -1178,8 +1250,34 @@ function LessonContent({
             }
           />
         )}
-      </div>
-    </main>
+        </div>
+      </main>
+
+      {lessonProgress && (
+        <LessonProgressDialog
+          open={progressDialogVisible}
+          progress={lessonProgress}
+          speedTestHref={speedTestHref}
+          onClose={closeProgressDialog}
+          onContinue={() =>
+            continueRecommendedLearning(lessonProgress.recommendedMode)
+          }
+        />
+      )}
+      <RestartLessonDialog
+        open={restartDialogOpen}
+        onClose={() => setRestartDialogOpen(false)}
+        onRestart={() => void restartEntireSession()}
+      />
+      {unlockToastVisible && (
+        <div
+          role="status"
+          className="fixed bottom-5 left-1/2 z-[80] -translate-x-1/2 rounded-2xl border border-emerald-200 bg-emerald-600 px-5 py-3 text-sm font-black text-white shadow-[0_18px_45px_rgba(5,95,60,.3)]"
+        >
+          ⚡ Bài học đã hoàn thành — Speed Test đã mở khóa.
+        </div>
+      )}
+    </>
   );
 }
 

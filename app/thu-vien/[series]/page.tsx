@@ -12,6 +12,8 @@ import {
   getCurriculumSeries,
 } from "@/lib/catalog/curriculum-series";
 import { getPublishedCourseShells } from "@/lib/data/published-catalog";
+import { getLessonProgressPercentages } from "@/lib/data/lesson-progress";
+import { createClient } from "@/lib/supabase/server";
 
 type CurriculumSeriesPageProps = {
   params: Promise<{ series: string }>;
@@ -33,7 +35,7 @@ export default async function CurriculumSeriesPage({ params }: CurriculumSeriesP
     getCurrentUser(),
   ]);
 
-  const books: CurriculumBook[] = series.id === "1"
+  const booksWithoutProgress: CurriculumBook[] = series.id === "1"
     ? buildTopikShelf(courses).map((item) => ({
         number: item.level,
         status: item.course ? "published" : "locked",
@@ -51,6 +53,23 @@ export default async function CurriculumSeriesPage({ params }: CurriculumSeriesP
         courseSlug: null,
         lessons: [],
       }));
+  const lessonIds = booksWithoutProgress.flatMap((book) =>
+    book.lessons.map((lesson) => lesson.id),
+  );
+  const progressByLessonId = user
+    ? await getLessonProgressPercentages({
+        supabase: await createClient(),
+        userId: user.id,
+        lessonIds,
+      })
+    : {};
+  const books = booksWithoutProgress.map((book) => ({
+    ...book,
+    lessons: book.lessons.map((lesson) => ({
+      ...lesson,
+      progressPercent: progressByLessonId[lesson.id] ?? 0,
+    })),
+  }));
 
   const publishedCount = books.filter((book) => book.status === "published").length;
 

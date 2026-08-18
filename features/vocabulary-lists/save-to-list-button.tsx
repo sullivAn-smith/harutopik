@@ -12,10 +12,12 @@ export function SaveToListButton({
   lessonId,
   item,
   variant = "icon",
+  preventRemoval = false,
 }: {
   lessonId: string;
   item: VocabularyItem;
   variant?: "icon" | "button";
+  preventRemoval?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [lists, setLists] = useState<VocabularyListSummary[] | null>(null);
@@ -54,6 +56,10 @@ export function SaveToListButton({
     const saved = list.items?.some(
       (savedItem) => savedItem.vocabularyId === item.id,
     );
+    if (saved && preventRemoval) {
+      setMessage("Từ đã tồn tại trong bộ này");
+      return;
+    }
     setMessage("Đang lưu...");
     const endpoint = `/api/v1/vocabulary-lists/${list.id}/items${
       saved ? `/${encodeURIComponent(item.id)}` : ""
@@ -66,7 +72,12 @@ export function SaveToListButton({
         : JSON.stringify({ vocabularyId: item.id, lessonId, item }),
     });
     if (!response.ok) {
-      setMessage("Chưa thể cập nhật. Hãy thử lại.");
+      const payload = (await response.json().catch(() => null)) as ApiResponse<unknown> | null;
+      setMessage(
+        payload?.error?.code === "VOCABULARY_ALREADY_IN_LIST"
+          ? "Từ đã tồn tại trong bộ này"
+          : payload?.error?.message ?? "Chưa thể cập nhật. Hãy thử lại.",
+      );
       return;
     }
 
@@ -163,7 +174,15 @@ export function SaveToListButton({
         aria-expanded={open}
       >
         <span>{savedAnywhere ? "♥" : "♡"}</span>
-        {variant === "button" && <span>{savedAnywhere ? "Đã lưu vào bộ từ" : "Lưu vào bộ từ"}</span>}
+        {variant === "button" && (
+          <span>
+            {preventRemoval
+              ? "Thêm vào bộ từ"
+              : savedAnywhere
+                ? "Đã lưu vào bộ từ"
+                : "Lưu vào bộ từ"}
+          </span>
+        )}
       </button>
 
       {open && typeof document !== "undefined" && createPortal(

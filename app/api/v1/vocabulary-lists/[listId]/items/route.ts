@@ -32,19 +32,37 @@ export async function POST(request: Request, context: RouteContext) {
     return apiError("LIST_NOT_FOUND", "Không tìm thấy bộ từ.", 404);
   }
 
+  const { data: existing } = await actor.supabase
+    .from("vocabulary_list_items")
+    .select("vocabulary_id")
+    .eq("list_id", listId)
+    .eq("vocabulary_id", parsed.data.vocabularyId)
+    .maybeSingle();
+  if (existing) {
+    return apiError(
+      "VOCABULARY_ALREADY_IN_LIST",
+      "Từ đã tồn tại trong bộ này",
+      409,
+    );
+  }
+
   const { error } = await actor.supabase
     .from("vocabulary_list_items")
-    .upsert(
-      {
-        list_id: listId,
-        user_id: actor.user.id,
-        vocabulary_id: parsed.data.vocabularyId,
-        lesson_id: parsed.data.lessonId,
-        snapshot: parsed.data.item,
-      },
-      { onConflict: "list_id,vocabulary_id", ignoreDuplicates: true },
-    );
+    .insert({
+      list_id: listId,
+      user_id: actor.user.id,
+      vocabulary_id: parsed.data.vocabularyId,
+      lesson_id: parsed.data.lessonId,
+      snapshot: parsed.data.item,
+    });
   if (error) {
+    if (error.code === "23505") {
+      return apiError(
+        "VOCABULARY_ALREADY_IN_LIST",
+        "Từ đã tồn tại trong bộ này",
+        409,
+      );
+    }
     return apiError("ITEM_SAVE_FAILED", "Chưa thể lưu từ.", 500);
   }
   return apiSuccess({ saved: true }, { status: 201 });

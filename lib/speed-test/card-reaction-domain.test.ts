@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { VocabularyItem } from "@/content/schema";
-import { cardReactionRules, createCardReactionBoard, gradeCardAnswer, isCorrectCardAnswer, scoreCardAnswer } from "./card-reaction-domain";
+import { cardReactionRules, createCardReactionBoard, gradeCardAnswer, isCorrectCardAnswer, relocateWrongCard, scoreCardAnswer } from "./card-reaction-domain";
 
 const vocabulary = Array.from({ length: 30 }, (_, index): VocabularyItem => ({
   id: `word-${index + 1}`, korean: `단어${index + 1}`, vietnamese: `nghĩa ${index + 1}`,
@@ -28,5 +28,31 @@ describe("Card Reaction domain", () => {
     expect(isCorrectCardAnswer(`  ${card.correctAnswer.toUpperCase()} `, card)).toBe(true);
     expect(gradeCardAnswer("choose", true, 700)).toBe("perfect");
     expect(scoreCardAnswer("hard", "perfect", 1, true)).toBeGreaterThan(scoreCardAnswer("easy", "perfect", 1, false));
+  });
+
+  it("đổi vị trí thẻ trả lời sai với một thẻ chưa clear khác", () => {
+    const cards = [{ id: "wrong" }, { id: "next" }, { id: "other" }];
+    const relocated = relocateWrongCard({
+      cards,
+      wrongCardId: "wrong",
+      clearedCardIds: new Set<string>(),
+      random: () => 0,
+    });
+    expect(relocated.map((card) => card.id)).toEqual([
+      "next",
+      "wrong",
+      "other",
+    ]);
+  });
+
+  it("giữ nguyên vị trí nếu thẻ sai là thẻ cuối cùng chưa clear", () => {
+    const cards = [{ id: "done-1" }, { id: "last" }, { id: "done-2" }];
+    const relocated = relocateWrongCard({
+      cards,
+      wrongCardId: "last",
+      clearedCardIds: new Set(["done-1", "done-2"]),
+      random: () => 0.7,
+    });
+    expect(relocated).toEqual(cards);
   });
 });

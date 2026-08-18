@@ -11,6 +11,8 @@ import { vocabularyItemSchema } from "@/content/schema";
 import { getPublishedLessonRouteData } from "@/lib/data/published-catalog";
 import { recordStreakActivity } from "@/lib/streaks/record-activity";
 import { getVietnamChallengeDate } from "@/lib/speed-test/daily";
+import { isRankedSpeedLesson } from "@/lib/rankings/ranked-source";
+import { getLessonLearningProgress } from "@/lib/data/lesson-progress";
 
 export async function POST(request: Request) {
   const actor = await getApiActor(request);
@@ -25,6 +27,22 @@ export async function POST(request: Request) {
   const input = parsed.data;
   if (input.dailyChallenge && input.challengeDate !== getVietnamChallengeDate()) {
     return apiError("INVALID_CHALLENGE_DATE", "Daily Challenge này không còn thuộc ngày hôm nay.", 409);
+  }
+  if (
+    input.ranked &&
+    (
+      input.source.kind !== "lesson" ||
+      !(await isRankedSpeedLesson(
+        input.source.courseSlug,
+        input.source.lessonSlug,
+      ))
+    )
+  ) {
+    return apiError(
+      "INVALID_RANKED_SOURCE",
+      "Bài học xếp hạng tuần này đã thay đổi. Hãy mở lại từ bảng xếp hạng.",
+      409,
+    );
   }
   if (new Set(input.questionIds).size !== input.questionIds.length) {
     return apiError("DUPLICATE_QUESTIONS", "Danh sách câu hỏi bị trùng.", 422);
@@ -70,6 +88,22 @@ export async function POST(request: Request) {
       input.source.lessonSlug,
     );
     if (!lessonData) return apiError("LESSON_NOT_FOUND", "Không tìm thấy bài học.", 404);
+    const lessonProgress = await getLessonLearningProgress({
+      supabase: actor.supabase,
+      userId: actor.user.id,
+      lesson: lessonData.lesson,
+    });
+    if (!lessonProgress.speedTestUnlocked) {
+      return apiError(
+        "SPEED_TEST_LOCKED",
+        `Bạn cần đạt ${lessonProgress.unlockThreshold}% tiến độ bài học để mở Speed Test.`,
+        403,
+        {
+          completionPercent: lessonProgress.completionPercent,
+          unlockThreshold: lessonProgress.unlockThreshold,
+        },
+      );
+    }
     sourceName = `Bài ${lessonData.lesson.order}: ${lessonData.lesson.title.vi}`.slice(0, 60);
     sourceId = lessonData.lesson.id;
     for (const item of lessonData.lesson.vocabulary) snapshots.set(item.id, item);
@@ -130,6 +164,24 @@ export async function POST(request: Request) {
     p_answers: answers,
   });
   if (error) return apiBackendError(error, "Chưa thể lưu kết quả Speed Test.");
+  let ranking: unknown = null;
+  if (input.ranked) {
+    const { data: rankedData, error: rankedError } = await actor.supabase.rpc(
+      "register_ranked_speed_attempt",
+      { p_attempt_id: input.attemptId },
+    );
+    if (rankedError) {
+      const limitReached = rankedError.message.includes("RANKED_DAILY_LIMIT");
+      return apiError(
+        limitReached ? "RANKED_DAILY_LIMIT" : "RANKED_SAVE_FAILED",
+        limitReached
+          ? "Bạn đã sử dụng đủ 3 lượt xếp hạng hôm nay."
+          : "Kết quả đã được lưu nhưng chưa thể cập nhật bảng xếp hạng.",
+        409,
+      );
+    }
+    ranking = rankedData;
+  }
   let streakRecorded = false;
   if (input.dailyChallenge && completed) {
     const streak = await recordStreakActivity({
@@ -150,5 +202,6 @@ export async function POST(request: Request) {
     rating,
     dailyChallenge: input.dailyChallenge,
     streakRecorded,
+    ranking,
   });
 }

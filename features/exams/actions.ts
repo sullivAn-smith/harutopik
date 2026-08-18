@@ -16,7 +16,11 @@ function text(formData: FormData, key: string) {
 }
 
 function message(error: unknown) {
-  const value = error instanceof Error ? error.message : "Không thể hoàn tất thao tác.";
+  const value = error instanceof Error
+    ? error.message
+    : error && typeof error === "object" && "message" in error && typeof error.message === "string"
+      ? error.message
+      : "Không thể hoàn tất thao tác.";
   if (value.includes("EXAM_NOT_READY")) return "Đề phải có cả phần Nghe và Đọc; mọi câu cần đủ 4 đáp án.";
   if (value.includes("PREVIEW_REQUIRED")) return "Hãy xem trước đề như người học sau lần lưu cuối rồi mới gửi duyệt.";
   if (value.includes("duplicate") || value.includes("unique")) return "Mã đề hoặc số thứ tự câu đã tồn tại.";
@@ -130,7 +134,6 @@ export async function saveExamDraft(examId: string, _state: { message: string; o
   };
   const parsed = examDraftSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: formatExamValidationError(parsed.error, input) };
-  void actor;
   const supabase = await createClient();
   const { error: saveError } = await supabase.rpc("save_exam_draft", {
     p_exam_id: examId,
@@ -146,11 +149,73 @@ export async function saveExamDraft(examId: string, _state: { message: string; o
     },
     p_questions: parsed.data.questions,
   });
-  if (saveError) return { ok: false, message: message(saveError) };
+  if (saveError) {
+    // Production may still have the older RPC, which rejects an exam after an
+    // admin withdraws it. Persist that one state through the service client so
+    // generated/uploaded media is not only visible in the editor's local state.
+    if (!message(saveError).includes("INVALID_STATUS")) {
+      return { ok: false, message: message(saveError) };
+    }
+
+    const admin = createAdminClient();
+    const { data: target, error: targetError } = await admin.from("exam_sets")
+      .select("id,created_by,status")
+      .eq("id", examId)
+      .maybeSingle();
+    if (targetError || !target) return { ok: false, message: "Không tìm thấy đề cần lưu." };
+    if (!canManageExam({ actorId: actor.id, roles: actor.roles, ownerId: target.created_by })) {
+      return { ok: false, message: "Bạn không có quyền sửa đề này." };
+    }
+    if (target.status !== "unpublished") {
+      return { ok: false, message: "Đề không còn ở trạng thái có thể chỉnh sửa." };
+    }
+
+    const { error: examError } = await admin.from("exam_sets").update({
+      code: parsed.data.code,
+      title: parsed.data.title,
+      description: parsed.data.description,
+      level: parsed.data.level,
+      answer_review_policy: "immediate",
+      answer_review_available_at: null,
+      duration_minutes: parsed.data.listeningDurationMinutes + parsed.data.readingDurationMinutes,
+      listening_duration_minutes: parsed.data.listeningDurationMinutes,
+      reading_duration_minutes: parsed.data.readingDurationMinutes,
+      instructions: parsed.data.instructions,
+      previewed_at: null,
+      updated_at: new Date().toISOString(),
+    }).eq("id", examId).eq("status", "unpublished");
+    if (examError) return { ok: false, message: message(examError) };
+
+    const questionRows = parsed.data.questions.map((question) => ({
+      exam_id: examId,
+      position: question.position,
+      section: question.section,
+      audio_block_key: question.audioBlockKey.trim() || null,
+      reading_type: question.readingType || "standard",
+      passage_block_key: question.passageBlockKey.trim() || null,
+      passage: question.passage.trim(),
+      answer_type: question.answerType || "text",
+      instruction: question.instruction.trim(),
+      prompt: question.prompt.trim(),
+      audio_url: question.audioUrl.trim() || null,
+      audio_text: question.audioText.trim() || null,
+      image_url: question.imageUrl.trim() || null,
+      play_limit: 1,
+      options: question.options,
+      option_images: question.optionImages,
+      correct_option: question.correctOption,
+      explanation: question.explanation.trim(),
+    }));
+    const { error: questionsError } = await admin.from("exam_questions")
+      .upsert(questionRows, { onConflict: "exam_id,section,position" });
+    if (questionsError) return { ok: false, message: message(questionsError) };
+  }
   const { error: historyError } = await supabase.rpc("record_exam_revision", { p_exam_id: examId });
   if (historyError && historyError.code !== "PGRST202" && historyError.code !== "42883") return { ok: false, message: `Đã lưu đề nhưng chưa ghi được lịch sử: ${message(historyError)}` };
   revalidatePath(`/bien-tap/de-thi/${examId}`);
   revalidatePath(`/bien-tap/de-thi/${examId}/xem-truoc`);
+  revalidatePath("/quan-tri/de-thi");
+  revalidatePath(`/quan-tri/de-thi/${examId}`);
   revalidatePath("/luyen-de");
   revalidatePath(`/luyen-de/${examId}`);
   revalidatePath(`/luyen-de/${examId}/lam-bai`);
@@ -171,16 +236,46 @@ export async function markExamPreviewed(formData: FormData) {
 }
 
 export async function submitExamForReview(formData: FormData) {
-  await requirePermission("content:submit-review");
+  const actor = await requirePermission("content:submit-review");
   const examId = text(formData, "examId");
   const allowIncomplete = text(formData, "allowIncomplete") === "1";
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("submit_exam_for_review", { p_exam_id: examId });
-  if (error && allowIncomplete && (error.message.includes("EXAM_NOT_READY") || error.message.includes("PREVIEW_REQUIRED"))) {
-    const { error: testSubmitError } = await supabase.from("exam_sets").update({ status: "pending_review", updated_at: new Date().toISOString() }).eq("id", examId).in("status", ["draft", "changes_requested"]);
-    if (testSubmitError) redirect(withErrorMessage(`/bien-tap/de-thi/${examId}`, message(testSubmitError)));
-  } else if (error) redirect(withErrorMessage(`/bien-tap/de-thi/${examId}`, message(error)));
+  if (allowIncomplete) {
+    // The editor intentionally permits incomplete drafts. Handle this path on
+    // the server so it also works while production still has an older RPC that
+    // rejects incomplete or temporarily unpublished exams.
+    const admin = createAdminClient();
+    const { data: target, error: targetError } = await admin.from("exam_sets")
+      .select("id,created_by,status,updated_at,previewed_at")
+      .eq("id", examId)
+      .maybeSingle();
+    if (targetError || !target) redirect(withErrorMessage(`/bien-tap/de-thi/${examId}`, "Không tìm thấy đề cần gửi duyệt."));
+    if (!canManageExam({ actorId: actor.id, roles: actor.roles, ownerId: target.created_by })) {
+      redirect(withErrorMessage(`/bien-tap/de-thi/${examId}`, "Bạn không có quyền gửi đề này duyệt."));
+    }
+    if (!["draft", "changes_requested", "unpublished"].includes(target.status)) {
+      redirect(withErrorMessage(`/bien-tap/de-thi/${examId}`, "Đề không còn ở trạng thái có thể gửi duyệt."));
+    }
+    if (!target.previewed_at || target.previewed_at < target.updated_at) {
+      redirect(withErrorMessage(`/bien-tap/de-thi/${examId}`, "Hãy xem trước đề như người học sau lần lưu cuối rồi mới gửi duyệt."));
+    }
+    const { data: submitted, error: testSubmitError } = await admin.from("exam_sets")
+      .update({ status: "pending_review", review_note: null, updated_at: new Date().toISOString() })
+      .eq("id", examId)
+      .in("status", ["draft", "changes_requested", "unpublished"])
+      .select("id")
+      .maybeSingle();
+    if (testSubmitError || !submitted) {
+      redirect(withErrorMessage(`/bien-tap/de-thi/${examId}`, testSubmitError ? message(testSubmitError) : "Không chuyển được đề sang hàng chờ duyệt."));
+    }
+  } else {
+    const supabase = await createClient();
+    const { error } = await supabase.rpc("submit_exam_for_review", { p_exam_id: examId });
+    if (error) redirect(withErrorMessage(`/bien-tap/de-thi/${examId}`, message(error)));
+  }
   revalidatePath("/bien-tap/de-thi");
+  revalidatePath(`/bien-tap/de-thi/${examId}`);
+  revalidatePath("/quan-tri/de-thi");
+  revalidatePath(`/quan-tri/de-thi/${examId}`);
   redirect("/bien-tap/de-thi?submitted=1");
 }
 
@@ -213,6 +308,11 @@ export async function changeExamRelease(formData: FormData) {
   const supabase = await createClient();
   const { error } = await supabase.rpc("change_exam_release", { p_exam_id: examId, p_action: action });
   if (error) redirect(withErrorMessage(`/quan-tri/de-thi/${examId}`, message(error)));
+  revalidatePath("/bien-tap/de-thi");
+  revalidatePath(`/bien-tap/de-thi/${examId}`);
+  revalidatePath(`/bien-tap/de-thi/${examId}/xem-truoc`);
+  revalidatePath("/quan-tri/de-thi");
+  revalidatePath(`/quan-tri/de-thi/${examId}`);
   revalidatePath("/luyen-de");
   revalidatePath(`/luyen-de/${examId}`);
   redirect("/quan-tri/de-thi?reviewed=1");

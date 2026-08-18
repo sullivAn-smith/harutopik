@@ -40,6 +40,13 @@ export function GET() {
             security: [{ bearerAuth: [] }, { cookieAuth: [] }],
           },
         },
+        "/vocabulary-lists/{listId}/custom-items": {
+          post: {
+            summary:
+              "Tạo từ custom trong một bộ, tối đa 50 từ cho mỗi tài khoản",
+            security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+          },
+        },
         "/entitlements": {
           get: {
             summary: "Quyền truy cập hiện tại",
