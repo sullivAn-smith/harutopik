@@ -7,7 +7,7 @@ const enabledKey = "haru:game-background-music-enabled:v1";
 const volumeKey = "haru:game-background-music-volume:v1";
 const defaultVolume = 0.18;
 
-export function useGameBackgroundMusic(active: boolean) {
+export function useGameBackgroundMusic(active: boolean, source = musicSource) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [enabled, setEnabled] = useState(() => {
     if (typeof window === "undefined") return true;
@@ -25,7 +25,7 @@ export function useGameBackgroundMusic(active: boolean) {
   });
 
   useEffect(() => {
-    const audio = new Audio(musicSource);
+    const audio = new Audio(source);
     audio.loop = true;
     audio.preload = "auto";
     audio.volume = defaultVolume;
@@ -36,7 +36,7 @@ export function useGameBackgroundMusic(active: boolean) {
       audio.load();
       audioRef.current = null;
     };
-  }, []);
+  }, [source]);
 
   useEffect(() => {
     const audio = audioRef.current;

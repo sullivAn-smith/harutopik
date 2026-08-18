@@ -20,7 +20,7 @@ export default async function PracticeTests({ searchParams }: { searchParams: Pr
     <main className="elegant-blue min-h-screen text-[#10243e]">
       <div className="relative z-10 mx-auto max-w-7xl px-5 py-8 sm:py-10">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <Link href="/" className="inline-flex items-center gap-2 font-black text-[#087eba] transition hover:-translate-x-1">← Trang chủ</Link>
+          <Link href="/" className="inline-flex items-center gap-2 rounded-xl border border-[#10243e]/15 bg-white px-4 py-2.5 font-black text-[#10243e] shadow-sm transition hover:-translate-x-1 hover:border-[#10243e]/30">← Trang chủ</Link>
           <ExamLibraryTabs active="exams" />
         </div>
         {notice.error && <p role="alert" className="mt-5 rounded-2xl bg-red-50 p-4 font-bold text-red-700">{notice.error}</p>}

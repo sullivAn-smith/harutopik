@@ -72,7 +72,7 @@ export default async function LessonSpeedTestPage({
         courseSlug={courseSlug}
         lessonSlug={lessonSlug}
         progressById={progressById}
-        backHref={href}
+        backHref="/"
       />}
       flashGame={<FlashRecallExperience
         vocabulary={data.lesson.vocabulary}
@@ -81,7 +81,7 @@ export default async function LessonSpeedTestPage({
         courseSlug={courseSlug}
         lessonSlug={lessonSlug}
         progressById={progressById}
-        backHref={href}
+        backHref="/"
       />}
       cardGame={<CardReactionExperience
         vocabulary={data.lesson.vocabulary}
@@ -90,7 +90,7 @@ export default async function LessonSpeedTestPage({
         courseSlug={courseSlug}
         lessonSlug={lessonSlug}
         progressById={progressById}
-        backHref={href}
+        backHref="/"
       />}
     />
   );

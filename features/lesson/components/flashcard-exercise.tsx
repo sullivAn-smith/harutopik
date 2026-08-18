@@ -10,10 +10,8 @@ type FlashcardExerciseProps = {
   learned: boolean;
   flipped: boolean;
   skipFlipAnimation: boolean;
-  autoAudioEnabled: boolean;
-  autoAudioReady: boolean;
   onFlip: () => void;
-  onToggleAutoAudio: () => void;
+  onReplayAudio: () => void;
   onToggleLearned: () => void;
   onMarkLearned: () => void;
   onMarkUnlearned: () => void;
@@ -35,10 +33,8 @@ export function FlashcardExercise({
   learned,
   flipped,
   skipFlipAnimation,
-  autoAudioEnabled,
-  autoAudioReady,
   onFlip,
-  onToggleAutoAudio,
+  onReplayAudio,
   onToggleLearned,
   onMarkLearned,
   onMarkUnlearned,
@@ -77,21 +73,13 @@ export function FlashcardExercise({
             <SaveToListButton lessonId={lessonId} item={word} />
             <button
               type="button"
-              onClick={onToggleAutoAudio}
-              disabled={!autoAudioReady}
-              aria-pressed={autoAudioEnabled}
-              className={`grid h-11 w-11 place-items-center rounded-xl border-2 border-[#10243e] text-xl transition disabled:cursor-wait disabled:opacity-50 ${
-                autoAudioEnabled
-                  ? "bg-[#087eba] text-white hover:bg-[#066a9e]"
-                  : "bg-white text-[#52637a] hover:bg-blue-50"
-              }`}
-              aria-label={
-                autoAudioEnabled
-                  ? "Tắt tự động đọc flashcard"
-                  : "Bật tự động đọc flashcard"
-              }
+              onClick={onReplayAudio}
+              disabled={!word.audioUrl}
+              className="grid h-11 w-11 place-items-center rounded-xl border-2 border-[#10243e] bg-[#087eba] text-xl text-white transition hover:bg-[#066a9e] disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label={`Đọc lại từ ${word.korean}`}
+              title="Đọc lại từ hiện tại"
             >
-              <span aria-hidden="true">{autoAudioEnabled ? "🔊" : "🔇"}</span>
+              <span aria-hidden="true">🔊</span>
             </button>
             <button
               type="button"

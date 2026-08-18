@@ -63,8 +63,6 @@ const TranslationExercise = dynamic(
 
 type Tab = "vocabulary" | "grammar";
 
-const FLASHCARD_AUTO_AUDIO_KEY = "haru:flashcard-auto-audio";
-
 type LessonExperienceOptions = {
   lesson: Lesson;
   previewMode?: boolean;
@@ -120,19 +118,12 @@ function LessonContent({
   const [skipFlipAnimation, setSkipFlipAnimation] = useState(false);
   const [learnedIndices, setLearnedIndices] = useState<number[]>([]);
   const [shuffleSeed, setShuffleSeed] = useState(1);
-  const [flashcardAutoAudio, setFlashcardAutoAudio] = useState(true);
-  const [flashcardAutoAudioReady, setFlashcardAutoAudioReady] = useState(false);
+  const flashcardAutoAudioTimerRef = useRef<number | null>(null);
+  const flashcardAutoAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     router.prefetch("/");
   }, [router]);
-
-  useEffect(() => {
-    setFlashcardAutoAudio(
-      window.localStorage.getItem(FLASHCARD_AUTO_AUDIO_KEY) !== "off",
-    );
-    setFlashcardAutoAudioReady(true);
-  }, []);
 
   const [quizAnswer, setQuizAnswer] = useState<string | null>(null);
   const [quizCorrectCount, setQuizCorrectCount] = useState(0);
@@ -328,26 +319,32 @@ function LessonContent({
 
   const activeWord = vocabulary[current];
 
-  useEffect(() => {
-    if (
-      !flashcardAutoAudioReady ||
-      !flashcardAutoAudio ||
-      mode !== "flashcard" ||
-      !activeWord?.audioUrl
-    ) {
-      return;
+  const stopFlashcardAudio = useCallback(() => {
+    if (flashcardAutoAudioTimerRef.current !== null) {
+      window.clearTimeout(flashcardAutoAudioTimerRef.current);
+      flashcardAutoAudioTimerRef.current = null;
     }
 
-    void enqueueAudioPlayback({ audioUrl: activeWord.audioUrl }).catch(() => {
-      // Trình duyệt có thể chặn autoplay trước tương tác đầu tiên.
-    });
-  }, [
-    activeWord?.audioUrl,
-    current,
-    flashcardAutoAudio,
-    flashcardAutoAudioReady,
-    mode,
-  ]);
+    if (flashcardAutoAudioRef.current) {
+      flashcardAutoAudioRef.current.pause();
+      flashcardAutoAudioRef.current.currentTime = 0;
+      flashcardAutoAudioRef.current = null;
+    }
+  }, []);
+
+  const playFlashcardAudio = useCallback(
+    (audioUrl: string) => {
+      stopFlashcardAudio();
+      const audio = new Audio(audioUrl);
+      flashcardAutoAudioRef.current = audio;
+      void audio.play().catch(() => {
+        // Trình duyệt có thể chặn lần tự phát đầu tiên trước khi người dùng tương tác.
+      });
+    },
+    [stopFlashcardAudio],
+  );
+
+  useEffect(() => stopFlashcardAudio, [stopFlashcardAudio]);
   const quizReviewPosition = quizReviewIndices.indexOf(current);
   const quizQuestionPosition =
     quizReviewIndices.length > 0 ? Math.max(0, quizReviewPosition) : current;
@@ -558,32 +555,35 @@ function LessonContent({
     const next = current + step;
     if (next < 0 || next >= vocabulary.length) return;
 
+    stopFlashcardAudio();
     setSkipFlipAnimation(true);
     setFlipped(false);
     setCurrent(next);
+    const nextAudioUrl = vocabulary[next]?.audioUrl;
+    if (nextAudioUrl) {
+      flashcardAutoAudioTimerRef.current = window.setTimeout(() => {
+        playFlashcardAudio(nextAudioUrl);
+      }, 500);
+    }
     window.requestAnimationFrame(() =>
       window.requestAnimationFrame(() => setSkipFlipAnimation(false)),
     );
   }
 
   function restartFlashcards() {
+    stopFlashcardAudio();
     setSkipFlipAnimation(true);
     setFlipped(false);
     setCurrent(0);
+    const firstAudioUrl = vocabulary[0]?.audioUrl;
+    if (firstAudioUrl) {
+      flashcardAutoAudioTimerRef.current = window.setTimeout(() => {
+        playFlashcardAudio(firstAudioUrl);
+      }, 500);
+    }
     window.requestAnimationFrame(() =>
       window.requestAnimationFrame(() => setSkipFlipAnimation(false)),
     );
-  }
-
-  function toggleFlashcardAutoAudio() {
-    setFlashcardAutoAudio((enabled) => {
-      const nextEnabled = !enabled;
-      window.localStorage.setItem(
-        FLASHCARD_AUTO_AUDIO_KEY,
-        nextEnabled ? "on" : "off",
-      );
-      return nextEnabled;
-    });
   }
 
   function chooseQuizAnswer(answer: string) {
@@ -918,10 +918,10 @@ function LessonContent({
                 learned={learnedIndices.includes(current)}
                 flipped={flipped}
                 skipFlipAnimation={skipFlipAnimation}
-                autoAudioEnabled={flashcardAutoAudio}
-                autoAudioReady={flashcardAutoAudioReady}
                 onFlip={() => setFlipped((value) => !value)}
-                onToggleAutoAudio={toggleFlashcardAutoAudio}
+                onReplayAudio={() => {
+                  if (activeWord.audioUrl) playFlashcardAudio(activeWord.audioUrl);
+                }}
                 onToggleLearned={() => {
                   const learned = learnedIndices.includes(current);
                   setLearnedIndices((items) =>
@@ -1169,6 +1169,7 @@ function LessonContent({
           </>
         ) : (
           <GrammarSection
+            lessonId={lesson.id}
             grammar={lesson.grammar}
             exercises={fillBlankExercises}
             onSpeak={(text, audioUrl) => playAudioOrSpeak(audioUrl, text)}

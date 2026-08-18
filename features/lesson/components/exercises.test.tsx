@@ -26,7 +26,7 @@ describe("FlashcardExercise", () => {
 
   it("lật thẻ, phát âm và quản lý trạng thái đã thuộc", () => {
     const onFlip = vi.fn();
-    const onToggleAutoAudio = vi.fn();
+    const onReplayAudio = vi.fn();
     const onMarkLearned = vi.fn();
     render(
       <FlashcardExercise
@@ -38,10 +38,8 @@ describe("FlashcardExercise", () => {
         learned={false}
         flipped={false}
         skipFlipAnimation={false}
-        autoAudioEnabled
-        autoAudioReady
         onFlip={onFlip}
-        onToggleAutoAudio={onToggleAutoAudio}
+        onReplayAudio={onReplayAudio}
         onToggleLearned={vi.fn()}
         onMarkLearned={onMarkLearned}
         onMarkUnlearned={vi.fn()}
@@ -53,12 +51,12 @@ describe("FlashcardExercise", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Lật flashcard" }));
     fireEvent.click(
-      screen.getByRole("button", { name: "Tắt tự động đọc flashcard" }),
+      screen.getByRole("button", { name: "Đọc lại từ 한국" }),
     );
     fireEvent.click(screen.getByRole("button", { name: "✓ Đã thuộc" }));
 
     expect(onFlip).toHaveBeenCalledOnce();
-    expect(onToggleAutoAudio).toHaveBeenCalledOnce();
+    expect(onReplayAudio).toHaveBeenCalledOnce();
     expect(onMarkLearned).toHaveBeenCalledOnce();
     expect(
       screen.getByRole("button", { name: "Thẻ trước" }).hasAttribute("disabled"),

@@ -177,6 +177,7 @@ export function HomeClient({
 }) {
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [streakData, setStreakData] = useState<HomeStreakData | undefined>(undefined);
+  const [showRoadmapNotice, setShowRoadmapNotice] = useState(false);
   const publishedCourses = initialCourses.length ? initialCourses : fallbackCourses;
   const primaryCourse = publishedCourses.find((course) => course.slug === "topik-1") ?? publishedCourses[0];
   const dailyLesson = primaryCourse.lessons[0];
@@ -237,6 +238,12 @@ export function HomeClient({
     };
   }, []);
 
+  useEffect(() => {
+    if (!showRoadmapNotice) return;
+    const timeoutId = window.setTimeout(() => setShowRoadmapNotice(false), 2500);
+    return () => window.clearTimeout(timeoutId);
+  }, [showRoadmapNotice]);
+
   return (
     <main data-home-viewport="fixed-desktop" className="elegant-blue home-landing min-h-screen overflow-x-hidden text-[#101820] lg:grid lg:grid-cols-[16rem_minmax(0,1fr)]">
       <header className="relative z-30 flex items-center justify-between border-b border-white/70 bg-white/70 px-4 py-3 backdrop-blur lg:hidden">
@@ -255,9 +262,9 @@ export function HomeClient({
           <Image src="/harutopik-logo-white.png" alt="Harutopik - Học tiếng Hàn" width={220} height={220} className="harutopik-logo logo-penguin-wave h-auto w-full" priority />
         </Link>
         <nav className="mt-6 min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1 [scrollbar-color:rgba(8,126,186,0.45)_transparent] [scrollbar-width:thin]">
-          <Link href="/" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-gradient-to-r from-[#168fd0] to-[#087eba] px-4 py-3.5 font-bold text-white shadow-[0_10px_22px_rgba(8,126,186,0.24)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_26px_rgba(8,126,186,0.3)]"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/18">⌂</span><span>Trang chủ</span></Link>
-          <Link href="/#thu-vien" className="flex w-full items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-black text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-blue-100 text-[#087eba]"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-none stroke-current" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11a2 2 0 0 1 2 2v15a2 2 0 0 0-2-2H6.5A2.5 2.5 0 0 0 4 20.5z" /><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v17a2 2 0 0 1 2-2h2.5a2.5 2.5 0 0 1 2.5 2.5z" /></svg></span><span>Thư viện học</span></Link>
+          <button type="button" onClick={() => setShowRoadmapNotice(true)} className="flex w-full items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 text-left text-[#10243e] shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-emerald-100 text-emerald-700"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-none stroke-current" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19V8l5-4 4 3 7-4v12l-7 5-4-3-5 2Z" /><path d="M9 4v13M13 7v13" /></svg></span><span className="font-bold">Lộ trình</span>{showRoadmapNotice ? <span role="status" className="ml-auto shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-[0.65rem] font-black uppercase tracking-wide text-amber-700">Sắp ra mắt</span> : null}</button>
           <Link href="/tu-cua-toi" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-cyan-100 text-[#087eba]"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-none stroke-current" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="3" /><path d="M7 9h10M7 13h6" /><path d="M17.5 12.5v4M15.5 14.5h4" /></svg></span><span>Quản lý bộ từ</span></Link>
+          <Link href="/ngu-phap-cua-toi" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-violet-100 text-violet-700"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-none stroke-current" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" /><path d="M7 8h10M7 12h7M7 16h4" /></svg></span><span>Quản lý bộ ngữ pháp</span></Link>
           <Link href="/luyen-de" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-[#087eba]">✎</span><span>Luyện đề</span></Link>
           <Link href="/speed-test" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-700">⚡</span><span>Speed Test</span></Link>
           <Link href="/tro-ly" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-[#087eba]">✦</span><span>Trợ lý Haru AI</span></Link>

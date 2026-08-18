@@ -1,6 +1,7 @@
 import { apiError, apiSuccess } from "@/lib/api/responses";
 import { getApiActor } from "@/lib/api/auth";
 import { createVocabularyListSchema } from "@/lib/vocabulary-lists/schema";
+import { GRAMMAR_LIST_PREFIX } from "@/lib/grammar-lists/schema";
 
 export async function GET(request: Request) {
   const actor = await getApiActor(request);
@@ -14,6 +15,7 @@ export async function GET(request: Request) {
     .from("vocabulary_lists")
     .select("id,name,kind,created_at,updated_at")
     .eq("user_id", actor.user.id)
+    .not("name", "like", `${GRAMMAR_LIST_PREFIX}%`)
     .order("kind")
     .order("created_at");
 

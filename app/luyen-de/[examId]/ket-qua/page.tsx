@@ -5,6 +5,7 @@ import { getCurrentActor } from "@/lib/auth/authorize";
 import { getExamAttempt } from "@/lib/data/exams";
 import { examAttemptModeLabel, examAttemptModeSchema } from "@/lib/exams/attempt-mode";
 import { ExamResultHighlights } from "@/features/exams/exam-result-highlights";
+import { ExamResultAudioPlayer } from "@/features/exams/exam-result-audio-player";
 
 type ResultHighlight = {
   id: string;
@@ -133,7 +134,7 @@ export default async function ExamResultPage({
                     <div className="border-t border-slate-100 px-5 pb-6 pt-5">
                     {instruction && <p className="font-black text-slate-700">{instruction}</p>}{prompt && <p className="mt-2 text-lg font-semibold">{prompt}</p>}
                     {passage && <p className="mt-4 whitespace-pre-wrap rounded-2xl bg-slate-50 p-5 font-semibold leading-8">{passage}</p>}
-                    {audioUrl && <audio controls preload="none" src={audioUrl} className="mt-4 w-full" />}
+                    {audioUrl && <ExamResultAudioPlayer src={audioUrl} questionNumber={displayPosition} />}
                     {imageUrl && <Image unoptimized src={imageUrl} alt={`Ngữ liệu câu ${displayPosition}`} width={640} height={480} className="mt-4 aspect-[4/3] w-full max-w-[420px] border border-slate-200 object-cover" />}
                     {question.answer_type === "image" && optionImages.length > 0 && (
                       <div className="mx-auto mt-4 grid max-w-[532px] grid-cols-2 gap-2.5">
@@ -146,7 +147,7 @@ export default async function ExamResultPage({
                     )}
                     <p className="mt-2 font-semibold text-slate-600">Bạn chọn: {selected ? `${selected}. ${options[selected - 1] ?? ""}` : "Chưa trả lời"}</p>
                     <p className="mt-1 font-bold text-emerald-700">Đáp án: {correct}. {options[correct - 1] ?? ""}</p>
-                    {explanation && <div className="mt-4 rounded-2xl bg-amber-50 p-4"><p className="text-xs font-black uppercase tracking-widest text-amber-700">Giải thích</p><p className="mt-2 text-sm leading-6 text-slate-700">{explanation}</p></div>}
+                    {explanation && <div className="mt-4 rounded-2xl bg-amber-50 p-4"><p className="text-xs font-black uppercase tracking-widest text-amber-700">Giải thích</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{explanation}</p></div>}
                     </div>
                   </details>
                 );

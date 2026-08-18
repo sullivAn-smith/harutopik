@@ -38,23 +38,27 @@ export function ExamEditor({ exam, error, hotfix = false, reviewEdit = false, in
   const formRef = useRef<HTMLFormElement>(null);
   const lastTextFieldRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const initialSerialized = useRef("");
-  const imageSavePending = useRef(false);
+  const mediaSavePending = useRef(false);
   const importSavePending = useRef(false);
   const importSaveWasPending = useRef(false);
   const skipInitialLocalPersist = useRef(true);
   const [unlockedFixedFields, setUnlockedFixedFields] = useState<Set<string>>(() => new Set());
-  const editable = hotfix || reviewEdit || ["draft", "changes_requested"].includes(exam.status);
+  // A temporarily unpublished exam is hidden from learners, but its owner
+  // can still refine it and submit the next version for review.
+  const editable = hotfix || reviewEdit || ["draft", "changes_requested", "unpublished"].includes(exam.status);
   const readingNumberOffset = exam.level === "topik_i" ? 30 : 0;
   const displayQuestionNumber = (question: Pick<ExamQuestionInput, "section" | "position">) => question.position + (question.section === "reading" ? readingNumberOffset : 0);
   const eligibility = getExamEligibility(questions);
   const hasCurrentPreview = exam.previewed_at === undefined || Boolean(exam.previewed_at && exam.previewed_at >= exam.updated_at);
   const ready = eligibility.eligible && questions.every((q) => q.options.every(Boolean)) && hasCurrentPreview;
-  const incompleteQuestionCount = questions.filter((question) => {
+  const incompleteQuestionNumbers = questions.filter((question) => {
     const hasContent = Boolean(question.prompt.trim() || question.passage.trim() || question.audioUrl.trim() || question.audioText.trim());
     const hasOptions = question.options.every((option) => option.trim());
     const hasRequiredImages = question.answerType !== "image" || question.optionImages.every((url) => url.trim());
     return !hasContent || !hasOptions || !hasRequiredImages;
-  }).length;
+  }).map(displayQuestionNumber);
+  const incompleteQuestionCount = incompleteQuestionNumbers.length;
+  const incompleteQuestionList = incompleteQuestionNumbers.join(", ");
 
   const serialized = useMemo(() => JSON.stringify(questions.map((q) => ({ ...q, position: questions.filter((item) => item.section === q.section).indexOf(q) + 1 }))), [questions]);
   const groupStart = activeQuestionRange.section === activeSection ? activeQuestionRange.start : 1;
@@ -113,15 +117,15 @@ export function ExamEditor({ exam, error, hotfix = false, reviewEdit = false, in
     if (!editable || hotfix || reviewEdit) return;
     if (!initialSerialized.current) { initialSerialized.current = serialized; return; }
     if (serialized === initialSerialized.current && formRevision === 0) return;
-    if (imageSavePending.current) return;
+    if (mediaSavePending.current) return;
     if (importSavePending.current) return;
     const timer = window.setTimeout(() => formRef.current?.requestSubmit(), 1800);
     return () => window.clearTimeout(timer);
   }, [editable, formRevision, hotfix, reviewEdit, serialized]);
 
   useEffect(() => {
-    if (!imageSavePending.current) return;
-    imageSavePending.current = false;
+    if (!mediaSavePending.current) return;
+    mediaSavePending.current = false;
     formRef.current?.requestSubmit();
   }, [serialized]);
 
@@ -149,7 +153,7 @@ export function ExamEditor({ exam, error, hotfix = false, reviewEdit = false, in
       setImportMessage("Ảnh đã được tải lên. Nhập lý do rồi bấm “Áp dụng hotfix” để đồng bộ tới học viên.");
       return;
     }
-    imageSavePending.current = true;
+    mediaSavePending.current = true;
     setImportMessage("Ảnh đã tải lên CDN. Đang lưu vào đề và đồng bộ bản xem trước...");
   }
   function patchQuestion(index: number, patch: Partial<ExamQuestionInput>) {
@@ -211,8 +215,11 @@ export function ExamEditor({ exam, error, hotfix = false, reviewEdit = false, in
       const response = await fetch("/api/v1/tts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text: question.audioText }) });
       const body = await response.json();
       if (!response.ok) throw new Error(body?.error?.message ?? "Không thể tạo audio.");
+      mediaSavePending.current = !hotfix;
       patchAudioBlock(index, { audioUrl: body.data.audioUrl, audioText: question.audioText });
-      setImportMessage(`Câu ${question.position}: audio Azure đã sẵn sàng${body.data.cached ? " (dùng cache)" : ""}.`);
+      setImportMessage(hotfix
+        ? `Câu ${question.position}: audio Azure đã sẵn sàng${body.data.cached ? " (dùng cache)" : ""}. Nhập lý do rồi bấm “Áp dụng hotfix” để lưu.`
+        : `Câu ${question.position}: audio Azure đã sẵn sàng${body.data.cached ? " (dùng cache)" : ""}. Đang lưu ngay vào đề...`);
     } catch (audioError) { setImportMessage(audioError instanceof Error ? audioError.message : "Không thể tạo audio."); }
     finally { setBusyIndex(null); }
   }
@@ -231,7 +238,11 @@ export function ExamEditor({ exam, error, hotfix = false, reviewEdit = false, in
     if (uploadError) setImportMessage(`Tải audio thất bại: ${uploadError.message}`);
     else {
       const url = supabase.storage.from("exam-audio").getPublicUrl(path).data.publicUrl;
-      patchAudioBlock(index, { audioUrl: url, audioText: question.audioText }); setImportMessage(`Câu ${question.position}: đã tải audio lên CDN.`);
+      mediaSavePending.current = !hotfix;
+      patchAudioBlock(index, { audioUrl: url, audioText: question.audioText });
+      setImportMessage(hotfix
+        ? `Câu ${question.position}: đã tải audio lên CDN. Nhập lý do rồi bấm “Áp dụng hotfix” để lưu.`
+        : `Câu ${question.position}: đã tải audio lên CDN. Đang lưu ngay vào đề...`);
     }
     setBusyIndex(null);
   }
@@ -267,8 +278,9 @@ export function ExamEditor({ exam, error, hotfix = false, reviewEdit = false, in
 
   return <main className="mx-auto max-w-6xl px-5 py-10">
     <Link href={hotfix || reviewEdit ? `/quan-tri/de-thi/${exam.id}` : "/bien-tap/de-thi"} className="font-black text-[#087eba]">← {hotfix || reviewEdit ? "Quay lại duyệt đề" : "Ngân hàng đề"}</Link>
-    <div className="mt-5 flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-widest text-cyan-700">{exam.level === "topik_ii" ? "TOPIK II" : "TOPIK I"} · {hotfix ? "Hotfix bản phát hành" : exam.status}</p><h1 className="mt-2 text-4xl font-black">{exam.title}</h1></div><div className="flex flex-wrap gap-2"><Link href={`/bien-tap/de-thi/${exam.id}/xem-truoc`} className="rounded-2xl border border-cyan-300 bg-white px-5 py-3 font-black text-cyan-800">▶ Xem như người học</Link>{editable && !hotfix && <form action={submitExamForReview} onSubmit={(event) => { if (incompleteQuestionCount > 0 && !window.confirm(`Đề còn ${incompleteQuestionCount} câu chưa soạn hoàn chỉnh. Bạn vẫn muốn gửi admin duyệt?`)) event.preventDefault(); }}><input type="hidden" name="examId" value={exam.id} /><input type="hidden" name="allowIncomplete" value="1" /><button title={incompleteQuestionCount > 0 ? `Còn ${incompleteQuestionCount} câu chưa soạn` : undefined} className="rounded-2xl bg-emerald-600 px-5 py-3 font-black text-white">Gửi admin duyệt →</button></form>}</div></div>
-    {editable && incompleteQuestionCount > 0 && <p className="mt-4 rounded-2xl bg-orange-50 px-4 py-3 text-sm font-bold text-orange-800">Đề còn {incompleteQuestionCount}/{questions.length} câu chưa soạn hoàn chỉnh. Bạn vẫn có thể gửi duyệt để kiểm thử quy trình.</p>}
+    <div className="mt-5 flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-widest text-cyan-700">{exam.level === "topik_ii" ? "TOPIK II" : "TOPIK I"} · {hotfix ? "Hotfix bản phát hành" : exam.status}</p><h1 className="mt-2 text-4xl font-black">{exam.title}</h1></div><div className="flex flex-wrap gap-2"><Link href={`/bien-tap/de-thi/${exam.id}/xem-truoc`} className="rounded-2xl border border-cyan-300 bg-white px-5 py-3 font-black text-cyan-800">▶ Xem như người học</Link>{editable && !hotfix && <form action={submitExamForReview} onSubmit={(event) => { if (incompleteQuestionCount > 0 && !window.confirm(`Đề còn ${incompleteQuestionCount} câu chưa soạn hoàn chỉnh: ${incompleteQuestionList}. Bạn vẫn muốn gửi admin duyệt?`)) event.preventDefault(); }}><input type="hidden" name="examId" value={exam.id} /><input type="hidden" name="allowIncomplete" value="1" /><button title={incompleteQuestionCount > 0 ? `Câu chưa hoàn chỉnh: ${incompleteQuestionList}` : undefined} className="rounded-2xl bg-emerald-600 px-5 py-3 font-black text-white">Gửi admin duyệt →</button></form>}</div></div>
+    {editable && incompleteQuestionCount > 0 && <div className="mt-4 rounded-2xl bg-orange-50 px-4 py-3 text-sm font-bold text-orange-800"><p>Đề còn {incompleteQuestionCount}/{questions.length} câu chưa soạn hoàn chỉnh. Bạn vẫn có thể gửi admin duyệt.</p><p className="mt-1 font-black">Câu chưa hoàn chỉnh: {incompleteQuestionList}.</p></div>}
+    {exam.status === "unpublished" && !hotfix && <p className="mt-4 rounded-2xl bg-sky-50 px-4 py-3 text-sm font-bold text-sky-800">Admin đã tạm gỡ đề khỏi trang học viên. Bạn có thể sửa, xem trước rồi gửi lại admin duyệt; đề sẽ chỉ xuất hiện lại sau khi được phát hành.</p>}
     {editable && !hasCurrentPreview && <p className="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">Sau khi hoàn thiện và lưu, hãy xem trước như người học. Đây là bước bắt buộc trước khi gửi duyệt.</p>}
     {(error || exam.review_note) && <p role="alert" className="mt-5 rounded-2xl bg-amber-50 p-4 font-bold text-amber-800">{error ?? `Admin yêu cầu: ${exam.review_note}`}</p>}
     {reviewEdit && <p className="mt-5 rounded-2xl bg-violet-50 p-4 font-bold text-violet-800">Chỉnh sửa nhanh của admin: lưu xong đề vẫn ở hàng chờ duyệt để bạn kiểm tra và ra quyết định.</p>}
