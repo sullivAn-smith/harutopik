@@ -9,6 +9,24 @@ vi.mock("./hotfix-actions", () => ({
   applyPublishedLessonHotfix: vi.fn(async () => ({ status: "idle" })),
 }));
 
+const clearPublishedLessonVocabularyImages = vi.fn(async (
+  _lessonId: string,
+  _vocabularyIds: string[],
+) => {
+  void _lessonId;
+  void _vocabularyIds;
+  return {
+    ok: true as const,
+    clearedCount: 1,
+    message: "Đã xoá ảnh của 1 từ và đồng bộ cho biên tập, học viên.",
+  };
+});
+
+vi.mock("./bulk-vocabulary-image-actions", () => ({
+  clearPublishedLessonVocabularyImages: (...args: [string, string[]]) =>
+    clearPublishedLessonVocabularyImages(...args),
+}));
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
@@ -57,6 +75,32 @@ const lesson: Lesson = {
 };
 
 describe("PublishedLessonHotfixForm vocabulary removal", () => {
+  it("cho xoá ảnh hàng loạt của các từ đã chọn mà không gỡ từ khỏi bài", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<PublishedLessonHotfixForm lesson={lesson} />);
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Chọn từ 학교" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Xoá ảnh đã chọn" }),
+    );
+
+    expect(window.confirm).toHaveBeenCalledWith(
+      "Xoá ảnh flashcard của 1 từ đã chọn? Ảnh sẽ mất ở admin, biên tập và trang học viên; bạn vẫn có thể mở từng từ để thêm ảnh mới.",
+    );
+    await vi.waitFor(() =>
+      expect(clearPublishedLessonVocabularyImages).toHaveBeenCalledWith(
+        "lesson-hotfix-test",
+        ["word-1"],
+      ),
+    );
+    expect(
+      await screen.findByText(
+        "Đã xoá ảnh của 1 từ và đồng bộ cho biên tập, học viên.",
+      ),
+    ).toBeTruthy();
+    expect(screen.getAllByRole("checkbox")).toHaveLength(3);
+  });
+
   it("cho chọn từng từ, chọn tất cả, xác nhận gỡ và hoàn tác trước khi lưu", () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
     const { container } = render(
