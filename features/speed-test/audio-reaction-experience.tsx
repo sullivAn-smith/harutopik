@@ -44,6 +44,7 @@ type SavedResult = {
   livesRemaining: number;
   counts: Record<AudioReactionGrade, number>;
   personalBest: { highestScore: boolean; previousScore: number; improvement: number; fastestPerfect: boolean };
+  ranking?: { attemptsRemaining?: number };
 };
 
 type Stage = "setup" | "countdown" | "playing" | "result";
@@ -84,6 +85,8 @@ export function AudioReactionExperience({
   progressById,
   backHref,
   gameType = "audio_reaction",
+  rankedMode = false,
+  rankedAttemptsRemaining = 3,
 }: {
   vocabulary: VocabularyItem[];
   lessonName: string;
@@ -93,17 +96,19 @@ export function AudioReactionExperience({
   progressById: Record<string, SpeedTestWordProgress>;
   backHref: string;
   gameType?: ReactionGameType;
+  rankedMode?: boolean;
+  rankedAttemptsRemaining?: number;
 }) {
   const isFlash = gameType === "flash_reaction";
   const [direction, setDirection] = useState<FlashReactionDirection>("ko_vi");
   const pool = useMemo(() => isFlash
     ? createFlashReactionPool(vocabulary, direction)
     : createAudioReactionPool(vocabulary), [direction, isFlash, vocabulary]);
-  const wordAudioCount = pool.filter((question) => question.type === "word").length;
-  const sentenceAudioCount = pool.length - wordAudioCount;
+  const wordAudioCount = pool.length;
   const availableCounts = ([10, 20, 30] as const).filter((count) => pool.length >= count);
-  const [questionCount, setQuestionCount] = useState<10 | 20 | 30>(availableCounts[0] ?? 10);
+  const [questionCount, setQuestionCount] = useState<10 | 20 | 30>(rankedMode ? 10 : availableCounts[0] ?? 10);
   const [mode, setMode] = useState<AudioReactionMode>("choose");
+  const [rankedRemaining, setRankedRemaining] = useState(rankedAttemptsRemaining);
   const [stage, setStage] = useState<Stage>("setup");
   const [countdown, setCountdown] = useState(3);
   const [questions, setQuestions] = useState<AudioReactionQuestion[]>([]);
@@ -181,6 +186,7 @@ export function AudioReactionExperience({
         lessonSlug,
         mode,
         gameType,
+        ranked: rankedMode,
         direction,
         requestedQuestionCount: questionCount,
         questionIds: questions.map((item) => item.id),
@@ -203,9 +209,12 @@ export function AudioReactionExperience({
       setScore(payload.data.score);
       setBestCombo(payload.data.bestCombo);
       setLives(payload.data.livesRemaining);
+      if (typeof payload.data.ranking?.attemptsRemaining === "number") {
+        setRankedRemaining(payload.data.ranking.attemptsRemaining);
+      }
       setSyncState("saved");
     }).catch(() => setSyncState("failed"));
-  }, [clearAnswerTimeout, courseSlug, direction, gameType, lessonSlug, mode, questionCount, questions]);
+  }, [clearAnswerTimeout, courseSlug, direction, gameType, lessonSlug, mode, questionCount, questions, rankedMode]);
 
   const answerQuestion = useCallback((userAnswer: string) => {
     if (!question || turnPhase !== "answer" || finishing.current) return;
@@ -274,8 +283,8 @@ export function AudioReactionExperience({
 
   function start() {
     const selected = isFlash
-      ? buildFlashReactionQuestions({ vocabulary, direction, questionCount, progressById })
-      : buildAudioReactionQuestions({ vocabulary, questionCount, progressById });
+      ? buildFlashReactionQuestions({ vocabulary, direction, questionCount, progressById: rankedMode ? {} : progressById })
+      : buildAudioReactionQuestions({ vocabulary, questionCount, progressById: rankedMode ? {} : progressById });
     if (selected.length < questionCount) return;
     setQuestions(selected); setPosition(0); setLives(audioReactionRules.startingLives); setCombo(0);
     setBestCombo(0); setScore(0); setAnswers([]); setValue(""); setFeedback(null); setSavedResult(null);
@@ -296,7 +305,7 @@ export function AudioReactionExperience({
     void audio.play().catch(() => setAudioError(true));
   }
 
-  if (stage === "setup") return <SetupScreen lessonName={lessonName} poolSize={pool.length} wordAudioCount={wordAudioCount} sentenceAudioCount={sentenceAudioCount} availableCounts={availableCounts} questionCount={questionCount} setQuestionCount={setQuestionCount} mode={mode} setMode={setMode} direction={direction} setDirection={setDirection} gameType={gameType} soundEnabled={soundEnabled} setSoundEnabled={setSoundEnabled} backHref={backHref} onStart={start} />;
+  if (stage === "setup") return <SetupScreen lessonName={lessonName} poolSize={pool.length} wordAudioCount={wordAudioCount} availableCounts={availableCounts} questionCount={questionCount} setQuestionCount={setQuestionCount} mode={mode} setMode={setMode} direction={direction} setDirection={setDirection} gameType={gameType} soundEnabled={soundEnabled} setSoundEnabled={setSoundEnabled} backHref={backHref} onStart={start} rankedMode={rankedMode} rankedRemaining={rankedRemaining} />;
   if (stage === "countdown") return <CountdownScreen value={countdown} />;
   if (stage === "result") return <ResultScreen lessonName={lessonName} answered={answers.length} total={questions.length} score={score} elapsedMs={elapsedMs} lives={lives} bestCombo={bestCombo} answers={answers} savedResult={savedResult} syncState={syncState} backHref={backHref} historyHref={`/speed-test/lich-su?sourceKind=lesson&sourceId=${encodeURIComponent(lessonId)}`} onRetry={() => { setStage("setup"); }} />;
 
@@ -311,7 +320,7 @@ export function AudioReactionExperience({
         <div className="mt-3 h-2 overflow-hidden rounded-full bg-amber-100"><div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all" style={{ width: `${((position + 1) / questions.length) * 100}%` }} /></div>
 
         <div className="relative flex flex-1 flex-col items-center justify-center py-5 text-center">
-          <p className="text-xs font-black uppercase tracking-[.2em] text-amber-700">{isFlash ? "Phản xạ thẻ từ" : question.type === "word" ? "Nghe từ vựng" : "Nghe câu trong ngữ cảnh"} · {position + 1}/{questions.length}</p>
+          <p className="text-xs font-black uppercase tracking-[.2em] text-amber-700">{isFlash ? "Phản xạ thẻ từ" : "Nghe từ vựng"} · {position + 1}/{questions.length}</p>
           {!isFlash && <button type="button" disabled={turnPhase !== "audio" || !audioError} onClick={retryAudio} className={`mt-5 grid h-24 w-24 place-items-center rounded-full border-4 text-5xl shadow-[0_0_45px_rgba(245,158,11,.3)] transition sm:h-28 sm:w-28 ${audioError ? "border-orange-400 bg-orange-100" : "animate-pulse border-amber-400 bg-amber-100"}`} aria-label={audioError ? "Phát lại audio" : "Audio đang phát"}>🔊</button>}
           {!isFlash && audioError && <p className="mt-3 font-bold text-orange-700">Không thể tự phát. Chạm vào loa để thử lại.</p>}
           <h1 lang={isFlash && direction === "vi_ko" ? "vi" : "ko"} className="mt-5 text-3xl font-black sm:text-5xl">{question.korean}</h1>
@@ -337,16 +346,17 @@ export function AudioReactionExperience({
   );
 }
 
-function SetupScreen({ lessonName, poolSize, wordAudioCount, sentenceAudioCount, availableCounts, questionCount, setQuestionCount, mode, setMode, direction, setDirection, gameType, soundEnabled, setSoundEnabled, backHref, onStart }: {
-  lessonName: string; poolSize: number; wordAudioCount: number; sentenceAudioCount: number;
+function SetupScreen({ lessonName, poolSize, wordAudioCount, availableCounts, questionCount, setQuestionCount, mode, setMode, direction, setDirection, gameType, soundEnabled, setSoundEnabled, backHref, onStart, rankedMode, rankedRemaining }: {
+  lessonName: string; poolSize: number; wordAudioCount: number;
   availableCounts: readonly (10 | 20 | 30)[]; questionCount: 10 | 20 | 30;
   setQuestionCount: (count: 10 | 20 | 30) => void; mode: AudioReactionMode;
   setMode: (mode: AudioReactionMode) => void; direction: FlashReactionDirection;
   setDirection: (direction: FlashReactionDirection) => void; gameType: ReactionGameType;
   soundEnabled: boolean; setSoundEnabled: (enabled: boolean) => void; backHref: string; onStart: () => void;
+  rankedMode: boolean; rankedRemaining: number;
 }) {
   const isFlash = gameType === "flash_reaction";
-  return <main className="min-h-dvh bg-[radial-gradient(circle_at_top_left,#fff9d7_0%,transparent_34rem),linear-gradient(145deg,#fffdf6,#ffe477)] px-4 py-6 text-amber-950 sm:py-10"><section className="mx-auto max-w-4xl"><Link href={backHref} className="inline-flex rounded-2xl border border-amber-200 bg-white px-5 py-3 font-black shadow-md">← Về trang chủ</Link><div className="mt-6 overflow-hidden rounded-[2rem] border border-amber-200 bg-white/94 p-6 shadow-[0_24px_70px_rgba(132,82,0,.18)] sm:p-10"><p className="text-sm font-black uppercase tracking-[.22em] text-amber-600">⚡ {isFlash ? "Flash Reaction" : "Audio Reaction"}</p><h1 className="mt-2 text-4xl font-black sm:text-5xl">Chọn thử thách</h1><p className="mt-3 font-semibold text-amber-900/60">{lessonName}</p><div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 font-bold"><p>{poolSize} {isFlash ? "từ vựng khả dụng" : "câu có audio khả dụng"}</p><p className="mt-1 text-sm text-amber-900/55">{isFlash ? "Câu hỏi được chọn thích ứng theo độ chính xác, tốc độ và lịch ôn của bạn" : `${wordAudioCount} từ vựng · ${sentenceAudioCount} câu ví dụ · Audio bị thiếu sẽ tự động được bỏ qua`}</p></div>{isFlash && <><h2 className="mt-7 font-black uppercase tracking-wider text-amber-700">Chiều phản xạ</h2><div className="mt-3 grid gap-3 sm:grid-cols-2"><button onClick={() => setDirection("ko_vi")} className={`rounded-2xl border-2 p-4 font-black ${direction === "ko_vi" ? "border-amber-500 bg-amber-100" : "border-amber-200"}`}>Hàn → Việt</button><button onClick={() => setDirection("vi_ko")} className={`rounded-2xl border-2 p-4 font-black ${direction === "vi_ko" ? "border-amber-500 bg-amber-100" : "border-amber-200"}`}>Việt → Hàn</button></div></>}<h2 className="mt-7 font-black uppercase tracking-wider text-amber-700">Số câu</h2><div className="mt-3 grid grid-cols-3 gap-3">{([10,20,30] as const).map((count) => { const enabled = availableCounts.includes(count); return <button key={count} disabled={!enabled} onClick={() => setQuestionCount(count)} className={`rounded-2xl border-2 px-2 py-4 text-2xl font-black transition sm:px-4 ${questionCount === count && enabled ? "border-amber-500 bg-amber-300 shadow-lg" : enabled ? "border-amber-200 bg-amber-50 hover:border-amber-400" : "border-stone-100 bg-stone-50 text-stone-300"}`}>{count}<span className="mt-1 block text-[.62rem] uppercase tracking-wider">{enabled ? "câu" : isFlash ? "chưa đủ từ" : "chưa đủ audio"}</span></button>; })}</div><h2 className="mt-7 font-black uppercase tracking-wider text-amber-700">Chế độ</h2><div className="mt-3 grid gap-3 sm:grid-cols-2"><button onClick={() => setMode("choose")} className={`rounded-2xl border-2 p-5 text-left transition ${mode === "choose" ? "border-amber-500 bg-amber-100 shadow-lg" : "border-amber-200 bg-white"}`}><b className="text-xl">🎯 CHỌN</b><span className="mt-1 block text-sm text-amber-900/55">Chọn đáp án trong 2 giây</span></button><button onClick={() => setMode("type")} className={`rounded-2xl border-2 p-5 text-left transition ${mode === "type" ? "border-amber-500 bg-amber-100 shadow-lg" : "border-amber-200 bg-white"}`}><b className="text-xl">⌨️ GÕ</b><span className="mt-1 block text-sm text-amber-900/55">Gõ đáp án trong 3 giây</span></button></div><label className="mt-6 flex cursor-pointer items-center justify-between rounded-2xl border border-amber-200 bg-amber-50 p-4 font-bold"><span>🔔 Âm thanh phản hồi</span><input type="checkbox" checked={soundEnabled} onChange={(event) => setSoundEnabled(event.target.checked)} className="h-5 w-5 accent-amber-500" /></label><button disabled={!availableCounts.length} onClick={onStart} className="mt-8 w-full rounded-2xl bg-gradient-to-r from-amber-300 to-orange-400 px-6 py-4 text-xl font-black text-amber-950 shadow-xl transition hover:-translate-y-0.5 disabled:opacity-40">BẮT ĐẦU ⚡</button></div></section></main>;
+  return <main className="min-h-dvh bg-[radial-gradient(circle_at_top_left,#fff9d7_0%,transparent_34rem),linear-gradient(145deg,#fffdf6,#ffe477)] px-4 py-6 text-amber-950 sm:py-10"><section className="mx-auto max-w-4xl"><Link href={rankedMode ? "/bang-xep-hang?board=audio_reaction" : backHref} className="inline-flex rounded-2xl border border-amber-200 bg-white px-5 py-3 font-black shadow-md">← {rankedMode ? "Bảng xếp hạng" : "Về bài học"}</Link><div className="mt-6 overflow-hidden rounded-[2rem] border border-amber-200 bg-white/94 p-6 shadow-[0_24px_70px_rgba(132,82,0,.18)] sm:p-10"><p className="text-sm font-black uppercase tracking-[.22em] text-amber-600">{rankedMode ? "♛ Harutopik League" : "⚡ Audio Reaction"}</p><h1 className="mt-2 text-4xl font-black sm:text-5xl">{rankedMode ? "Audio Reaction xếp hạng" : "Chọn thử thách"}</h1><p className="mt-3 font-semibold text-amber-900/60">{lessonName}</p>{rankedMode && <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-amber-300 bg-amber-50 p-4"><span><b className="block">10 câu được trộn · Chọn đáp án</b><small className="font-bold text-amber-800/65">Mọi người chơi cùng cấu hình</small></span><strong className="rounded-full bg-amber-300 px-4 py-2">Còn {rankedRemaining}/3 lượt</strong></div>}<div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 font-bold"><p>{poolSize} {isFlash ? "từ vựng khả dụng" : "từ có audio khả dụng"}</p><p className="mt-1 text-sm text-amber-900/55">{isFlash ? "Câu hỏi được chọn thích ứng theo độ chính xác, tốc độ và lịch ôn của bạn" : `${wordAudioCount} từ đơn · Audio câu ví dụ không được sử dụng`}</p></div>{isFlash && <><h2 className="mt-7 font-black uppercase tracking-wider text-amber-700">Chiều phản xạ</h2><div className="mt-3 grid gap-3 sm:grid-cols-2"><button disabled={rankedMode} onClick={() => setDirection("ko_vi")} className={`rounded-2xl border-2 p-4 font-black ${direction === "ko_vi" ? "border-amber-500 bg-amber-100" : "border-amber-200"}`}>Hàn → Việt</button><button disabled={rankedMode} onClick={() => setDirection("vi_ko")} className={`rounded-2xl border-2 p-4 font-black ${direction === "vi_ko" ? "border-amber-500 bg-amber-100" : "border-amber-200"}`}>Việt → Hàn</button></div></>}<h2 className="mt-7 font-black uppercase tracking-wider text-amber-700">Số câu</h2><div className="mt-3 grid grid-cols-3 gap-3">{([10,20,30] as const).map((count) => { const enabled = availableCounts.includes(count); return <button key={count} disabled={!enabled||rankedMode} onClick={() => setQuestionCount(count)} className={`rounded-2xl border-2 px-2 py-4 text-2xl font-black transition disabled:cursor-not-allowed sm:px-4 ${questionCount === count && enabled ? "border-amber-500 bg-amber-300 shadow-lg" : enabled ? "border-amber-200 bg-amber-50 hover:border-amber-400" : "border-stone-100 bg-stone-50 text-stone-300"}`}>{count}<span className="mt-1 block text-[.62rem] uppercase tracking-wider">{enabled ? "câu" : isFlash ? "chưa đủ từ" : "chưa đủ audio từ"}</span></button>; })}</div><h2 className="mt-7 font-black uppercase tracking-wider text-amber-700">Chế độ</h2><div className="mt-3 grid gap-3 sm:grid-cols-2"><button disabled={rankedMode} onClick={() => setMode("choose")} className={`rounded-2xl border-2 p-5 text-left transition disabled:cursor-not-allowed ${mode === "choose" ? "border-amber-500 bg-amber-100 shadow-lg" : "border-amber-200 bg-white"}`}><b className="text-xl">🎯 CHỌN</b><span className="mt-1 block text-sm text-amber-900/55">Chọn đáp án trong 2 giây</span></button><button disabled={rankedMode} onClick={() => setMode("type")} className={`rounded-2xl border-2 p-5 text-left transition disabled:cursor-not-allowed ${mode === "type" ? "border-amber-500 bg-amber-100 shadow-lg" : "border-amber-200 bg-white"}`}><b className="text-xl">⌨️ GÕ</b><span className="mt-1 block text-sm text-amber-900/55">Gõ đáp án trong 3 giây</span></button></div><label className="mt-6 flex cursor-pointer items-center justify-between rounded-2xl border border-amber-200 bg-amber-50 p-4 font-bold"><span>🔔 Âm thanh phản hồi</span><input type="checkbox" checked={soundEnabled} onChange={(event) => setSoundEnabled(event.target.checked)} className="h-5 w-5 accent-amber-500" /></label><button disabled={!availableCounts.includes(questionCount)||rankedRemaining<=0} onClick={onStart} className="mt-8 w-full rounded-2xl bg-gradient-to-r from-amber-300 to-orange-400 px-6 py-4 text-xl font-black text-amber-950 shadow-xl transition hover:-translate-y-0.5 disabled:opacity-40">{rankedRemaining<=0?"ĐÃ HẾT LƯỢT HÔM NAY":rankedMode?"BẮT ĐẦU XẾP HẠNG ♛":"BẮT ĐẦU ⚡"}</button></div></section></main>;
 }
 
 function CountdownScreen({ value }: { value: number }) {

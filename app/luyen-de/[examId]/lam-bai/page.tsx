@@ -1,14 +1,20 @@
 import { notFound, redirect } from "next/navigation";
-import { getCurrentActor } from "@/lib/auth/authorize";
-import { getExamAttempt } from "@/lib/data/exams";
+import { getCurrentUser } from "@/lib/auth/authorize";
+import {
+  getExamAttemptForRunner,
+  getExamAttemptHighlights,
+} from "@/lib/data/exams";
 import { ExamRunner } from "@/features/exams/exam-runner";
 import { withErrorMessage } from "@/lib/navigation/redirect-url";
 
 export default async function ExamRunnerPage({ params, searchParams }: { params: Promise<{ examId: string }>; searchParams: Promise<{ attempt?: string }> }) {
-  const [{ examId }, query, actor] = await Promise.all([params, searchParams, getCurrentActor()]);
-  if (!actor) redirect(`/dang-nhap?next=${encodeURIComponent(`/luyen-de/${examId}`)}`);
+  const [{ examId }, query, user] = await Promise.all([params, searchParams, getCurrentUser()]);
+  if (!user) redirect(`/dang-nhap?next=${encodeURIComponent(`/luyen-de/${examId}`)}`);
   if (!query.attempt) notFound();
-  const attempt = await getExamAttempt(query.attempt, actor.id);
+  const [attempt, savedHighlights] = await Promise.all([
+    getExamAttemptForRunner(query.attempt, user.id),
+    getExamAttemptHighlights(query.attempt, user.id),
+  ]);
   if (!attempt || attempt.exam_id !== examId) notFound();
   if (attempt.status !== "in_progress") redirect(`/luyen-de/${examId}/ket-qua?attempt=${attempt.id}`);
   const attemptExam = attempt.exam_sets as unknown as { title: string; level?: "topik_i" | "topik_ii"; version?: number } | null;
@@ -23,7 +29,7 @@ export default async function ExamRunnerPage({ params, searchParams }: { params:
   const section = attempt.current_section === "reading" ? "reading" as const : "listening" as const;
   const expiresAt = attempt.expires_at;
   if (!expiresAt) notFound();
-  const initialHighlights = Array.isArray(attempt.exam_highlights) ? attempt.exam_highlights.map((raw) => {
+  const initialHighlights = savedHighlights.map((raw) => {
     const highlight = raw as Record<string, unknown>;
     return {
       id: String(highlight.id),
@@ -36,6 +42,6 @@ export default async function ExamRunnerPage({ params, searchParams }: { params:
       color: highlight.color === "blue" ? "blue" as const : highlight.color === "pink" ? "pink" as const : "yellow" as const,
       reviewListId: highlight.review_list_id ? String(highlight.review_list_id) : null,
     };
-  }) : [];
+  });
   return <ExamRunner attemptId={attempt.id} examId={examId} title={attemptExam?.title ?? "Đề TOPIK I"} level={attemptExam?.level} section={section} expiresAt={expiresAt} initialPosition={attempt.current_position} initialAnswers={(attempt.answers ?? {}) as Record<string, number>} initialFlagged={Array.isArray(attempt.flagged) ? attempt.flagged.map(String) : []} initialAudioPlays={(attempt.audio_plays ?? {}) as Record<string, number>} initialWindowLeaveCount={attempt.window_leave_count ?? 0} initialHighlights={initialHighlights} questions={snapshot} />;
 }

@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import type { VocabularyListSummary } from "@/lib/vocabulary-lists/schema";
+import {
+  customVocabularyLimit,
+  isCustomVocabularyItem,
+  type VocabularyListSummary,
+} from "@/lib/vocabulary-lists/schema";
 
 type ApiResponse<T> = { data?: T; error?: { message: string } };
 type SavedVocabularyItem = NonNullable<VocabularyListSummary["items"]>[number];
@@ -15,6 +19,14 @@ type PersonalVocabularyForm = {
   example: string;
   category: string;
 };
+const emptyPersonalVocabularyForm: PersonalVocabularyForm = {
+  korean: "",
+  vietnamese: "",
+  romanization: "",
+  partOfSpeech: "",
+  example: "",
+  category: "",
+};
 
 function isHighlightVocabulary(item: SavedVocabularyItem) {
   return (
@@ -24,16 +36,21 @@ function isHighlightVocabulary(item: SavedVocabularyItem) {
 }
 
 function personalVocabularyForm(item: SavedVocabularyItem): PersonalVocabularyForm {
+  const custom = isCustomVocabularyItem(item);
   return {
     korean: item.item.korean,
     vietnamese: item.item.vietnamese,
-    romanization: item.item.romanization,
+    romanization:
+      custom && item.item.romanization === "—" ? "" : item.item.romanization,
     partOfSpeech:
       item.item.partOfSpeech === "Từ highlight"
         ? ""
         : (item.item.partOfSpeech ?? ""),
     example: item.item.examples[0]?.korean ?? "",
-    category: item.item.category,
+    category:
+      custom && item.item.category === "Từ cá nhân"
+        ? ""
+        : item.item.category,
   };
 }
 
@@ -53,6 +70,11 @@ export function VocabularyListsManager({ backHref }: { backHref: string }) {
   const [editForm, setEditForm] = useState<PersonalVocabularyForm | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [editError, setEditError] = useState("");
+  const [showCreateWord, setShowCreateWord] = useState(false);
+  const [createWordForm, setCreateWordForm] =
+    useState<PersonalVocabularyForm>(emptyPersonalVocabularyForm);
+  const [creatingWord, setCreatingWord] = useState(false);
+  const [createWordError, setCreateWordError] = useState("");
 
   async function reload(preferredId?: string) {
     setLoading(true);
@@ -105,6 +127,15 @@ export function VocabularyListsManager({ backHref }: { backHref: string }) {
   const active = useMemo(
     () => lists.find((list) => list.id === activeId) ?? null,
     [activeId, lists],
+  );
+  const customVocabularyCount = useMemo(
+    () =>
+      lists.reduce(
+        (total, list) =>
+          total + (list.items ?? []).filter(isCustomVocabularyItem).length,
+        0,
+      ),
+    [lists],
   );
   const filteredItems = useMemo(() => {
     const query = searchTerm.trim().toLocaleLowerCase("vi");
@@ -193,8 +224,8 @@ export function VocabularyListsManager({ backHref }: { backHref: string }) {
             id: editCandidate.vocabularyId,
             korean: editForm.korean.trim(),
             vietnamese: editForm.vietnamese.trim(),
-            romanization: editForm.romanization.trim(),
-            category: editForm.category.trim(),
+            romanization: editForm.romanization.trim() || "—",
+            category: editForm.category.trim() || "Từ cá nhân",
             partOfSpeech: editForm.partOfSpeech.trim() || undefined,
             examples: example
               ? [
@@ -226,6 +257,36 @@ export function VocabularyListsManager({ backHref }: { backHref: string }) {
     setEditCandidate(null);
     setEditForm(null);
     setMessage("Đã cập nhật từ cá nhân. Các chế độ học sẽ dùng dữ liệu mới.");
+    await reload(active.id);
+  }
+
+  async function createCustomVocabulary(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!active || customVocabularyCount >= customVocabularyLimit) return;
+
+    setCreatingWord(true);
+    setCreateWordError("");
+    const response = await fetch(
+      `/api/v1/vocabulary-lists/${active.id}/custom-items`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(createWordForm),
+      },
+    );
+    const payload = (await response.json()) as ApiResponse<SavedVocabularyItem>;
+    if (!response.ok) {
+      setCreateWordError(
+        payload.error?.message ?? "Chưa thể thêm từ custom.",
+      );
+      setCreatingWord(false);
+      return;
+    }
+
+    setCreatingWord(false);
+    setShowCreateWord(false);
+    setCreateWordForm(emptyPersonalVocabularyForm);
+    setMessage("Đã thêm từ custom vào bộ.");
     await reload(active.id);
   }
 
@@ -269,7 +330,11 @@ export function VocabularyListsManager({ backHref }: { backHref: string }) {
               <button
                 key={list.id}
                 type="button"
-                onClick={() => setActiveId(list.id)}
+                onClick={() => {
+                  setActiveId(list.id);
+                  setShowCreateWord(false);
+                  setCreateWordError("");
+                }}
                 className={`flex w-full items-center justify-between rounded-2xl px-4 py-3.5 text-left font-black transition ${
                   activeId === list.id
                     ? "bg-gradient-to-r from-brand-600 to-cyan-600 text-white shadow-[0_8px_18px_rgba(8,126,186,.22)]"
@@ -280,7 +345,9 @@ export function VocabularyListsManager({ backHref }: { backHref: string }) {
                   {list.kind === "favorites" ? "♥ " : ""}
                   {list.name}
                 </span>
-                <span className="ml-3 text-sm opacity-75">{list.itemCount}</span>
+                <span className="ml-3 shrink-0 rounded-full bg-black/5 px-2.5 py-1 text-xs opacity-80">
+                  {list.itemCount} từ
+                </span>
               </button>
             ))}
           </aside>
@@ -297,22 +364,24 @@ export function VocabularyListsManager({ backHref }: { backHref: string }) {
                       {active.itemCount} từ đã lưu
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowCreateWord(true);
+                        setCreateWordError("");
+                      }}
+                      className="rounded-xl bg-violet-600 px-4 py-2.5 font-black text-white transition hover:-translate-y-0.5 hover:bg-violet-700"
+                    >
+                      + Thêm từ
+                    </button>
                     {!!active.itemCount && (
-                      <>
-                        <Link
-                          href={`/speed-test?listId=${active.id}`}
-                          className="rounded-xl bg-amber-100 px-4 py-2.5 font-black text-amber-800 transition hover:-translate-y-0.5 hover:bg-amber-200"
-                        >
-                          ⚡ Speed Test
-                        </Link>
-                        <Link
-                          href={`/tu-cua-toi/${active.id}/hoc?back=${encodeURIComponent(backHref)}`}
-                          className="rounded-xl bg-emerald-600 px-4 py-2.5 font-black text-white transition hover:-translate-y-0.5 hover:bg-emerald-700"
-                        >
-                          Học bộ này
-                        </Link>
-                      </>
+                      <Link
+                        href={`/tu-cua-toi/${active.id}/hoc?back=${encodeURIComponent(backHref)}`}
+                        className="rounded-xl bg-emerald-600 px-4 py-2.5 font-black text-white transition hover:-translate-y-0.5 hover:bg-emerald-700"
+                      >
+                        Học bộ này
+                      </Link>
                     )}
                     {active.kind === "custom" && (
                       <button
@@ -354,7 +423,8 @@ export function VocabularyListsManager({ backHref }: { backHref: string }) {
                       Bộ từ này đang trống
                     </p>
                     <p className="mt-2 text-sm text-ink-600">
-                      Mở một bài học và bấm ♡ cạnh từ bạn muốn lưu.
+                      Bấm “Thêm từ” hoặc mở một bài học và bấm ♡ cạnh từ bạn
+                      muốn lưu.
                     </p>
                   </div>
                 ) : filteredItems.length === 0 ? (
@@ -365,8 +435,11 @@ export function VocabularyListsManager({ backHref }: { backHref: string }) {
                   </div>
                 ) : (
                   <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                    {filteredItems.map((savedItem) => (
-                      <article
+                    {filteredItems.map((savedItem) => {
+                      const custom = isCustomVocabularyItem(savedItem);
+                      const highlight = isHighlightVocabulary(savedItem);
+                      return (
+                        <article
                         key={savedItem.vocabularyId}
                         className="group rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/60 p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-[0_12px_25px_rgba(16,36,62,.09)]"
                       >
@@ -381,9 +454,11 @@ export function VocabularyListsManager({ backHref }: { backHref: string }) {
                             <p className="mt-1 font-bold text-orange-700">
                               {savedItem.item.vietnamese}
                             </p>
-                            <p className="mt-1 text-sm italic text-ink-600">
-                              {savedItem.item.romanization}
-                            </p>
+                            {savedItem.item.romanization !== "—" && (
+                              <p className="mt-1 text-sm italic text-ink-600">
+                                {savedItem.item.romanization}
+                              </p>
+                            )}
                           </div>
                           <button
                             type="button"
@@ -396,22 +471,50 @@ export function VocabularyListsManager({ backHref }: { backHref: string }) {
                             ×
                           </button>
                         </div>
-                        {isHighlightVocabulary(savedItem) && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {savedItem.item.partOfSpeech &&
+                            savedItem.item.partOfSpeech !== "Từ highlight" && (
+                              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-ink-600">
+                                {savedItem.item.partOfSpeech}
+                              </span>
+                            )}
+                          {savedItem.item.category && (
+                            <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-black text-brand-700">
+                              {savedItem.item.category}
+                            </span>
+                          )}
+                        </div>
+                        {savedItem.item.examples[0]?.korean && (
+                          <p
+                            lang="ko"
+                            className="mt-3 rounded-xl bg-white px-3 py-2 text-sm font-semibold text-ink-600 ring-1 ring-slate-100"
+                          >
+                            {savedItem.item.examples[0].korean}
+                          </p>
+                        )}
+                        {(highlight || custom) && (
                           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
-                            <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">
-                              Từ highlight
+                            <span
+                              className={`rounded-full px-3 py-1 text-xs font-black ${
+                                custom
+                                  ? "bg-violet-50 text-violet-700"
+                                  : "bg-amber-50 text-amber-700"
+                              }`}
+                            >
+                              {custom ? "Từ custom" : "Từ highlight"}
                             </span>
                             <button
                               type="button"
                               onClick={() => openEdit(savedItem)}
                               className="rounded-xl bg-sky-50 px-3 py-2 text-sm font-black text-brand-700 transition hover:bg-sky-100"
                             >
-                              Bổ sung thông tin →
+                              {custom ? "Chỉnh sửa →" : "Bổ sung thông tin →"}
                             </button>
                           </div>
                         )}
                       </article>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </>
@@ -419,6 +522,170 @@ export function VocabularyListsManager({ backHref }: { backHref: string }) {
           </section>
         </div>
       )}
+      {showCreateWord &&
+        active &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[95] flex items-center justify-center p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-custom-word-title"
+          >
+            <button
+              type="button"
+              aria-label="Đóng thêm từ"
+              onClick={() => {
+                if (creatingWord) return;
+                setShowCreateWord(false);
+                setCreateWordError("");
+              }}
+              className="absolute inset-0 bg-[#071224]/55 backdrop-blur-sm"
+            />
+            <form
+              onSubmit={(event) => void createCustomVocabulary(event)}
+              className="relative z-10 max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-[2rem] border border-violet-100 bg-white shadow-2xl"
+            >
+              <div className="relative bg-gradient-to-br from-violet-50 to-sky-50 px-6 py-6 text-center sm:px-8">
+                <button
+                  type="button"
+                  aria-label="Đóng thêm từ"
+                  disabled={creatingWord}
+                  onClick={() => {
+                    setShowCreateWord(false);
+                    setCreateWordError("");
+                  }}
+                  className="absolute right-5 top-5 grid h-10 w-10 place-items-center rounded-xl bg-white text-xl font-black text-ink-600 shadow-sm disabled:opacity-50"
+                >
+                  ×
+                </button>
+                <span className="inline-flex rounded-full bg-white px-4 py-2 text-sm font-black text-violet-700 shadow-sm ring-1 ring-violet-100">
+                  {customVocabularyCount}/{customVocabularyLimit} từ custom
+                </span>
+                <h2
+                  id="create-custom-word-title"
+                  className="mt-4 text-3xl font-black text-ink-900"
+                >
+                  Thêm từ của riêng bạn
+                </h2>
+                <p className="mt-2 text-sm font-semibold text-ink-600">
+                  Thêm vào bộ “{active.name}”. Chỉ tiếng Hàn và nghĩa tiếng Việt
+                  là bắt buộc.
+                </p>
+              </div>
+
+              <div className="grid gap-5 px-6 py-6 sm:grid-cols-2 sm:px-8">
+                <EditField
+                  label="Tiếng Hàn"
+                  value={createWordForm.korean}
+                  required
+                  lang="ko"
+                  placeholder="Ví dụ: 약속"
+                  onChange={(value) =>
+                    setCreateWordForm((current) => ({
+                      ...current,
+                      korean: value,
+                    }))
+                  }
+                />
+                <EditField
+                  label="Nghĩa tiếng Việt"
+                  value={createWordForm.vietnamese}
+                  required
+                  placeholder="Ví dụ: lời hứa, cuộc hẹn"
+                  onChange={(value) =>
+                    setCreateWordForm((current) => ({
+                      ...current,
+                      vietnamese: value,
+                    }))
+                  }
+                />
+                <EditField
+                  label="Phiên âm"
+                  value={createWordForm.romanization}
+                  placeholder="Không bắt buộc"
+                  onChange={(value) =>
+                    setCreateWordForm((current) => ({
+                      ...current,
+                      romanization: value,
+                    }))
+                  }
+                />
+                <PartOfSpeechField
+                  value={createWordForm.partOfSpeech}
+                  onChange={(value) =>
+                    setCreateWordForm((current) => ({
+                      ...current,
+                      partOfSpeech: value,
+                    }))
+                  }
+                />
+                <EditField
+                  label="Ví dụ"
+                  value={createWordForm.example}
+                  lang="ko"
+                  placeholder="Không bắt buộc"
+                  onChange={(value) =>
+                    setCreateWordForm((current) => ({
+                      ...current,
+                      example: value,
+                    }))
+                  }
+                />
+                <EditField
+                  label="Chủ đề"
+                  value={createWordForm.category}
+                  placeholder="Ví dụ: Giao tiếp"
+                  onChange={(value) =>
+                    setCreateWordForm((current) => ({
+                      ...current,
+                      category: value,
+                    }))
+                  }
+                />
+              </div>
+
+              {customVocabularyCount >= customVocabularyLimit && (
+                <p className="mx-6 mb-5 rounded-xl bg-amber-50 px-4 py-3 text-center text-sm font-bold text-amber-800 sm:mx-8">
+                  Bạn đã dùng hết giới hạn {customVocabularyLimit} từ custom.
+                </p>
+              )}
+              {createWordError && (
+                <p
+                  role="alert"
+                  className="mx-6 mb-5 rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700 sm:mx-8"
+                >
+                  {createWordError}
+                </p>
+              )}
+
+              <div className="flex flex-col-reverse gap-3 border-t border-slate-100 px-6 py-5 sm:flex-row sm:justify-end sm:px-8">
+                <button
+                  type="button"
+                  disabled={creatingWord}
+                  onClick={() => {
+                    setShowCreateWord(false);
+                    setCreateWordError("");
+                  }}
+                  className="rounded-xl border border-slate-200 bg-white px-5 py-3 font-black text-ink-700 disabled:opacity-50"
+                >
+                  Huỷ
+                </button>
+                <button
+                  type="submit"
+                  disabled={
+                    creatingWord ||
+                    customVocabularyCount >= customVocabularyLimit
+                  }
+                  className="rounded-xl bg-violet-600 px-6 py-3 font-black text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {creatingWord ? "Đang thêm..." : "Thêm vào bộ từ"}
+                </button>
+              </div>
+            </form>
+          </div>,
+          document.body,
+        )}
       {deleteCandidate &&
         typeof document !== "undefined" &&
         createPortal(
@@ -511,10 +778,13 @@ export function VocabularyListsManager({ backHref }: { backHref: string }) {
                       id="edit-personal-word-title"
                       className="mt-1 text-3xl font-black text-ink-900"
                     >
-                      Bổ sung để học tốt hơn
+                      {isCustomVocabularyItem(editCandidate)
+                        ? "Chỉnh sửa từ custom"
+                        : "Bổ sung để học tốt hơn"}
                     </h2>
                     <p className="mt-2 text-sm font-semibold text-ink-600">
-                      Dữ liệu này chỉ thuộc bộ từ của bạn, không sửa nội dung gốc của đề.
+                      Dữ liệu này chỉ thuộc bộ từ của bạn, không sửa nội dung
+                      học tập gốc.
                     </p>
                   </div>
                   <button
@@ -533,7 +803,11 @@ export function VocabularyListsManager({ backHref }: { backHref: string }) {
 
               <div className="grid gap-5 px-6 py-6 sm:grid-cols-2 sm:px-8">
                 <EditField
-                  label="Từ highlight"
+                  label={
+                    isCustomVocabularyItem(editCandidate)
+                      ? "Tiếng Hàn"
+                      : "Từ highlight"
+                  }
                   value={editForm.korean}
                   required
                   lang="ko"
@@ -556,36 +830,22 @@ export function VocabularyListsManager({ backHref }: { backHref: string }) {
                 <EditField
                   label="Phiên âm"
                   value={editForm.romanization}
-                  required
                   onChange={(value) =>
                     setEditForm((current) =>
                       current ? { ...current, romanization: value } : current,
                     )
                   }
                 />
-                <label className="block">
-                  <span className="text-sm font-black text-ink-700">Từ loại</span>
-                  <select
-                    value={editForm.partOfSpeech}
-                    onChange={(event) =>
-                      setEditForm((current) =>
-                        current
-                          ? { ...current, partOfSpeech: event.target.value }
-                          : current,
-                      )
-                    }
-                    className="mt-2 w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-3 font-bold text-ink-900 outline-none focus:border-brand-500"
-                  >
-                    <option value="">Chưa chọn</option>
-                    <option>Danh từ</option>
-                    <option>Động từ</option>
-                    <option>Tính từ</option>
-                    <option>Trạng từ</option>
-                    <option>Đại từ</option>
-                    <option>Tiểu từ</option>
-                    <option>Biểu hiện</option>
-                  </select>
-                </label>
+                <PartOfSpeechField
+                  value={editForm.partOfSpeech}
+                  onChange={(value) =>
+                    setEditForm((current) =>
+                      current
+                        ? { ...current, partOfSpeech: value }
+                        : current,
+                    )
+                  }
+                />
                 <EditField
                   label="Ví dụ tiếng Hàn"
                   value={editForm.example}
@@ -600,7 +860,6 @@ export function VocabularyListsManager({ backHref }: { backHref: string }) {
                 <EditField
                   label="Chủ đề"
                   value={editForm.category}
-                  required
                   placeholder="Ví dụ: Giao tiếp"
                   onChange={(value) =>
                     setEditForm((current) =>
@@ -644,6 +903,34 @@ export function VocabularyListsManager({ backHref }: { backHref: string }) {
           document.body,
         )}
     </div>
+  );
+}
+
+function PartOfSpeechField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="text-sm font-black text-ink-700">Từ loại</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-2 w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-3 font-bold text-ink-900 outline-none focus:border-brand-500"
+      >
+        <option value="">Không bắt buộc</option>
+        <option>Danh từ</option>
+        <option>Động từ</option>
+        <option>Tính từ</option>
+        <option>Trạng từ</option>
+        <option>Đại từ</option>
+        <option>Tiểu từ</option>
+        <option>Biểu hiện</option>
+      </select>
+    </label>
   );
 }
 

@@ -55,6 +55,7 @@ export const speedTestFinishSchema = z.object({
   bestCombo: z.number().int().min(0).max(500),
   finishedReason: z.enum(["completed", "timed_out"]),
   dailyChallenge: z.boolean().default(false),
+  ranked: z.boolean().default(false),
   challengeDate: z.string().date().optional(),
   startedAt: z.string().datetime(),
   finishedAt: z.string().datetime(),
@@ -71,6 +72,21 @@ export const speedTestFinishSchema = z.object({
       code: "custom",
       path: ["requestedQuestionCount"],
       message: "Daily Challenge luôn dùng tối đa 20 câu.",
+    });
+  }
+  if (
+    input.ranked &&
+    (
+      input.dailyChallenge ||
+      input.requestedQuestionCount !== 20 ||
+      input.direction !== "ko_vi" ||
+      input.source.kind !== "lesson"
+    )
+  ) {
+    context.addIssue({
+      code: "custom",
+      path: ["ranked"],
+      message: "Cấu hình Typing Sprint xếp hạng không hợp lệ.",
     });
   }
 });

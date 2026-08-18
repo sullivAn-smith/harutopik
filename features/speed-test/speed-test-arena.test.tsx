@@ -95,4 +95,22 @@ describe("SpeedTestArena", () => {
     expect(screen.getByRole("link", { name: /Bài 4: Ngày và Thứ/ }).getAttribute("href"))
       .toBe("/courses/topik-1/lessons/bai-4/speed-test?game=card");
   });
+
+  it("đưa bài chưa mở khóa về màn học thay vì vào Speed Test", () => {
+    render(<SpeedTestArena initialGame="typing" audioLessons={[{
+      id: "lesson-locked",
+      courseSlug: "topik-1",
+      lessonSlug: "bai-khoa",
+      name: "Bài khóa",
+      completionPercent: 62,
+      speedTestUnlocked: false,
+    }]} />);
+
+    const lesson = screen.getByRole("link", { name: /Bài khóa/ });
+    expect(lesson.getAttribute("href"))
+      .toBe("/courses/topik-1/lessons/bai-khoa?speedTest=locked");
+    expect(screen.getByText("🔒 62%")).toBeTruthy();
+    expect(screen.getByText("Học bài và đạt 75% tiến độ để mở thử thách."))
+      .toBeTruthy();
+  });
 });

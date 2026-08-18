@@ -100,6 +100,36 @@ export async function getExamAttempt(attemptId: string, userId: string) {
   return data;
 }
 
+export async function getExamAttemptForRunner(
+  attemptId: string,
+  userId: string,
+) {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("exam_attempts")
+    .select("id,exam_id,user_id,status,exam_version,expires_at,current_position,current_section,audio_plays,window_leave_count,answers,flagged,question_snapshot,exam_sets(title,level,version)")
+    .eq("id", attemptId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+export async function getExamAttemptHighlights(
+  attemptId: string,
+  userId: string,
+) {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("exam_highlights")
+    .select("id,selected_text,color,question_id,source_field,source_index,prefix_text,suffix_text,review_list_id")
+    .eq("attempt_id", attemptId)
+    .eq("user_id", userId)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+
 export type ExamHistorySummary = {
   exam_id: string;
   code: string;

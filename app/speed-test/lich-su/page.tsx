@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { SaveToListButton } from "@/features/vocabulary-lists/save-to-list-button";
 import { getCurrentActor } from "@/lib/auth/authorize";
 import { createClient } from "@/lib/supabase/server";
-import { deriveSpeedTestAchievements } from "@/lib/speed-test/domain";
 
 export const metadata: Metadata = { title: "Thành tích Speed Test" };
 export const dynamic = "force-dynamic";
@@ -22,6 +22,7 @@ type Attempt = {
   rating: string;
   finish_reason: "completed" | "timed_out";
   is_daily: boolean;
+  is_ranked: boolean;
   game_type: "typing_sprint" | "audio_reaction" | "flash_reaction" | "card_reaction";
   answer_mode: "choose" | "type" | null;
   score: number;
@@ -37,6 +38,9 @@ type Attempt = {
 
 type Progress = {
   vocabulary_id: string;
+  korean_snapshot: string | null;
+  vietnamese_snapshot: string | null;
+  lesson_id_snapshot: string | null;
   correct_count: number;
   wrong_count: number;
   near_miss_count: number;
@@ -63,63 +67,52 @@ export default async function SpeedTestHistoryPage({
   const supabase = await createClient();
   let attemptsQuery = supabase
     .from("speed_test_attempts")
-    .select("id,list_name,direction,total_questions,answered_count,correct_count,near_miss_count,accuracy,remaining_seconds,best_combo,rating,finish_reason,is_daily,game_type,answer_mode,score,total_time_ms,perfect_count,game_over,difficulty_level,cleared_cards,revenge_count,reaction_direction,created_at")
+    .select("id,list_name,direction,total_questions,answered_count,correct_count,near_miss_count,accuracy,remaining_seconds,best_combo,rating,finish_reason,is_daily,is_ranked,game_type,answer_mode,score,total_time_ms,perfect_count,game_over,difficulty_level,cleared_cards,revenge_count,reaction_direction,created_at")
     .eq("user_id", actor.id)
     .order("created_at", { ascending: false })
-    .limit(30);
+    .limit(5);
   if ((query.sourceKind === "list" || query.sourceKind === "lesson") && query.sourceId) {
     attemptsQuery = attemptsQuery.eq("source_kind", query.sourceKind).eq("source_id", query.sourceId);
   }
-  const { data: attemptRows } = await attemptsQuery;
-  const attempts = (attemptRows ?? []) as Attempt[];
-  const attemptIds = attempts.map((attempt) => attempt.id);
-  const { data: answerRows } = attemptIds.length
-    ? await supabase
-        .from("speed_test_answers")
-        .select("attempt_id,vocabulary_id,direction,prompt_snapshot,expected_answer_snapshot,result")
+  const [{ data: attemptRows }, { data: stats }, { data: progressRows }] =
+    await Promise.all([
+      attemptsQuery,
+      supabase
+        .from("speed_test_user_stats")
+        .select("total_attempts,accuracy_sum,best_accuracy,best_combo,best_remaining_seconds,perfect_tests,has_consistent,has_speed_demon")
         .eq("user_id", actor.id)
-        .in("attempt_id", attemptIds)
-        .order("created_at", { ascending: false })
-    : { data: [] };
-  const vocabularyIds = [...new Set((answerRows ?? []).map((row) => row.vocabulary_id))];
-  const { data: progressRows } = vocabularyIds.length
-    ? await supabase
+        .maybeSingle(),
+      supabase
         .from("user_word_progress")
-        .select("vocabulary_id,correct_count,wrong_count,near_miss_count,average_response_time_ms,mastery_score,mastery_status,last_wrong_at")
+        .select("vocabulary_id,korean_snapshot,vietnamese_snapshot,lesson_id_snapshot,correct_count,wrong_count,near_miss_count,average_response_time_ms,mastery_score,mastery_status,last_wrong_at")
         .eq("user_id", actor.id)
-        .in("vocabulary_id", vocabularyIds)
-    : { data: [] };
-  const snapshots = new Map<string, { korean: string; vietnamese: string }>();
-  for (const answer of answerRows ?? []) {
-    if (snapshots.has(answer.vocabulary_id)) continue;
-    snapshots.set(answer.vocabulary_id, answer.direction === "vi_ko"
-      ? { korean: answer.expected_answer_snapshot, vietnamese: answer.prompt_snapshot }
-      : { korean: answer.prompt_snapshot, vietnamese: answer.expected_answer_snapshot });
-  }
+        .not("korean_snapshot", "is", null)
+        .not("vietnamese_snapshot", "is", null)
+        .order("mastery_score", { ascending: true })
+        .order("last_wrong_at", { ascending: false, nullsFirst: false })
+        .limit(10),
+    ]);
+  const attempts = (attemptRows ?? []) as Attempt[];
   const weakWords = ((progressRows ?? []) as Progress[])
     .filter((item) => item.wrong_count + item.near_miss_count > 0 || Number(item.mastery_score) < 65)
     .sort((left, right) => Number(left.mastery_score) - Number(right.mastery_score))
-    .slice(0, 30);
-  const averageAccuracy = attempts.length
-    ? Math.round(attempts.reduce((sum, attempt) => sum + Number(attempt.accuracy), 0) / attempts.length)
+    .slice(0, 10);
+  const totalAttempts = Number(stats?.total_attempts ?? attempts.length);
+  const averageAccuracy = totalAttempts
+    ? Math.round(Number(stats?.accuracy_sum ?? 0) / totalAttempts)
     : 0;
-  const best = attempts.reduce<Attempt | null>((current, attempt) =>
-    !current || Number(attempt.accuracy) > Number(current.accuracy) ? attempt : current, null);
-  const bestAccuracy = attempts.reduce((value, attempt) => Math.max(value, Number(attempt.accuracy)), 0);
-  const bestCombo = attempts.reduce((value, attempt) => Math.max(value, attempt.best_combo), 0);
-  const bestRemaining = attempts
-    .filter((attempt) => attempt.finish_reason === "completed")
-    .reduce((value, attempt) => Math.max(value, attempt.remaining_seconds), 0);
-  const perfectCount = attempts.filter((attempt) =>
-    attempt.finish_reason === "completed" && Number(attempt.accuracy) === 100
-  ).length;
-  const achievements = deriveSpeedTestAchievements(attempts.map((attempt) => ({
-    accuracy: Number(attempt.accuracy),
-    bestCombo: attempt.best_combo,
-    remainingSeconds: attempt.remaining_seconds,
-    totalQuestions: attempt.total_questions,
-    completed: attempt.finish_reason === "completed",
-  })));
+  const bestAccuracy = Number(stats?.best_accuracy ?? 0);
+  const bestCombo = Number(stats?.best_combo ?? 0);
+  const bestRemaining = Number(stats?.best_remaining_seconds ?? 0);
+  const perfectCount = Number(stats?.perfect_tests ?? 0);
+  const achievements = {
+    firstRun: totalAttempts >= 1,
+    perfect: perfectCount >= 1,
+    comboMaster: bestCombo >= 20,
+    speedDemon: Boolean(stats?.has_speed_demon),
+    consistent: Boolean(stats?.has_consistent),
+    veteran: totalAttempts >= 10,
+  };
   const achievementCards = [
     { key: "firstRun", icon: "⚡", title: "Khởi động", detail: "Hoàn thành Speed Test đầu tiên" },
     { key: "perfect", icon: "🎯", title: "Perfect", detail: "Hoàn thành một bài với 100%" },
@@ -141,9 +134,9 @@ export default async function SpeedTestHistoryPage({
           <h1 className="mt-2 text-4xl font-black text-ink-900 sm:text-5xl">Thành tích</h1>
           <p className="mt-3 text-ink-600">Kỷ lục, tiến độ và những từ bạn cần ôn lại.</p>
           <div className="mt-7 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Metric value={String(attempts.length)} label="Lần kiểm tra" />
+            <Metric value={String(totalAttempts)} label="Tổng lượt đã chơi" />
             <Metric value={`${averageAccuracy}%`} label="Độ chính xác TB" />
-            <Metric value={best?.rating ?? "—"} label="Xếp hạng tốt nhất" />
+            <Metric value={`${bestAccuracy}%`} label="Chính xác cao nhất" />
             <Metric value={String(weakWords.length)} label="Từ cần ôn" />
           </div>
         </header>
@@ -174,14 +167,31 @@ export default async function SpeedTestHistoryPage({
           <p className="mt-1 text-sm font-semibold text-ink-500">Mastery thấp và các từ từng sai được xếp lên trước.</p>
           {weakWords.length ? <div className="mt-5 grid gap-3 md:grid-cols-2">
             {weakWords.map((progress) => {
-              const word = snapshots.get(progress.vocabulary_id);
+              const korean = progress.korean_snapshot ?? "Từ vựng";
+              const vietnamese = progress.vietnamese_snapshot ?? "";
+              const item = {
+                id: progress.vocabulary_id,
+                korean,
+                vietnamese,
+                romanization: "—",
+                category: "Từ cần ưu tiên",
+                examples: [],
+              };
               return <article key={progress.vocabulary_id} className="rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50 to-cyan-50 p-5">
                 <div className="flex items-start justify-between gap-3">
-                  <div><b lang="ko" className="text-2xl text-ink-900">{word?.korean ?? "Từ vựng"}</b><span className="mt-1 block font-semibold text-ink-600">{word?.vietnamese ?? ""}</span></div>
+                  <div><b lang="ko" className="text-2xl text-ink-900">{korean}</b><span className="mt-1 block font-semibold text-ink-600">{vietnamese}</span></div>
                   <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-brand-700">{masteryLabels[progress.mastery_status]}</span>
                 </div>
                 <div className="mt-4 h-2 overflow-hidden rounded-full bg-white"><div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-emerald-500" style={{ width: `${Number(progress.mastery_score)}%` }} /></div>
                 <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm font-bold text-ink-600"><span>{Number(progress.mastery_score)}% mastery</span><span>✓ {progress.correct_count}</span><span>△ {progress.near_miss_count}</span><span>✕ {progress.wrong_count}</span><span>{(progress.average_response_time_ms / 1000).toFixed(1)}s phản hồi</span></div>
+                <div className="mt-4">
+                  <SaveToListButton
+                    lessonId={progress.lesson_id_snapshot ?? "speed-test"}
+                    item={item}
+                    variant="button"
+                    preventRemoval
+                  />
+                </div>
               </article>;
             })}
           </div> : <Empty text="Chưa có từ yếu. Hãy hoàn thành một Speed Test để hệ thống bắt đầu phân tích." />}
@@ -189,8 +199,9 @@ export default async function SpeedTestHistoryPage({
 
         <section className="mt-7 rounded-[2rem] bg-white/95 p-6 shadow-2xl sm:p-8">
           <h2 className="text-2xl font-black text-ink-900">Các lần gần đây</h2>
+          <p className="mt-1 text-sm font-semibold text-ink-500">Chỉ lưu 5 kết quả gần nhất; kỷ lục toàn thời gian vẫn được giữ riêng.</p>
           {attempts.length ? <div className="mt-5 space-y-3">{attempts.map((attempt) => <article key={attempt.id} className="grid items-center gap-4 rounded-2xl border border-sky-100 bg-sky-50/70 p-5 sm:grid-cols-[1fr_auto_auto]">
-            <div><div className="flex flex-wrap items-center gap-2"><b className="text-lg text-ink-900">{attempt.list_name}</b>{attempt.is_daily && <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-black text-amber-800">📅 DAILY</span>}{attempt.game_type === "audio_reaction" && <span className="rounded-full bg-cyan-100 px-2.5 py-1 text-xs font-black text-cyan-800">🎧 AUDIO · {attempt.answer_mode === "type" ? "GÕ" : "CHỌN"}</span>}{attempt.game_type === "flash_reaction" && <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-black text-emerald-800">⚡ FLASH · {attempt.answer_mode === "type" ? "GÕ" : "CHỌN"}</span>}{attempt.game_type === "card_reaction" && <span className="rounded-full bg-fuchsia-100 px-2.5 py-1 text-xs font-black text-fuchsia-800">🃏 CARD · {attempt.difficulty_level?.toUpperCase()} · {attempt.answer_mode === "type" ? "GÕ" : "CHỌN"}</span>}</div><span className="mt-1 block text-sm font-semibold text-ink-500">{new Intl.DateTimeFormat("vi-VN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(attempt.created_at))} · {attempt.game_type === "card_reaction" ? `${attempt.cleared_cards}/${attempt.total_questions} thẻ · ${(attempt.total_time_ms / 1000).toFixed(2)}s` : attempt.game_type !== "typing_sprint" ? `${(attempt.total_time_ms / 1000).toFixed(2)}s · 💎 ${attempt.perfect_count} hoàn hảo` : attempt.direction === "vi_ko" ? "Việt → Hàn" : "Hàn → Việt"}</span></div>
+            <div><div className="flex flex-wrap items-center gap-2"><b className="text-lg text-ink-900">{attempt.list_name}</b>{attempt.is_ranked && <span className="rounded-full bg-violet-700 px-2.5 py-1 text-xs font-black text-white">♛ XẾP HẠNG</span>}{attempt.is_daily && <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-black text-amber-800">📅 DAILY</span>}{attempt.game_type === "audio_reaction" && <span className="rounded-full bg-cyan-100 px-2.5 py-1 text-xs font-black text-cyan-800">🎧 AUDIO · {attempt.answer_mode === "type" ? "GÕ" : "CHỌN"}</span>}{attempt.game_type === "flash_reaction" && <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-black text-emerald-800">⚡ FLASH · {attempt.answer_mode === "type" ? "GÕ" : "CHỌN"}</span>}{attempt.game_type === "card_reaction" && <span className="rounded-full bg-fuchsia-100 px-2.5 py-1 text-xs font-black text-fuchsia-800">🃏 CARD · {attempt.difficulty_level?.toUpperCase()} · {attempt.answer_mode === "type" ? "GÕ" : "CHỌN"}</span>}</div><span className="mt-1 block text-sm font-semibold text-ink-500">{new Intl.DateTimeFormat("vi-VN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(attempt.created_at))} · {attempt.game_type === "card_reaction" ? `${attempt.cleared_cards}/${attempt.total_questions} thẻ · ${(attempt.total_time_ms / 1000).toFixed(2)}s` : attempt.game_type !== "typing_sprint" ? `${(attempt.total_time_ms / 1000).toFixed(2)}s · 💎 ${attempt.perfect_count} hoàn hảo` : attempt.direction === "vi_ko" ? "Việt → Hàn" : "Hàn → Việt"}</span></div>
             <div className="text-sm font-bold text-ink-600"><span className="mr-4">{attempt.correct_count}/{attempt.answered_count} đúng</span><span>🔥 {attempt.best_combo}</span>{attempt.game_type !== "typing_sprint" && <span className="ml-4 text-amber-700">⚡ {attempt.score.toLocaleString("vi-VN")}</span>}</div>
             <div className="flex items-center gap-3"><b className="text-xl text-brand-700">{Number(attempt.accuracy)}%</b><span className="grid h-11 w-11 place-items-center rounded-full bg-brand-600 font-black text-white">{attempt.game_over ? "GO" : attempt.rating}</span></div>
           </article>)}</div> : <Empty text="Chưa có lịch sử Speed Test cho nội dung này." />}

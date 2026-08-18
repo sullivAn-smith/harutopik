@@ -33,7 +33,7 @@ const baseProps = {
 describe("AudioReactionExperience setup", () => {
   it("mặc định 10 câu Choose và khóa mốc vượt số audio trong lesson", () => {
     render(<AudioReactionExperience {...baseProps} vocabulary={vocabulary(12)} />);
-    expect(screen.getByText("12 câu có audio khả dụng")).toBeTruthy();
+    expect(screen.getByText("12 từ có audio khả dụng")).toBeTruthy();
     expect(screen.getByRole("button", { name: /10\s*câu/ }).hasAttribute("disabled")).toBe(false);
     expect(screen.getByRole("button", { name: /20\s*chưa đủ audio/ }).hasAttribute("disabled")).toBe(true);
     expect(screen.getByRole("button", { name: /30\s*chưa đủ audio/ }).hasAttribute("disabled")).toBe(true);
@@ -50,6 +50,23 @@ describe("AudioReactionExperience setup", () => {
 
   it("không cho bắt đầu khi lesson chưa có đủ 10 audio", () => {
     render(<AudioReactionExperience {...baseProps} vocabulary={vocabulary(4)} />);
+    expect(screen.getByRole("button", { name: /BẮT ĐẦU/ }).hasAttribute("disabled")).toBe(true);
+  });
+
+  it("không tính audio của câu ví dụ vào số câu khả dụng", () => {
+    const items = vocabulary(10).map((item, index) => ({
+      ...item,
+      ...(index < 4 ? { audioUrl: undefined } : {}),
+      examples: [{
+        id: `example-${index}`,
+        korean: `예문 ${index}`,
+        vietnamese: `câu ví dụ ${index}`,
+        audioUrl: `/example-${index}.mp3`,
+      }],
+    }));
+    render(<AudioReactionExperience {...baseProps} vocabulary={items} />);
+    expect(screen.getByText("6 từ có audio khả dụng")).toBeTruthy();
+    expect(screen.getByText("6 từ đơn · Audio câu ví dụ không được sử dụng")).toBeTruthy();
     expect(screen.getByRole("button", { name: /BẮT ĐẦU/ }).hasAttribute("disabled")).toBe(true);
   });
 

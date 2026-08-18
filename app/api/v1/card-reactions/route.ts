@@ -11,6 +11,8 @@ import {
   type CardReactionCard,
 } from "@/lib/speed-test/card-reaction-domain";
 import { calculateSpeedRating } from "@/lib/speed-test/domain";
+import { isRankedSpeedLesson } from "@/lib/rankings/ranked-source";
+import { getLessonLearningProgress } from "@/lib/data/lesson-progress";
 
 export async function POST(request: Request) {
   const actor = await getApiActor(request);
@@ -20,6 +22,25 @@ export async function POST(request: Request) {
   const input = parsed.data;
   const lessonData = await getPublishedLessonRouteData(input.courseSlug, input.lessonSlug);
   if (!lessonData) return apiError("LESSON_NOT_FOUND", "Không tìm thấy bài học.", 404);
+  const lessonProgress = await getLessonLearningProgress({
+    supabase: actor.supabase,
+    userId: actor.user.id,
+    lesson: lessonData.lesson,
+  });
+  if (!lessonProgress.speedTestUnlocked) {
+    return apiError(
+      "SPEED_TEST_LOCKED",
+      `Bạn cần đạt ${lessonProgress.unlockThreshold}% tiến độ bài học để mở Speed Test.`,
+      403,
+      {
+        completionPercent: lessonProgress.completionPercent,
+        unlockThreshold: lessonProgress.unlockThreshold,
+      },
+    );
+  }
+  if (input.ranked && !(await isRankedSpeedLesson(input.courseSlug, input.lessonSlug))) {
+    return apiError("INVALID_RANKED_SOURCE", "Bài học xếp hạng tuần này đã thay đổi. Hãy mở lại từ bảng xếp hạng.", 409);
+  }
 
   const allDirections = ["ko_vi", "vi_ko"] as const;
   const cardMap = new Map<string, CardReactionCard>(allDirections.flatMap((direction) => lessonData.lesson.vocabulary.map((item) => {
@@ -78,12 +99,12 @@ export async function POST(request: Request) {
   const elapsedMs = cardReactionRules.levels[input.level].seconds * 1000 - input.remainingMs;
   const rating = calculateSpeedRating({ accuracy, completed });
 
-  const { data: previous } = await actor.supabase.from("speed_test_attempts")
-    .select("score,total_time_ms,finish_reason").eq("user_id", actor.user.id).eq("source_id", lessonData.lesson.id)
+  const { data: previous } = await actor.supabase.from("speed_test_records")
+    .select("highest_score,fastest_time_ms").eq("user_id", actor.user.id).eq("source_id", lessonData.lesson.id)
     .eq("game_type", "card_reaction").eq("difficulty_level", input.level).eq("answer_mode", input.mode)
-    .eq("reaction_direction", input.direction);
-  const previousScore = Math.max(0, ...(previous ?? []).map((row) => Number(row.score)));
-  const previousTime = Math.min(Infinity, ...(previous ?? []).filter((row) => row.finish_reason === "completed").map((row) => Number(row.total_time_ms)));
+    .eq("reaction_direction", input.direction).eq("scoring_version", cardReactionRules.version).maybeSingle();
+  const previousScore = Number(previous?.highest_score ?? 0);
+  const previousTime = previous?.fastest_time_ms == null ? Infinity : Number(previous.fastest_time_ms);
 
   const { data, error } = await actor.supabase.rpc("save_card_reaction_result", { p_attempt: {
     id: input.attemptId, lessonId: lessonData.lesson.id, lessonName: `Bài ${lessonData.lesson.order}: ${lessonData.lesson.title.vi}`.slice(0, 60),
@@ -95,6 +116,19 @@ export async function POST(request: Request) {
     clearedCards: cleared.size, revengeCount, gameOver: !completed, scoringVersion: cardReactionRules.version,
   }, p_answers: answers });
   if (error) return apiBackendError(error, "Chưa thể lưu Card Reaction.");
+  let ranking: unknown = null;
+  if (input.ranked) {
+    const { data: rankedData, error: rankedError } = await actor.supabase.rpc("register_ranked_speed_attempt", { p_attempt_id: input.attemptId });
+    if (rankedError) {
+      const limitReached = rankedError.message.includes("RANKED_DAILY_LIMIT");
+      return apiError(
+        limitReached ? "RANKED_DAILY_LIMIT" : "RANKED_SAVE_FAILED",
+        limitReached ? "Bạn đã sử dụng đủ 3 lượt xếp hạng hôm nay." : "Kết quả đã được lưu nhưng chưa thể cập nhật bảng xếp hạng.",
+        409,
+      );
+    }
+    ranking = rankedData;
+  }
   return apiSuccess({ ...data, score, accuracy, correctCount, wrongCount, bestCombo, perfectCount, clearedCards: cleared.size, revengeCount,
-    personalBest: { fastestClear: completed && elapsedMs < previousTime, highestScore: score > previousScore } });
+    personalBest: { fastestClear: completed && elapsedMs < previousTime, highestScore: score > previousScore }, ranking });
 }

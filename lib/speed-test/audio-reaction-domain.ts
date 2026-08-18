@@ -44,6 +44,7 @@ export const audioReactionFinishSchema = z.object({
   lessonSlug: z.string().min(1).max(120),
   mode: z.enum(audioReactionModes),
   gameType: z.enum(["audio_reaction", "flash_reaction"]).default("audio_reaction"),
+  ranked: z.boolean().default(false),
   direction: z.enum(["ko_vi", "vi_ko"]).default("ko_vi"),
   requestedQuestionCount: z.union([z.literal(10), z.literal(20), z.literal(30)]),
   questionIds: z.array(z.string().min(1).max(500)).min(1).max(30),
@@ -70,6 +71,20 @@ export const audioReactionFinishSchema = z.object({
   if (input.questionIds.length !== input.requestedQuestionCount) {
     context.addIssue({ code: "custom", path: ["questionIds"], message: "Số câu hỏi không khớp thử thách đã chọn." });
   }
+  if (
+    input.ranked &&
+    (
+      input.gameType !== "audio_reaction" ||
+      input.mode !== "choose" ||
+      input.requestedQuestionCount !== 10
+    )
+  ) {
+    context.addIssue({
+      code: "custom",
+      path: ["ranked"],
+      message: "Cấu hình Audio Reaction xếp hạng không hợp lệ.",
+    });
+  }
 });
 
 function shuffled<T>(items: readonly T[], random: () => number) {
@@ -84,38 +99,20 @@ function shuffled<T>(items: readonly T[], random: () => number) {
 export function createAudioReactionPool(vocabulary: readonly VocabularyItem[]) {
   const questions: AudioReactionQuestion[] = [];
   for (const item of vocabulary) {
-    if (item.audioUrl) {
-      questions.push({
-        id: `word:${item.id}`,
-        vocabularyId: item.id,
-        type: "word",
-        audioUrl: item.audioUrl,
-        korean: item.korean,
-        correctAnswer: item.vietnamese,
-        acceptedAnswers: [item.vietnamese, ...(item.acceptedVietnameseAnswers ?? [])],
-        options: [],
-        category: item.category,
-        partOfSpeech: item.partOfSpeech,
-        difficulty: 1,
-      });
-    }
-    for (const example of item.examples) {
-      if (!example.audioUrl) continue;
-      questions.push({
-        id: `sentence:${item.id}:${example.id}`,
-        vocabularyId: item.id,
-        exampleId: example.id,
-        type: "sentence",
-        audioUrl: example.audioUrl,
-        korean: example.korean,
-        correctAnswer: example.vietnamese,
-        acceptedAnswers: [example.vietnamese],
-        options: [],
-        category: item.category,
-        partOfSpeech: item.partOfSpeech,
-        difficulty: 1.2,
-      });
-    }
+    if (!item.audioUrl) continue;
+    questions.push({
+      id: `word:${item.id}`,
+      vocabularyId: item.id,
+      type: "word",
+      audioUrl: item.audioUrl,
+      korean: item.korean,
+      correctAnswer: item.vietnamese,
+      acceptedAnswers: [item.vietnamese, ...(item.acceptedVietnameseAnswers ?? [])],
+      options: [],
+      category: item.category,
+      partOfSpeech: item.partOfSpeech,
+      difficulty: 1,
+    });
   }
   return questions;
 }
@@ -193,24 +190,28 @@ export function buildAudioReactionQuestions({
   random?: () => number;
 }) {
   const pool = createAudioReactionPool(vocabulary);
-  const words = pool.filter((question) => question.type === "word");
-  const sentences = pool.filter((question) => question.type === "sentence");
   const target = Math.min(questionCount, pool.length);
-  const sentenceTarget = Math.min(sentences.length, Math.floor(target * 0.3));
-  const wordTarget = Math.min(words.length, target - sentenceTarget);
-  const remaining = target - sentenceTarget - wordTarget;
-
-  const pick = (items: AudioReactionQuestion[], count: number) => {
-    const priority = shuffled(items.filter((item) => progressPriority(item, progressById) >= 45), random)
-      .sort((left, right) => progressPriority(right, progressById) - progressPriority(left, progressById));
-    const normal = shuffled(items.filter((item) => progressPriority(item, progressById) < 45), random);
-    const priorityTarget = Math.min(priority.length, Math.ceil(count * 0.4));
-    return [...priority.slice(0, priorityTarget), ...normal, ...priority.slice(priorityTarget)].slice(0, count);
-  };
-
-  const selectedWords = pick(words, wordTarget + (sentences.length - sentenceTarget < remaining ? remaining : 0));
-  const selectedSentences = pick(sentences, sentenceTarget + (words.length - wordTarget < remaining ? remaining : 0));
-  const selected = shuffled([...selectedWords, ...selectedSentences], random).slice(0, target);
+  const priority = shuffled(
+    pool.filter((item) => progressPriority(item, progressById) >= 45),
+    random,
+  ).sort(
+    (left, right) =>
+      progressPriority(right, progressById) -
+      progressPriority(left, progressById),
+  );
+  const normal = shuffled(
+    pool.filter((item) => progressPriority(item, progressById) < 45),
+    random,
+  );
+  const priorityTarget = Math.min(priority.length, Math.ceil(target * 0.4));
+  const selected = shuffled(
+    [
+      ...priority.slice(0, priorityTarget),
+      ...normal,
+      ...priority.slice(priorityTarget),
+    ].slice(0, target),
+    random,
+  );
   return addDistractors(selected, pool, random);
 }
 

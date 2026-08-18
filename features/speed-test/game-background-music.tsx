@@ -88,14 +88,13 @@ export function useGameBackgroundMusic(active: boolean, source = musicSource) {
   return { enabled, volume, toggle, setVolume, playFromUserGesture };
 }
 
-export function GameMusicControl({ enabled, volume, toggle, setVolume, inline = false }: {
+export function GameMusicControl({ enabled, volume, toggle, setVolume }: {
   enabled: boolean;
   volume: number;
   toggle: () => void;
   setVolume: (volume: number) => void;
-  inline?: boolean;
 }) {
-  return <div className={`${inline ? "flex" : "fixed bottom-4 left-4 z-[70] flex"} items-center gap-2 rounded-full border border-white/30 bg-slate-950/85 p-2 text-white shadow-xl backdrop-blur-md`}>
+  return <div className="fixed bottom-4 left-4 z-[70] flex items-center gap-2 rounded-full border border-white/30 bg-slate-950/85 p-2 text-white shadow-xl backdrop-blur-md">
     <button type="button" onClick={toggle} aria-label={enabled ? "Tắt nhạc nền" : "Bật nhạc nền"} title={enabled ? "Tắt nhạc nền" : "Bật nhạc nền"} className="grid size-10 place-items-center rounded-full bg-white/10 text-xl transition hover:bg-white/20">
       {enabled ? "🔊" : "🔇"}
     </button>
