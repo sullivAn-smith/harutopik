@@ -11,7 +11,6 @@ import {
   type CardReactionCard,
 } from "@/lib/speed-test/card-reaction-domain";
 import { calculateSpeedRating } from "@/lib/speed-test/domain";
-import { isRankedSpeedLesson } from "@/lib/rankings/ranked-source";
 import { getLessonLearningProgress } from "@/lib/data/lesson-progress";
 
 export async function POST(request: Request) {
@@ -37,9 +36,6 @@ export async function POST(request: Request) {
         unlockThreshold: lessonProgress.unlockThreshold,
       },
     );
-  }
-  if (input.ranked && !(await isRankedSpeedLesson(input.courseSlug, input.lessonSlug))) {
-    return apiError("INVALID_RANKED_SOURCE", "Bài học xếp hạng tuần này đã thay đổi. Hãy mở lại từ bảng xếp hạng.", 409);
   }
 
   const allDirections = ["ko_vi", "vi_ko"] as const;
@@ -117,18 +113,8 @@ export async function POST(request: Request) {
   }, p_answers: answers });
   if (error) return apiBackendError(error, "Chưa thể lưu Card Reaction.");
   let ranking: unknown = null;
-  if (input.ranked) {
-    const { data: rankedData, error: rankedError } = await actor.supabase.rpc("register_ranked_speed_attempt", { p_attempt_id: input.attemptId });
-    if (rankedError) {
-      const limitReached = rankedError.message.includes("RANKED_DAILY_LIMIT");
-      return apiError(
-        limitReached ? "RANKED_DAILY_LIMIT" : "RANKED_SAVE_FAILED",
-        limitReached ? "Bạn đã sử dụng đủ 3 lượt xếp hạng hôm nay." : "Kết quả đã được lưu nhưng chưa thể cập nhật bảng xếp hạng.",
-        409,
-      );
-    }
-    ranking = rankedData;
-  }
+  const { data: rankedData, error: rankedError } = await actor.supabase.rpc("register_ranked_speed_attempt", { p_attempt_id: input.attemptId });
+  if (!rankedError) ranking = rankedData;
   return apiSuccess({ ...data, score, accuracy, correctCount, wrongCount, bestCombo, perfectCount, clearedCards: cleared.size, revengeCount,
     personalBest: { fastestClear: completed && elapsedMs < previousTime, highestScore: score > previousScore }, ranking });
 }

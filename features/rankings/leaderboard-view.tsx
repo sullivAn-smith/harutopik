@@ -419,6 +419,47 @@ function EmptyLeaderboard({ compact = false }: { compact?: boolean }) {
   );
 }
 
+function WeeklyHistory({
+  board,
+  history,
+}: {
+  board: LeaderboardBoard;
+  history: NonNullable<LeaderboardData["weeklyHistory"]>;
+}) {
+  return (
+    <section className="mt-5 overflow-hidden rounded-[1.75rem] border border-slate-200/90 bg-white/90 shadow-[0_18px_42px_rgba(16,36,62,.08)]">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:px-6">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[.18em] text-violet-600">Lịch sử tuần</p>
+          <h2 className="mt-1 text-xl font-black text-[#10243e]">Top 10 tuần trước</h2>
+        </div>
+        <RankingPeriodLabel periodLabel={history.periodLabel} />
+      </div>
+      {history.entries.length ? (
+        <div>
+          {history.entries.map((entry) => (
+            <article key={entry.userId} className="grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3 border-b border-slate-100 px-4 py-3.5 last:border-0 sm:px-6">
+              <span className="grid h-8 w-8 place-items-center rounded-full bg-violet-50 text-sm font-black text-violet-700">
+                {entry.rank <= 3 ? rankPresentation(entry.rank).medal : entry.rank}
+              </span>
+              <div className="flex min-w-0 items-center gap-3">
+                <LeaderboardAvatar avatarUrl={entry.avatarUrl} displayName={entry.displayName} />
+                <div className="min-w-0">
+                  <strong className="block truncate text-sm font-black text-[#1f3652]">{entry.displayName}</strong>
+                  <span className="text-xs font-semibold text-slate-400">{entry.detail}</span>
+                </div>
+              </div>
+              <strong className="text-right font-black text-violet-700">{displayLeaderboardScore(board, entry)}</strong>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="px-6 py-8 text-center text-sm font-bold text-slate-400">Chưa có thành tích của tuần trước.</div>
+      )}
+    </section>
+  );
+}
+
 function CurrentUserPosition({
   board,
   entry,
@@ -470,14 +511,14 @@ export function LeaderboardView({
 
         <div className="mt-5 flex items-center justify-between gap-3">
           <p className="text-sm font-bold text-[#6b7a8e]">
-            Thành tích được cập nhật theo chu kỳ xếp hạng hiện tại.
+            Mỗi lượt chơi được cập nhật ngay và hệ thống giữ thành tích tốt nhất trong tuần.
           </p>
           {speedGame && (
             <Link
-              href={`/speed-test?game=${rankedSpeedGameDetails[speedGame].query}&ranked=1`}
+              href={`/speed-test?game=${rankedSpeedGameDetails[speedGame].query}`}
               className="hidden shrink-0 rounded-xl bg-[#10243e] px-4 py-2.5 text-sm font-black text-white shadow-[0_10px_22px_rgba(16,36,62,.16)] transition hover:-translate-y-0.5 hover:bg-[#087eba] sm:inline-flex"
             >
-              Chơi xếp hạng
+              Chọn bài để chơi
             </Link>
           )}
         </div>
@@ -488,10 +529,10 @@ export function LeaderboardView({
           )}
           {speedGame && (
             <Link
-              href={`/speed-test?game=${rankedSpeedGameDetails[speedGame].query}&ranked=1`}
+              href={`/speed-test?game=${rankedSpeedGameDetails[speedGame].query}`}
               className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-[#10243e] px-4 py-3 text-sm font-black text-white shadow-[0_10px_22px_rgba(16,36,62,.16)] sm:hidden"
             >
-              Chơi xếp hạng
+              Chọn bài để chơi
             </Link>
           )}
           <RankingTable
@@ -500,10 +541,13 @@ export function LeaderboardView({
             currentUserId={currentUserId}
             periodLabel={leaderboard.periodLabel}
           />
+          {speedGame && leaderboard.weeklyHistory && (
+            <WeeklyHistory board={board} history={leaderboard.weeklyHistory} />
+          )}
         </div>
 
         <p className="mt-5 text-center text-xs font-semibold text-[#7b8797]">
-          ⓘ Bảng xếp hạng được cập nhật liên tục theo chu kỳ của từng hạng mục.
+          ⓘ Bảng cập nhật hằng ngày, làm mới mỗi tuần và lưu Top 10 của tuần trước.
         </p>
 
         {leaderboard.currentUserEntry &&

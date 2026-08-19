@@ -3,7 +3,6 @@ import { apiBackendError, apiError, apiSuccess } from "@/lib/api/responses";
 import { getPublishedLessonRouteData } from "@/lib/data/published-catalog";
 import { checkFlashRecall, flashRecallFinishSchema, flashRecallRules, gradeFlashRecall, scoreFlashRecall, type FlashRecallQuestion } from "@/lib/speed-test/flash-recall-domain";
 import { calculateSpeedRating } from "@/lib/speed-test/domain";
-import { isRankedSpeedLesson } from "@/lib/rankings/ranked-source";
 import { getLessonLearningProgress } from "@/lib/data/lesson-progress";
 
 export async function POST(request: Request) {
@@ -12,7 +11,6 @@ export async function POST(request: Request) {
   const data=await getPublishedLessonRouteData(input.courseSlug,input.lessonSlug); if(!data)return apiError("LESSON_NOT_FOUND","Không tìm thấy bài học.",404);
   const lessonProgress=await getLessonLearningProgress({supabase:actor.supabase,userId:actor.user.id,lesson:data.lesson});
   if(!lessonProgress.speedTestUnlocked)return apiError("SPEED_TEST_LOCKED",`Bạn cần đạt ${lessonProgress.unlockThreshold}% tiến độ bài học để mở Speed Test.`,403,{completionPercent:lessonProgress.completionPercent,unlockThreshold:lessonProgress.unlockThreshold});
-  if(input.ranked&&!(await isRankedSpeedLesson(input.courseSlug,input.lessonSlug)))return apiError("INVALID_RANKED_SOURCE","Bài học xếp hạng tuần này đã thay đổi. Hãy mở lại từ bảng xếp hạng.",409);
   const expectedCount=flashRecallRules.levels[input.level].questions; if(input.questionIds.length!==expectedCount||new Set(input.questionIds).size!==expectedCount)return apiError("INVALID_QUESTIONS","Danh sách câu hỏi không hợp lệ.",422);
   const source=new Map<string,FlashRecallQuestion>(data.lesson.vocabulary.flatMap(item=>(["ko_vi","vi_ko"] as const).map(actual=>{const expected=actual==="ko_vi"?item.vietnamese:item.korean;const question:FlashRecallQuestion={id:`recall:${actual}:${item.id}`,vocabularyId:item.id,type:"word",imageUrl:item.imageUrl,prompt:actual==="ko_vi"?item.korean:item.vietnamese,expected,direction:actual,accepted:actual==="ko_vi"?[item.vietnamese,...(item.acceptedVietnameseAnswers??[])]:[item.korean,...(item.acceptedKoreanAnswers??[])],options:[]};return [question.id,question] as const;}))); if(input.questionIds.some(id=>!source.has(id)))return apiError("QUESTION_NOT_FOUND","Câu hỏi không thuộc bài học.",409);
   let combo=0,bestCombo=0,score=0,lives=5,perfect=0,great=0,good=0; const answers=[];
@@ -23,6 +21,6 @@ export async function POST(request: Request) {
   const totalTimeMs=flashRecallRules.levels[input.level].totalMs-input.remainingMs;
   const {error}=await actor.supabase.rpc("save_audio_reaction_result",{p_attempt:{id:input.attemptId,lessonId:data.lesson.id,lessonName:`Bài ${data.lesson.order}: ${data.lesson.title.vi}`.slice(0,60),gameType:"flash_reaction",direction:input.direction==="vi_ko"?"vi_ko":"ko_vi",requestedQuestionCount:String(expectedCount),totalQuestions:expectedCount,answeredCount:answers.length,correctCount,wrongCount,accuracy,bestCombo,rating:calculateSpeedRating({accuracy,completed}),completed,scoringVersion:flashRecallRules.version,questionIds:input.questionIds,startedAt:input.startedAt,finishedAt:input.finishedAt,mode:flashRecallRules.levels[input.level].mode,score,totalTimeMs,livesRemaining:lives,perfectCount:perfect,greatCount:great,goodCount:good,missCount:wrongCount,gameOver:!completed},p_answers:answers}); if(error)return apiBackendError(error,"Chưa thể lưu Flash Recall.");
   const {error:metadataError}=await actor.supabase.rpc("update_flash_recall_metadata",{p_attempt_id:input.attemptId,p_level:input.level,p_direction:input.direction,p_answers:answers});if(metadataError)return apiBackendError(metadataError,"Đã lưu session nhưng chưa thể cập nhật Memory Strength.");
-  let ranking:unknown=null;if(input.ranked){const {data:rankedData,error:rankedError}=await actor.supabase.rpc("register_ranked_speed_attempt",{p_attempt_id:input.attemptId});if(rankedError){const limitReached=rankedError.message.includes("RANKED_DAILY_LIMIT");return apiError(limitReached?"RANKED_DAILY_LIMIT":"RANKED_SAVE_FAILED",limitReached?"Bạn đã sử dụng đủ 3 lượt xếp hạng hôm nay.":"Kết quả đã được lưu nhưng chưa thể cập nhật bảng xếp hạng.",409)}ranking=rankedData}
+  let ranking:unknown=null;const {data:rankedData,error:rankedError}=await actor.supabase.rpc("register_ranked_speed_attempt",{p_attempt_id:input.attemptId});if(!rankedError)ranking=rankedData;
   return apiSuccess({score,accuracy,bestCombo,perfectCount:perfect,correctCount,wrongCount,personalBest:{highestScore:score>previousScore,fastestTime:completed&&totalTimeMs<previousTime},ranking});
 }

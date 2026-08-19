@@ -23,28 +23,28 @@ export const rankedSpeedGameDetails: Record<
     label: "Typing Sprint",
     shortLabel: "Typing",
     icon: "⌨",
-    config: "20 từ · 60 giây · Hàn → Việt",
+    config: "Tự động cập nhật thành tích tốt nhất trong tuần",
   },
   audio_reaction: {
     query: "audio",
     label: "Audio Reaction",
     shortLabel: "Audio",
     icon: "◉",
-    config: "10 câu · Chọn đáp án",
+    config: "Tự động cập nhật thành tích tốt nhất trong tuần",
   },
   flash_reaction: {
     query: "flash",
     label: "Flash Recall",
     shortLabel: "Flash",
     icon: "◇",
-    config: "20 câu · Mức vừa · Hai chiều",
+    config: "Tự động cập nhật thành tích tốt nhất trong tuần",
   },
   card_reaction: {
     query: "card",
     label: "Card Reaction",
     shortLabel: "Card",
     icon: "▦",
-    config: "16 thẻ · Mức vừa · Hai chiều",
+    config: "Tự động cập nhật thành tích tốt nhất trong tuần",
   },
 };
 

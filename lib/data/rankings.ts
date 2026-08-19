@@ -33,6 +33,10 @@ export type LeaderboardData = {
   entries: LeaderboardEntry[];
   currentUserEntry: LeaderboardEntry | null;
   periodLabel: string;
+  weeklyHistory?: {
+    periodLabel: string;
+    entries: LeaderboardEntry[];
+  };
 };
 
 type SafeProfile = {
@@ -41,6 +45,69 @@ type SafeProfile = {
   avatar_url: string | null;
   leaderboard_opt_in: boolean;
 };
+
+type SpeedRankingRow = {
+  user_id: string;
+  rank_score: number;
+  accuracy: number | string;
+  best_combo: number;
+  duration_ms: number;
+  achieved_at: string;
+};
+
+type SpeedAttemptRankingRow = {
+  id: string;
+  user_id: string;
+  score: number;
+  accuracy: number | string;
+  best_combo: number;
+  total_questions: number;
+  correct_count: number;
+  remaining_seconds: number;
+  total_time_ms: number;
+  started_at: string;
+  finished_at: string;
+};
+
+function nextDate(date: string, days = 1) {
+  const value = new Date(`${date}T00:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
+function scoreAttempt(gameType: RankedSpeedGame, attempt: SpeedAttemptRankingRow): SpeedRankingRow {
+  const total = Math.max(attempt.total_questions, 1);
+  const duration = attempt.total_time_ms > 0
+    ? attempt.total_time_ms
+    : Math.max(0, new Date(attempt.finished_at).getTime() - new Date(attempt.started_at).getTime());
+  const rankScore = gameType === "typing_sprint"
+    ? Math.round(Number(attempt.accuracy) * 100)
+      + Math.round(attempt.correct_count / total * 1000)
+      + Math.round(attempt.best_combo / total * 400)
+      + attempt.remaining_seconds * 10
+    : Math.round(attempt.score * ({ audio_reaction: 10, flash_reaction: 20, card_reaction: 16 }[gameType] ?? total) / total);
+  return {
+    user_id: attempt.user_id,
+    rank_score: rankScore,
+    accuracy: attempt.accuracy,
+    best_combo: attempt.best_combo,
+    duration_ms: duration,
+    achieved_at: attempt.finished_at,
+  };
+}
+
+function bestAttempts(rows: SpeedRankingRow[]) {
+  const best = new Map<string, SpeedRankingRow>();
+  for (const row of rows) {
+    const previous = best.get(row.user_id);
+    if (!previous || row.rank_score > previous.rank_score ||
+      (row.rank_score === previous.rank_score && Number(row.accuracy) > Number(previous.accuracy)) ||
+      (row.rank_score === previous.rank_score && Number(row.accuracy) === Number(previous.accuracy) && row.duration_ms < previous.duration_ms)) {
+      best.set(row.user_id, row);
+    }
+  }
+  return best;
+}
 
 async function safeProfiles(userIds: string[]) {
   if (!userIds.length) return new Map<string, SafeProfile>();
@@ -75,17 +142,14 @@ async function getSpeedLeaderboard(
   const admin = createAdminClient();
   const periodStart = vietnamWeekStart();
   const { data } = await admin
-    .from("speed_test_ranking_records")
-    .select(
-      "user_id,rank_score,raw_score,accuracy,best_combo,duration_ms,achieved_at",
-    )
+    .from("speed_test_attempts")
+    .select("id,user_id,score,accuracy,best_combo,total_questions,correct_count,remaining_seconds,total_time_ms,started_at,finished_at")
     .eq("game_type", gameType)
-    .eq("period_start", periodStart)
-    .order("rank_score", { ascending: false })
-    .order("accuracy", { ascending: false })
-    .order("duration_ms", { ascending: true })
-    .order("achieved_at", { ascending: true });
-  const rows = data ?? [];
+    .gte("finished_at", `${periodStart}T00:00:00+07:00`)
+    .lt("finished_at", `${nextDate(periodStart, 7)}T00:00:00+07:00`)
+    .limit(10000);
+  const rows = [...bestAttempts(((data ?? []) as SpeedAttemptRankingRow[]).map((row) => scoreAttempt(gameType, row))).values()]
+    .sort((left, right) => right.rank_score - left.rank_score || Number(right.accuracy) - Number(left.accuracy) || left.duration_ms - right.duration_ms);
   const profiles = await safeProfiles(rows.map((row) => row.user_id));
   const ranked = withRanks(
     rows.flatMap((row) => {
@@ -105,11 +169,49 @@ async function getSpeedLeaderboard(
     currentUserId,
   );
   const game = rankedSpeedGameDetails[gameType];
+  const currentWeekStart = vietnamWeekStart();
+  const previousWeekEndDate = new Date(`${currentWeekStart}T00:00:00Z`);
+  previousWeekEndDate.setUTCDate(previousWeekEndDate.getUTCDate() - 1);
+  const previousWeekEnd = previousWeekEndDate.toISOString().slice(0, 10);
+  const previousWeekStartDate = new Date(previousWeekEndDate);
+  previousWeekStartDate.setUTCDate(previousWeekStartDate.getUTCDate() - 6);
+  const previousWeekStart = previousWeekStartDate.toISOString().slice(0, 10);
+  const { data: weeklyRowsData } = await admin
+    .from("speed_test_attempts")
+    .select("id,user_id,score,accuracy,best_combo,total_questions,correct_count,remaining_seconds,total_time_ms,started_at,finished_at")
+    .eq("game_type", gameType)
+    .gte("finished_at", `${previousWeekStart}T00:00:00+07:00`)
+    .lt("finished_at", `${nextDate(previousWeekEnd)}T00:00:00+07:00`)
+    .limit(10000);
+  const weeklyBest = bestAttempts(((weeklyRowsData ?? []) as SpeedAttemptRankingRow[]).map((row) => scoreAttempt(gameType, row)));
+  const weeklyProfiles = await safeProfiles([...weeklyBest.keys()]);
+  const weeklyEntries = [...weeklyBest.values()]
+    .flatMap((row) => {
+      const profile = weeklyProfiles.get(row.user_id);
+      if (!profile) return [];
+      return [{
+        userId: row.user_id,
+        displayName: profile.display_name,
+        avatarUrl: profile.avatar_url,
+        score: row.rank_score,
+        accuracy: Number(row.accuracy),
+        durationMs: row.duration_ms,
+        detail: `${Number(row.accuracy)}% · combo ${row.best_combo}`,
+        achievedAt: row.achieved_at,
+      }];
+    })
+    .sort((left, right) => right.score - left.score || Number(right.accuracy) - Number(left.accuracy) || Number(left.durationMs) - Number(right.durationMs))
+    .slice(0, 10)
+    .map((entry, index) => ({ ...entry, rank: index + 1 }));
   return {
     board: gameType,
     title: game.label,
     subtitle: game.config,
     periodLabel: `Tuần từ ${new Date(`${periodStart}T00:00:00Z`).toLocaleDateString("vi-VN")}`,
+    weeklyHistory: {
+      periodLabel: `${new Date(`${previousWeekStart}T00:00:00Z`).toLocaleDateString("vi-VN")} – ${new Date(`${previousWeekEnd}T00:00:00Z`).toLocaleDateString("vi-VN")}`,
+      entries: weeklyEntries,
+    },
     ...ranked,
   };
 }
