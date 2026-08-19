@@ -35,6 +35,18 @@ const nextConfig: NextConfig = {
     return [
       { source: "/:path*", headers: securityHeaders },
       {
+        source: "/audio/game/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
+      },
+      {
+        source: "/card-reaction-back-v2.webp",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
+      },
+      {
         source: "/downloads/harutopik-bang-luyen-viet-hangul.pdf",
         headers: [
           { key: "X-Frame-Options", value: "SAMEORIGIN" },

@@ -78,7 +78,7 @@ export default function LandingPage() {
 
           <div data-reveal="right" className="relative mx-auto flex min-h-[410px] w-full max-w-2xl items-center justify-center">
             <div className="hero-orbit absolute h-80 w-80 rounded-full bg-gradient-to-br from-cyan-100 to-blue-100 shadow-[0_20px_60px_rgba(8,126,186,.12)]" />
-            <Image src="/harutopik-wink-left.png" alt="Haru - người bạn đồng hành học tiếng Hàn" width={768} height={512} preload unoptimized className="landing-mascot relative z-10 h-auto w-[22rem] drop-shadow-2xl sm:w-[31rem]" />
+            <Image src="/harutopik-wink-left.png" alt="Haru - người bạn đồng hành học tiếng Hàn" width={768} height={512} preload sizes="(max-width: 639px) 22rem, 31rem" className="landing-mascot relative z-10 h-auto w-[22rem] drop-shadow-2xl sm:w-[31rem]" />
             <div className="landing-float-badge badge-one absolute left-0 top-4 z-20 rounded-2xl border border-white bg-white/90 px-5 py-4 text-center text-sm font-black shadow-xl sm:-left-5 sm:top-2"><strong>15 phút <span className="font-black">mỗi ngày</span></strong></div>
             <div className="landing-float-badge badge-two absolute right-0 top-7 z-20 rounded-2xl border border-white bg-white/90 px-5 py-4 text-center shadow-xl sm:-right-10 sm:top-4"><strong className="font-korean text-[#087eba]">오늘도 화이팅!</strong><span className="block font-bold text-slate-600">Cố lên hôm nay!</span></div>
             <div className="landing-float-badge badge-three absolute bottom-4 left-0 z-20 min-w-[220px] rounded-2xl border border-white bg-white/90 px-5 py-4 text-sm shadow-xl sm:-left-8"><strong className="block whitespace-nowrap text-[.8rem]">🎯 Từ vựng theo ngữ cảnh</strong></div>

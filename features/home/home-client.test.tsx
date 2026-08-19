@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/supabase/client", () => ({
@@ -24,10 +24,8 @@ describe("HomeClient library navigation", () => {
 
     expect(screen.queryByRole("link", { name: "Thư viện học" })).toBeNull();
     expect(container.querySelector(".sidebar-shell")?.textContent).not.toContain("Trang chủ");
-    expect(screen.queryByRole("link", { name: "Lộ trình" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Lộ trình" }).getAttribute("href")).toBe("/lo-trinh");
     expect(screen.queryByText("Sắp ra mắt")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Lộ trình" }));
-    expect(screen.getByRole("status").textContent).toBe("Sắp ra mắt");
     expect(screen.getByRole("link", { name: "Quản lý bộ ngữ pháp" }).getAttribute("href")).toBe("/ngu-phap-cua-toi");
 
     expect(screen.getAllByRole("link", { name: /Mở bộ [123]/ })).toHaveLength(3);

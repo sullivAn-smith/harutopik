@@ -370,7 +370,7 @@ main:has(.card-reaction-card) > section {
   min-height: 0;
   overflow: hidden;
   aspect-ratio: auto !important;
-  background-image: url('/card-reaction-back-v2.png') !important;
+  background-image: url('/card-reaction-back-v2.webp') !important;
   background-position: center !important;
   background-size: cover !important;
   border-color: rgba(216,180,254,.75) !important;

@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { CurriculumSeriesCover } from "@/features/library/curriculum-series-cover";
 import { curriculumSeriesDefinitions } from "@/lib/catalog/curriculum-series";
-import { createClient } from "@/lib/supabase/client";
 import { StreakBanner } from "@/features/streak/streak-banner";
 import type {
   LearnerStreak,
@@ -177,7 +176,6 @@ export function HomeClient({
 }) {
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [streakData, setStreakData] = useState<HomeStreakData | undefined>(undefined);
-  const [showRoadmapNotice, setShowRoadmapNotice] = useState(false);
   const publishedCourses = initialCourses.length ? initialCourses : fallbackCourses;
   const primaryCourse = publishedCourses.find((course) => course.slug === "topik-1") ?? publishedCourses[0];
   const dailyLesson = primaryCourse.lessons[0];
@@ -186,9 +184,9 @@ export function HomeClient({
     : "/speed-test?daily=1";
 
   useEffect(() => {
-    const supabase = createClient();
     let active = true;
     let requestedUserId: string | null | undefined;
+    let unsubscribe = () => {};
 
     async function loadForUser(nextUser: User | null) {
       const nextUserId = nextUser?.id ?? null;
@@ -222,34 +220,33 @@ export function HomeClient({
       setStreakData(payload.data);
     }
 
-    void supabase.auth.getSession().then(({ data }) => {
+    async function initializeAuth() {
+      const { createClient } = await import("@/lib/supabase/client");
+      if (!active) return;
+      const supabase = createClient();
+      const { data } = await supabase.auth.getSession();
       void loadForUser(data.session?.user ?? null);
-    });
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      void loadForUser(session?.user ?? null);
-    });
+      const { data: authState } = supabase.auth.onAuthStateChange((_event, session) => {
+        void loadForUser(session?.user ?? null);
+      });
+      unsubscribe = () => authState.subscription.unsubscribe();
+    }
+
+    void initializeAuth();
 
     return () => {
       active = false;
-      subscription.unsubscribe();
+      unsubscribe();
     };
   }, []);
-
-  useEffect(() => {
-    if (!showRoadmapNotice) return;
-    const timeoutId = window.setTimeout(() => setShowRoadmapNotice(false), 2500);
-    return () => window.clearTimeout(timeoutId);
-  }, [showRoadmapNotice]);
 
   return (
     <main data-home-viewport="fixed-desktop" className="elegant-blue home-landing min-h-screen overflow-x-hidden text-[#101820] lg:grid lg:grid-cols-[16rem_minmax(0,1fr)]">
       <header className="relative z-30 flex items-center justify-between border-b border-white/70 bg-white/70 px-4 py-3 backdrop-blur lg:hidden">
         <Link href="/" className="flex items-center gap-2 font-black">
           <span className="grid h-11 w-11 place-items-center rounded-2xl bg-white/80 p-1 shadow-[0_8px_20px_rgba(16,36,62,0.14)] ring-1 ring-white">
-            <Image src="/haru-mascot-clean.png" alt="" width={44} height={44} className="h-full w-full object-contain" priority />
+            <Image src="/haru-mascot-clean.png" alt="" width={44} height={44} sizes="44px" className="h-full w-full object-contain" />
           </span>
           Harutopik
         </Link>
@@ -259,10 +256,10 @@ export function HomeClient({
       </header>
       <aside className="sidebar-shell z-20 hidden h-dvh w-64 flex-col border-r border-white/50 px-5 py-7 backdrop-blur lg:sticky lg:top-0 lg:flex">
         <Link href="/" className="block border-b border-[#10243e]/10 pb-6">
-          <Image src="/harutopik-logo-white.png" alt="Harutopik - Học tiếng Hàn" width={220} height={220} className="harutopik-logo logo-penguin-wave h-auto w-full" priority />
+          <Image src="/harutopik-logo-white.png" alt="Harutopik - Học tiếng Hàn" width={220} height={220} sizes="220px" className="harutopik-logo logo-penguin-wave h-auto w-full" />
         </Link>
         <nav className="mt-6 min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1 [scrollbar-color:rgba(8,126,186,0.45)_transparent] [scrollbar-width:thin]">
-          <button type="button" onClick={() => setShowRoadmapNotice(true)} className="flex w-full items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 text-left text-[#10243e] shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-emerald-100 text-emerald-700"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-none stroke-current" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19V8l5-4 4 3 7-4v12l-7 5-4-3-5 2Z" /><path d="M9 4v13M13 7v13" /></svg></span><span className="font-bold">Lộ trình</span>{showRoadmapNotice ? <span role="status" className="ml-auto shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-[0.65rem] font-black uppercase tracking-wide text-amber-700">Sắp ra mắt</span> : null}</button>
+          <Link href="/lo-trinh" className="flex w-full items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 text-left text-[#10243e] shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-emerald-100 text-emerald-700"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-none stroke-current" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19V8l5-4 4 3 7-4v12l-7 5-4-3-5 2Z" /><path d="M9 4v13M13 7v13" /></svg></span><span className="font-bold">Lộ trình</span></Link>
           <Link href="/tu-cua-toi" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-cyan-100 text-[#087eba]"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-none stroke-current" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="3" /><path d="M7 9h10M7 13h6" /><path d="M17.5 12.5v4M15.5 14.5h4" /></svg></span><span>Quản lý bộ từ</span></Link>
           <Link href="/ngu-phap-cua-toi" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-violet-100 text-violet-700"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-none stroke-current" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" /><path d="M7 8h10M7 12h7M7 16h4" /></svg></span><span>Quản lý bộ ngữ pháp</span></Link>
           <Link href="/luyen-de" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-[#087eba]">✎</span><span>Luyện đề</span></Link>
@@ -338,10 +335,14 @@ export function HomeClient({
             <h2 className="relative text-2xl font-black text-[#10243e]">Luyện đề</h2>
             <p className="relative mt-3 text-sm font-bold text-[#53627a]">Ôn tập theo mục tiêu</p>
             <span className="relative mt-3 inline-block text-sm font-black text-emerald-700">Mở ngay →</span>
-            <div className="absolute bottom-5 right-5 grid h-20 w-20 place-items-center rounded-full border-[8px] border-emerald-400/80 shadow-[0_12px_28px_rgba(31,150,132,.25)] transition group-hover:scale-105">
-              <span className="h-12 w-12 rounded-full border-[9px] border-emerald-500/90"><span className="mx-auto mt-2 block h-3 w-3 rounded-full bg-emerald-700" /></span>
-              <span className="absolute -right-2 -top-3 h-12 w-3 rotate-45 rounded-full bg-emerald-600" />
-              <span className="absolute -right-1 -top-3 h-3 w-8 rotate-45 rounded-full bg-emerald-600" />
+            <div aria-label="Bia mục tiêu luyện tập" role="img" className="absolute bottom-5 right-5 h-20 w-20 rounded-full border-[8px] border-emerald-300/80 bg-emerald-50 shadow-[0_12px_28px_rgba(31,150,132,.25)] transition group-hover:scale-105">
+              <span className="absolute inset-[9px] rounded-full border-[7px] border-emerald-200" />
+              <span className="absolute inset-[22px] rounded-full border-[7px] border-emerald-100 bg-emerald-600" />
+              <svg aria-hidden="true" viewBox="0 0 64 64" className="absolute -right-3 -top-3 h-16 w-16 overflow-visible drop-shadow-[0_3px_3px_rgba(5,150,105,.22)]">
+                <path d="M53 11 29 35" fill="none" stroke="#059669" strokeWidth="7" strokeLinecap="round" />
+                <path d="m53 11-1 13 11-11-10-2Z" fill="#10b981" stroke="#059669" strokeWidth="2" strokeLinejoin="round" />
+                <path d="m53 11-13-1L51-1l2 12Z" fill="#34d399" stroke="#059669" strokeWidth="2" strokeLinejoin="round" />
+              </svg>
             </div>
             <span className="absolute bottom-8 left-7 rotate-[-18deg] text-3xl text-emerald-400/50">✦</span>
           </Link>
@@ -359,11 +360,10 @@ export function HomeClient({
         </div>
 
         <div data-home-series-grid="full-width" className="home-series-grid mt-4 grid w-full grid-cols-1 gap-4 sm:grid-cols-3 lg:gap-5">
-          {curriculumSeriesDefinitions.map((series, index) => (
+          {curriculumSeriesDefinitions.map((series) => (
             <CurriculumSeriesCover
               key={series.id}
               series={series}
-              priority={index === 0}
               compact
             />
           ))}

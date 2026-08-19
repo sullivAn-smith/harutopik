@@ -4,7 +4,7 @@ import { courses, coursePath, lessonPath } from "@/content/catalog";
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl =
     process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-  const staticPages = ["", "/hangul", "/luyen-de", "/nang-cap", "/tro-ly"];
+  const staticPages = ["", "/hangul", "/lo-trinh", "/luyen-de", "/nang-cap", "/tro-ly"];
   const coursePages = courses.flatMap((course) => [
     coursePath(course),
     ...course.lessons
