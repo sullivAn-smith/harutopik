@@ -1,5 +1,6 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { ExamAnswerReviewPolicy, ExamLevel, ExamSummary } from "@/lib/exams/types";
@@ -46,6 +47,7 @@ function summary(row: ExamRow): ExamSummary {
 }
 
 const examSummarySelect = "id,code,title,description,level,duration_minutes,listening_duration_minutes,reading_duration_minutes,answer_review_policy,answer_review_available_at,status,updated_at,exam_questions(section,position)";
+export const publishedExamsCacheTag = "published-exams";
 
 export async function getEditorExams() {
   const supabase = await createClient();
@@ -54,12 +56,34 @@ export async function getEditorExams() {
   return (data as unknown as ExamRow[]).map(summary);
 }
 
-export async function getPublishedExams() {
+async function readPublishedExams() {
   const admin = createAdminClient();
   const { data, error } = await admin.from("exam_sets").select(examSummarySelect).eq("status", "published").order("published_at", { ascending: false });
   if (error) throw error;
   return (data as unknown as ExamRow[]).map(summary);
 }
+
+export const getPublishedExams = unstable_cache(
+  readPublishedExams,
+  ["published-exams-v1"],
+  { tags: [publishedExamsCacheTag], revalidate: 300 },
+);
+
+export const getPublishedExamPreflight = unstable_cache(
+  async (examId: string) => {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from("exam_sets")
+      .select("id,title,description,level,version,listening_duration_minutes,reading_duration_minutes,instructions,exam_questions(count)")
+      .eq("id", examId)
+      .eq("status", "published")
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+  ["published-exam-preflight-v1"],
+  { tags: [publishedExamsCacheTag], revalidate: 300 },
+);
 
 export async function getExamForEditing(examId: string) {
   const actor = await requirePermission("content:read-draft");

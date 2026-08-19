@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
-import { getCurrentActor } from "@/lib/auth/authorize";
+import { getCurrentUser } from "@/lib/auth/authorize";
 import {
   getLeaderboard,
   type LeaderboardBoard,
@@ -12,20 +12,17 @@ import {
 } from "@/features/rankings/leaderboard-view";
 
 export const metadata: Metadata = { title: "Bảng xếp hạng" };
-export const dynamic = "force-dynamic";
-
 export default async function LeaderboardPage({
   searchParams,
 }: {
   searchParams: Promise<{ board?: string }>;
 }) {
-  const actor = await getCurrentActor();
-  if (!actor) redirect("/dang-nhap?next=%2Fbang-xep-hang");
-  const query = await searchParams;
+  const [user, query] = await Promise.all([getCurrentUser(), searchParams]);
+  if (!user) redirect("/dang-nhap?next=%2Fbang-xep-hang");
   const board: LeaderboardBoard = isLeaderboardBoard(query.board)
     ? query.board
     : "exam";
-  const leaderboard = await getLeaderboard(board, actor.id);
+  const leaderboard = await getLeaderboard(board, user.id);
 
-  return <LeaderboardView board={board} leaderboard={leaderboard} currentUserId={actor.id} />;
+  return <LeaderboardView board={board} leaderboard={leaderboard} currentUserId={user.id} />;
 }

@@ -69,4 +69,11 @@ describe("ExamLibraryGrid", () => {
     expect(screen.getByRole("progressbar", { name: "Điểm cao nhất 150 trên 200" }).getAttribute("aria-valuenow")).toBe("150");
     expect(screen.getByText("Chưa làm đề này")).toBeTruthy();
   });
+
+  it("hiển thị trạng thái tải thay vì kết luận người dùng chưa làm đề", () => {
+    render(<ExamLibraryGrid exams={[baseExam]} history={[]} historyPending />);
+
+    expect(screen.getByLabelText("Đang tải điểm cao nhất")).toBeTruthy();
+    expect(screen.queryByText("Chưa làm đề này")).toBeNull();
+  });
 });

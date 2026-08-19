@@ -90,4 +90,26 @@ describe("LeaderboardView", () => {
     expect(isLeaderboardBoard("typing_sprint")).toBe(true);
     expect(isLeaderboardBoard("not-a-board")).toBe(false);
   });
+
+  it("không hiển thị xu hướng và lịch sử tuần trên bảng speed test", () => {
+    render(
+      <LeaderboardView
+        board="typing_sprint"
+        leaderboard={{
+          ...leaderboard,
+          board: "typing_sprint",
+          weeklyHistory: {
+            periodLabel: "Tuần trước",
+            entries: leaderboard.entries.slice(0, 1),
+          },
+        }}
+        currentUserId="current-user"
+      />,
+    );
+
+    expect(screen.queryByText("Xu hướng")).toBeNull();
+    expect(screen.queryByText("— Chưa có dữ liệu")).toBeNull();
+    expect(screen.queryByText("Lịch sử tuần")).toBeNull();
+    expect(screen.queryByText("Top 10 tuần trước")).toBeNull();
+  });
 });

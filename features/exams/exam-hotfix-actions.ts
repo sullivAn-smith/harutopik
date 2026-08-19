@@ -1,7 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { requirePermission } from "@/lib/auth/authorize";
+import { publishedExamsCacheTag } from "@/lib/data/exams";
 import { examDraftSchema, formatExamValidationError, getExamEligibility } from "@/lib/exams/types";
 import { createClient } from "@/lib/supabase/server";
 
@@ -31,6 +32,7 @@ export async function hotfixPublishedExam(examId: string, _state: { ok: boolean;
     p_questions: parsed.data.questions, p_reason: reason,
   });
   if (error) return { ok: false, message: error.message };
+  updateTag(publishedExamsCacheTag);
   revalidatePath("/luyen-de");
   revalidatePath(`/luyen-de/${examId}`);
   revalidatePath(`/luyen-de/${examId}/lam-bai`);

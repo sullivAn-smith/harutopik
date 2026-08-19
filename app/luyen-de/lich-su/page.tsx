@@ -1,15 +1,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentActor } from "@/lib/auth/authorize";
+import { getCurrentUser } from "@/lib/auth/authorize";
 import { getUserExamHistorySummary } from "@/lib/data/exams";
 import { ExamLibraryTabs } from "@/features/exams/exam-library-tabs";
 
 export const dynamic = "force-dynamic";
 
 export default async function ExamHistoryPage() {
-  const actor = await getCurrentActor();
-  if (!actor) redirect("/dang-nhap?next=/luyen-de/lich-su");
-  const history = await getUserExamHistorySummary(actor.id);
+  const user = await getCurrentUser();
+  if (!user) redirect("/dang-nhap?next=/luyen-de/lich-su");
+  const history = await getUserExamHistorySummary(user.id);
   return (
     <main className="elegant-blue min-h-screen text-[#10243e]">
       <div className="mx-auto max-w-6xl px-5 py-10">

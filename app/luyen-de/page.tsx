@@ -1,17 +1,20 @@
 import Link from "next/link";
-import { getCurrentActor } from "@/lib/auth/authorize";
+import { Suspense } from "react";
+import { getCurrentUser } from "@/lib/auth/authorize";
 import { getPublishedExams, getUserExamHistorySummary } from "@/lib/data/exams";
 import { ExamLibraryTabs } from "@/features/exams/exam-library-tabs";
 import { ExamLibraryGrid } from "@/features/exams/exam-library-grid";
 
-export const dynamic = "force-dynamic";
+async function PersonalizedExamGrid({ exams }: { exams: Awaited<ReturnType<typeof getPublishedExams>> }) {
+  const user = await getCurrentUser();
+  const history = user ? await getUserExamHistorySummary(user.id) : [];
+  return <ExamLibraryGrid exams={exams} history={history} />;
+}
 
 export default async function PracticeTests({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  const actor = await getCurrentActor();
-  const [exams, notice, history] = await Promise.all([
+  const [exams, notice] = await Promise.all([
     getPublishedExams(),
     searchParams,
-    actor ? getUserExamHistorySummary(actor.id) : Promise.resolve([]),
   ]);
   const topikOneCount = exams.filter((exam) => exam.level === "topik_i").length;
   const topikTwoCount = exams.length - topikOneCount;
@@ -42,7 +45,9 @@ export default async function PracticeTests({ searchParams }: { searchParams: Pr
           </div>
         </section>
 
-        <ExamLibraryGrid exams={exams} history={history} />
+        <Suspense fallback={<ExamLibraryGrid exams={exams} history={[]} historyPending />}>
+          <PersonalizedExamGrid exams={exams} />
+        </Suspense>
       </div>
     </main>
   );

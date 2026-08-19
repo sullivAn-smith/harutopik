@@ -1,15 +1,15 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { getCurrentActor } from "@/lib/auth/authorize";
+import { getCurrentUser } from "@/lib/auth/authorize";
 import { getUserExamAttemptsForExam } from "@/lib/data/exams";
 import { examAttemptModeLabel, examAttemptModeSchema } from "@/lib/exams/attempt-mode";
 
 export const dynamic = "force-dynamic";
 
 export default async function ExamAttemptHistoryPage({ params }: { params: Promise<{ examId: string }> }) {
-  const [{ examId }, actor] = await Promise.all([params, getCurrentActor()]);
-  if (!actor) redirect(`/dang-nhap?next=/luyen-de/${examId}/lich-su`);
-  const attempts = await getUserExamAttemptsForExam(actor.id, examId);
+  const [{ examId }, user] = await Promise.all([params, getCurrentUser()]);
+  if (!user) redirect(`/dang-nhap?next=/luyen-de/${examId}/lich-su`);
+  const attempts = await getUserExamAttemptsForExam(user.id, examId);
   if (!attempts.length) notFound();
   const exam = attempts[0].exam_sets as unknown as { code?: string; title?: string; level?: string } | null;
   return (

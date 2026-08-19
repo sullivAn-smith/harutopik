@@ -1,19 +1,20 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getCurrentActor } from "@/lib/auth/authorize";
+import { getCurrentUser } from "@/lib/auth/authorize";
+import { getPublishedExamPreflight } from "@/lib/data/exams";
 import { ExamPreflight } from "@/features/exams/exam-preflight";
 
 export default async function ExamInstructionsPage({ params, searchParams }: {
   params: Promise<{ examId: string }>;
   searchParams: Promise<{ error?: string }>;
 }) {
-  const [{ examId }, notice, actor] = await Promise.all([params, searchParams, getCurrentActor()]);
+  const [{ examId }, notice, user] = await Promise.all([params, searchParams, getCurrentUser()]);
   const admin = createAdminClient();
-  const [{ data: exam }, activeResult] = await Promise.all([
-    admin.from("exam_sets").select("id,title,description,level,version,listening_duration_minutes,reading_duration_minutes,instructions,exam_questions(count)").eq("id", examId).eq("status", "published").maybeSingle(),
-    actor
-      ? admin.from("exam_attempts").select("id,attempt_mode,exam_version,expires_at,current_section,current_position,answers,total_questions").eq("exam_id", examId).eq("user_id", actor.id).eq("status", "in_progress").gt("expires_at", new Date().toISOString()).order("started_at", { ascending: false })
+  const [exam, activeResult] = await Promise.all([
+    getPublishedExamPreflight(examId),
+    user
+      ? admin.from("exam_attempts").select("id,attempt_mode,exam_version,expires_at,current_section,current_position,answers,total_questions").eq("exam_id", examId).eq("user_id", user.id).eq("status", "in_progress").gt("expires_at", new Date().toISOString()).order("started_at", { ascending: false })
       : Promise.resolve({ data: [] }),
   ]);
   if (!exam) notFound();

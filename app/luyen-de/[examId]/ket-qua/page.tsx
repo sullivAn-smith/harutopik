@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { getCurrentActor } from "@/lib/auth/authorize";
+import { getCurrentUser } from "@/lib/auth/authorize";
 import { getExamAttempt } from "@/lib/data/exams";
 import { examAttemptModeLabel, examAttemptModeSchema } from "@/lib/exams/attempt-mode";
 import { ExamResultHighlights } from "@/features/exams/exam-result-highlights";
@@ -22,14 +22,14 @@ export default async function ExamResultPage({
   params: Promise<{ examId: string }>;
   searchParams: Promise<{ attempt?: string; section?: string; filter?: string }>;
 }) {
-  const [{ examId }, query, actor] = await Promise.all([
+  const [{ examId }, query, user] = await Promise.all([
     params,
     searchParams,
-    getCurrentActor(),
+    getCurrentUser(),
   ]);
-  if (!actor) redirect(`/dang-nhap?next=${encodeURIComponent(`/luyen-de/${examId}`)}`);
+  if (!user) redirect(`/dang-nhap?next=${encodeURIComponent(`/luyen-de/${examId}`)}`);
   if (!query.attempt) notFound();
-  const attempt = await getExamAttempt(query.attempt, actor.id);
+  const attempt = await getExamAttempt(query.attempt, user.id);
   if (!attempt || attempt.exam_id !== examId || attempt.status === "in_progress") notFound();
 
   const answers = (attempt.answers ?? {}) as Record<string, number>;
@@ -77,7 +77,7 @@ export default async function ExamResultPage({
   return (
     <main className="min-h-screen bg-slate-100 text-[#10243e]">
       <div className="mx-auto max-w-5xl px-5 py-10">
-        <Link href={`/luyen-de/${examId}/lich-su`} className="font-black text-[#087eba]">← Lịch sử đề này</Link>
+        <Link href="/luyen-de" className="font-black text-[#087eba]">← Danh sách đề</Link>
         <section className="mt-6 rounded-[2rem] bg-white p-8 shadow-2xl">
           <p className="text-xs font-black uppercase tracking-[.2em] text-emerald-600">Đã hoàn thành · {examAttemptModeLabel(attemptMode)}</p>
           <h1 className="mt-2 text-4xl font-black">Kết quả bài thi</h1>
