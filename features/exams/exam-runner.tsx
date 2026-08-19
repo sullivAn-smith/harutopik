@@ -496,7 +496,8 @@ export function ExamRunner({
     setHighlights((current) => current.some((highlight) => highlight.id === optimisticId)
       ? current.map((highlight) => highlight.id === optimisticId ? optimisticHighlight : highlight)
       : [...current, optimisticHighlight]);
-    setPendingHighlight((current) => current ? { ...current, optimisticId, color, saving: true } : null);
+    setPendingHighlight(null);
+    selectionJustMadeRef.current = false;
     setSaving(`Đang lưu highlight “${pendingHighlight.selectedText}”...`);
     window.getSelection()?.removeAllRanges();
     const response = await fetch(`/api/v1/exam-attempts/${attemptId}/highlights`, {
@@ -518,11 +519,9 @@ export function ExamRunner({
       const savedHighlight = { ...optimisticHighlight, id: String(body.data.id) };
       setHighlights((current) => current.map((highlight) => highlight.id === optimisticId ? savedHighlight : highlight));
       setSaving(`Đã lưu “${pendingHighlight.selectedText}” vào highlight.`);
-      setPendingHighlight((current) => current ? { ...current, savedId: savedHighlight.id, optimisticId: undefined, color, saving: false } : null);
-      selectionJustMadeRef.current = false;
       return { id: savedHighlight.id, text: savedHighlight.selectedText };
     }
-    setPendingHighlight((current) => current ? { ...current, optimisticId, color, saving: false } : null);
+    setPendingHighlight({ ...pendingHighlight, optimisticId, color, saving: false });
     const reason = body?.error?.message ? ` ${body.error.message}` : "";
     setSaving(`Màu đã hiển thị nhưng chưa đồng bộ. Bấm lại màu hoặc dấu + để thử lưu.${reason}`);
     return null;
@@ -887,19 +886,20 @@ export function ExamRunner({
                             {question.optionImages[index] && <Image unoptimized src={question.optionImages[index]} alt={`Đáp án ${index + 1}`} fill sizes="(max-width: 640px) 45vw, 260px" className="bg-white object-contain p-1" />}
                             <span className="absolute left-2 top-2 grid h-7 w-7 place-items-center rounded-full border border-slate-300 bg-white/95 text-sm font-black text-slate-800 shadow-sm">{index + 1}</span>
                           </button>
-                        : <button
-                            type="button"
+                        : <div
                             key={index}
-                            aria-label={`Đáp án ${index + 1}: ${option}`}
-                            onClick={() => {
-                              if (selectionJustMadeRef.current) { selectionJustMadeRef.current = false; return; }
-                              void choose(question, index + 1);
-                            }}
-                            className={`flex min-h-16 items-center gap-3 rounded-2xl border-2 p-4 text-left text-lg font-normal transition disabled:cursor-not-allowed disabled:opacity-50 ${answers[question.id] === index + 1 ? "border-[#087eba] bg-sky-100 text-[#075f88]" : "border-slate-200 hover:border-sky-300"}`}
+                            className={`flex min-h-16 items-center gap-3 rounded-2xl border-2 p-4 text-left text-lg font-normal transition ${answers[question.id] === index + 1 ? "border-[#087eba] bg-sky-100 text-[#075f88]" : "border-slate-200 bg-white"}`}
                           >
-                            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white">{index + 1}</span>
-                            <span onMouseUp={(event) => prepareHighlight(question, event.currentTarget, "option", option, index)}><HighlightedText text={option} highlights={questionHighlights.filter((highlight) => highlight.sourceField === "option" && highlight.sourceIndex === index)} onHighlightClick={openSavedHighlight} /></span>
-                          </button>)}
+                            <button
+                              type="button"
+                              aria-label={`Đáp án ${index + 1}: ${option}`}
+                              onClick={() => void choose(question, index + 1)}
+                              className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border font-black transition hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#087eba] ${answers[question.id] === index + 1 ? "border-[#087eba] bg-[#087eba] text-white" : "border-slate-200 bg-white text-slate-800 hover:border-sky-400 hover:bg-sky-50"}`}
+                            >
+                              {index + 1}
+                            </button>
+                            <span className="min-w-0 flex-1 cursor-text select-text" onMouseUp={(event) => prepareHighlight(question, event.currentTarget, "option", option, index)}><HighlightedText text={option} highlights={questionHighlights.filter((highlight) => highlight.sourceField === "option" && highlight.sourceIndex === index)} onHighlightClick={openSavedHighlight} /></span>
+                          </div>)}
                       </div>
                     </div>
                   </div>

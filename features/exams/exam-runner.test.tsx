@@ -52,7 +52,7 @@ describe("ExamRunner listening", () => {
     const listeningQuestion17 = { ...question, id: "topik-i-listening-17", position: 17 };
     render(<ExamRunner attemptId="00000000-0000-4000-8000-000000000010" examId="00000000-0000-4000-8000-000000000020" title="TOPIK I" level="topik_i" section="listening" expiresAt={new Date(Date.now() + 60_000).toISOString()} initialPosition={17} initialAnswers={{}} initialFlagged={[]} initialAudioPlays={{}} initialWindowLeaveCount={0} questions={[listeningQuestion17]} />);
 
-    const answerGrid = screen.getByRole("button", { name: "Đáp án 1: 1" }).parentElement;
+    const answerGrid = screen.getByRole("button", { name: "Đáp án 1: 1" }).parentElement?.parentElement;
     expect(answerGrid?.className).toContain("grid-cols-1");
     expect(answerGrid?.className).not.toContain("sm:grid-cols-2");
   });
@@ -320,10 +320,10 @@ describe("ExamRunner listening", () => {
     expect(screen.getByText("[49~50] 다음을 읽고 물음에 답하십시오.").className).toContain("font-bold");
     expect(screen.getByText(sharedPassage).className).toContain("font-normal");
     expect(screen.getByText("㉠에 들어갈 알맞은 말을 고르십시오.").className).toContain("font-normal");
-    expect(screen.getByRole("button", { name: "Đáp án 1: 필요한" }).parentElement?.className).toContain("sm:grid-cols-2");
-    expect(screen.getByRole("button", { name: "Đáp án 1: 필요한" }).className).toContain("font-normal");
-    expect(screen.getByRole("button", { name: "Đáp án 1: 집에 새 물건들이 많이 필요합니다." }).parentElement?.className).toContain("grid-cols-1");
-    expect(screen.getByRole("button", { name: "Đáp án 1: 집에 새 물건들이 많이 필요합니다." }).parentElement?.className).not.toContain("sm:grid-cols-2");
+    expect(screen.getByRole("button", { name: "Đáp án 1: 필요한" }).parentElement?.parentElement?.className).toContain("sm:grid-cols-2");
+    expect(screen.getByRole("button", { name: "Đáp án 1: 필요한" }).parentElement?.className).toContain("font-normal");
+    expect(screen.getByRole("button", { name: "Đáp án 1: 집에 새 물건들이 많이 필요합니다." }).parentElement?.parentElement?.className).toContain("grid-cols-1");
+    expect(screen.getByRole("button", { name: "Đáp án 1: 집에 새 물건들이 많이 필요합니다." }).parentElement?.parentElement?.className).not.toContain("sm:grid-cols-2");
   });
 
   it("hiển thị riêng đáp án câu 52 theo bố cục hai cột", () => {
@@ -345,8 +345,8 @@ describe("ExamRunner listening", () => {
     render(<ExamRunner attemptId="00000000-0000-4000-8000-000000000010" examId="00000000-0000-4000-8000-000000000020" title="TOPIK I" level="topik_i" section="reading" expiresAt={new Date(Date.now() + 60_000).toISOString()} initialPosition={21} initialAnswers={{}} initialFlagged={[]} initialAudioPlays={{}} initialWindowLeaveCount={0} questions={pairQuestions} />);
 
     expect(screen.getByTestId("shared-question-frame-51-52").querySelectorAll("article")).toHaveLength(2);
-    expect(screen.getByRole("button", { name: "Đáp án 1: 기차 안에서 볼 수 있는 것" }).parentElement?.className).toContain("sm:grid-cols-2");
-    expect(screen.getByRole("button", { name: "Đáp án 1: 기차 안에서 볼 수 있는 것" }).parentElement?.className).not.toContain("grid-cols-1");
+    expect(screen.getByRole("button", { name: "Đáp án 1: 기차 안에서 볼 수 있는 것" }).parentElement?.parentElement?.className).toContain("sm:grid-cols-2");
+    expect(screen.getByRole("button", { name: "Đáp án 1: 기차 안에서 볼 수 있는 것" }).parentElement?.parentElement?.className).not.toContain("grid-cols-1");
   });
 
   it("tách câu 57 và 58 trên giao diện kể cả khi đề cũ còn mã bài đọc chung", () => {
@@ -404,8 +404,8 @@ describe("ExamRunner listening", () => {
     expect(secondaryPrompt.parentElement?.className).not.toContain("rounded-2xl");
     expect(secondaryPrompt.className).toContain("font-normal");
     expect(screen.queryByText("＜보기＞")).toBeNull();
-    expect(screen.getByRole("button", { name: "Đáp án 1: ㉠" }).parentElement?.className).toContain("xl:grid-cols-4");
-    expect(screen.getByRole("button", { name: "Đáp án 1: ㉠" }).className).toContain("font-normal");
+    expect(screen.getByRole("button", { name: "Đáp án 1: ㉠" }).parentElement?.parentElement?.className).toContain("xl:grid-cols-4");
+    expect(screen.getByRole("button", { name: "Đáp án 1: ㉠" }).parentElement?.className).toContain("font-normal");
   });
 
   it("xếp bốn đáp án câu 62 theo chiều dọc", () => {
@@ -424,8 +424,8 @@ describe("ExamRunner listening", () => {
 
     render(<ExamRunner attemptId="00000000-0000-4000-8000-000000000010" examId="00000000-0000-4000-8000-000000000020" title="TOPIK I" level="topik_i" section="reading" expiresAt={new Date(Date.now() + 60_000).toISOString()} initialPosition={32} initialAnswers={{}} initialFlagged={[]} initialAudioPlays={{}} initialWindowLeaveCount={0} questions={[readingQuestion62]} />);
 
-    expect(screen.getByRole("button", { name: "Đáp án 1: Đáp án câu 62 số 1" }).parentElement?.className).toContain("grid-cols-1");
-    expect(screen.getByRole("button", { name: "Đáp án 1: Đáp án câu 62 số 1" }).parentElement?.className).not.toContain("sm:grid-cols-2");
+    expect(screen.getByRole("button", { name: "Đáp án 1: Đáp án câu 62 số 1" }).parentElement?.parentElement?.className).toContain("grid-cols-1");
+    expect(screen.getByRole("button", { name: "Đáp án 1: Đáp án câu 62 số 1" }).parentElement?.parentElement?.className).not.toContain("sm:grid-cols-2");
   });
 
   it("gộp câu 59-60 và 61-62 vào hai khung chung riêng biệt", () => {
@@ -454,7 +454,7 @@ describe("ExamRunner listening", () => {
       expect(screen.getAllByText(`Bài đọc chung câu ${range}`)).toHaveLength(1);
     }
     expect(screen.getByText("Câu hỏi riêng 2 của câu 59")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Đáp án 1: Đáp án 62-1" }).parentElement?.className).toContain("grid-cols-1");
+    expect(screen.getByRole("button", { name: "Đáp án 1: Đáp án 62-1" }).parentElement?.parentElement?.className).toContain("grid-cols-1");
   });
 
   it("gộp các cặp câu 63-70 và áp dụng đúng bố cục ảnh, bài đọc và đáp án", () => {
@@ -495,10 +495,10 @@ describe("ExamRunner listening", () => {
     expect(promptImage.className).toContain("exam-material-frame");
     expect(promptImage.parentElement?.className).not.toContain("xl:grid-cols");
     for (const displayPosition of [63, 64, 65, 66, 70]) {
-      expect(screen.getByRole("button", { name: `Đáp án 1: Lựa chọn ${displayPosition}-1` }).parentElement?.className).toContain("grid-cols-1");
+      expect(screen.getByRole("button", { name: `Đáp án 1: Lựa chọn ${displayPosition}-1` }).parentElement?.parentElement?.className).toContain("grid-cols-1");
     }
     for (const displayPosition of [67, 68, 69]) {
-      expect(screen.getByRole("button", { name: `Đáp án 1: Lựa chọn ${displayPosition}-1` }).parentElement?.className).toContain("sm:grid-cols-2");
+      expect(screen.getByRole("button", { name: `Đáp án 1: Lựa chọn ${displayPosition}-1` }).parentElement?.parentElement?.className).toContain("sm:grid-cols-2");
     }
     for (const range of ["65-66", "67-68", "69-70"]) {
       expect(screen.getAllByText(`Bài đọc chung câu ${range}`)).toHaveLength(1);
@@ -532,11 +532,11 @@ describe("ExamRunner listening", () => {
 
     expect(screen.getByText(boxedReading.prompt).className).toContain("border-black");
     expect(screen.getByText(boxedReading.prompt).className).toContain("border-[3px]");
-    expect(screen.getAllByRole("button", { name: "Đáp án 1: 날짜" })[0].parentElement?.className).toContain("xl:grid-cols-4");
+    expect(screen.getAllByRole("button", { name: "Đáp án 1: 날짜" })[0].parentElement?.parentElement?.className).toContain("xl:grid-cols-4");
     expect(screen.getByText(standaloneReading.prompt).className).toContain("border-black");
     expect(screen.getByText(standaloneReading.prompt).className).toContain("border-[3px]");
-    expect(screen.getAllByRole("button", { name: "Đáp án 1: 날짜" })[1].parentElement?.className).toContain("grid-cols-1");
-    expect(screen.getAllByRole("button", { name: "Đáp án 1: 날짜" })[1].parentElement?.className).not.toContain("xl:grid-cols-4");
+    expect(screen.getAllByRole("button", { name: "Đáp án 1: 날짜" })[1].parentElement?.parentElement?.className).toContain("grid-cols-1");
+    expect(screen.getAllByRole("button", { name: "Đáp án 1: 날짜" })[1].parentElement?.parentElement?.className).not.toContain("xl:grid-cols-4");
     expect(screen.queryByText("Ngữ liệu cũ câu 31")).toBeNull();
     expect(screen.queryByText("Ngữ liệu cũ câu 43")).toBeNull();
   });
@@ -564,7 +564,7 @@ describe("ExamRunner listening", () => {
     expect(image.parentElement?.className).not.toContain("xl:grid-cols");
     expect(title.compareDocumentPosition(image) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(title.className).toContain("font-bold");
-    expect(screen.getByRole("button", { name: `Đáp án 1: ${practicalQuestion.options[0]}` }).parentElement?.className).toContain("grid-cols-1");
+    expect(screen.getByRole("button", { name: `Đáp án 1: ${practicalQuestion.options[0]}` }).parentElement?.parentElement?.className).toContain("grid-cols-1");
   });
 
   it("hiện thanh chọn màu và tô màu ngay khi người học chọn", async () => {
@@ -599,8 +599,56 @@ describe("ExamRunner listening", () => {
     expect(screen.getByRole("button", { name: "Highlight màu vàng" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Highlight màu vàng" }));
     expect(container.querySelector("mark")?.textContent).toBe("Nghe");
+    expect(screen.queryByRole("toolbar", { name: "Chọn màu highlight" })).toBeNull();
     await waitFor(() => expect(container.querySelector("mark")?.textContent).toBe("Nghe"));
+    await waitFor(() => expect(screen.queryByRole("toolbar", { name: "Chọn màu highlight" })).toBeNull());
     selectionSpy.mockRestore();
+  });
+
+  it("cho tô màu và lưu từ ngay trong đáp án của câu TOPIK", async () => {
+    const readingQuestion = {
+      ...question,
+      id: "00000000-0000-4000-8000-000000000002",
+      position: 1,
+      section: "reading" as const,
+      instruction: "Chọn đáp án đúng",
+      audioUrl: "",
+      options: ["대학교", "도서관", "회사원", "주부"],
+    };
+    render(<ExamRunner attemptId="00000000-0000-4000-8000-000000000010" examId="00000000-0000-4000-8000-000000000020" title="TOPIK II" level="topik_ii" section="reading" expiresAt={new Date(Date.now() + 60_000).toISOString()} initialPosition={1} initialAnswers={{}} initialFlagged={[]} initialAudioPlays={{}} initialWindowLeaveCount={0} questions={[readingQuestion]} />);
+
+    const answerText = screen.getByText("대학교");
+    const range = {
+      commonAncestorContainer: answerText.firstChild,
+      cloneRange() {
+        return { selectNodeContents: vi.fn(), setEnd: vi.fn(), toString: () => "" };
+      },
+      getBoundingClientRect() { return { top: 220, left: 180 }; },
+      toString: () => "대학교",
+    } as unknown as Range;
+    vi.spyOn(window, "getSelection").mockReturnValue({
+      toString: () => "대학교",
+      rangeCount: 1,
+      getRangeAt: () => range,
+      anchorNode: answerText.firstChild,
+      removeAllRanges: vi.fn(),
+    } as unknown as Selection);
+    const fetchMock = vi.spyOn(global, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ data: { id: "00000000-0000-4000-8000-000000000099" } }), { status: 200, headers: { "content-type": "application/json" } }),
+    );
+
+    fireEvent.mouseUp(answerText);
+    expect(screen.getByRole("button", { name: "Lưu vào bộ từ ôn tập" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Highlight màu xanh" }));
+
+    await waitFor(() => expect(screen.queryByRole("toolbar", { name: "Chọn màu highlight" })).toBeNull());
+    const request = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/highlights"));
+    expect(JSON.parse(String(request?.[1]?.body))).toEqual(expect.objectContaining({
+      sourceField: "option",
+      sourceIndex: 0,
+      selectedText: "대학교",
+      color: "blue",
+    }));
   });
 
   it("giữ màu trên màn hình và cho thử đồng bộ lại khi API tạm lỗi", async () => {
