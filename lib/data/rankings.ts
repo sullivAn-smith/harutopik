@@ -33,6 +33,10 @@ export type LeaderboardData = {
   entries: LeaderboardEntry[];
   currentUserEntry: LeaderboardEntry | null;
   periodLabel: string;
+  weeklyHistory?: {
+    periodLabel: string;
+    entries: LeaderboardEntry[];
+  };
 };
 
 type SafeProfile = {
@@ -40,6 +44,15 @@ type SafeProfile = {
   display_name: string;
   avatar_url: string | null;
   leaderboard_opt_in: boolean;
+};
+
+type SpeedRankingRow = {
+  user_id: string;
+  rank_score: number;
+  accuracy: number | string;
+  best_combo: number;
+  duration_ms: number;
+  achieved_at: string;
 };
 
 async function safeProfiles(userIds: string[]) {
@@ -76,16 +89,14 @@ async function getSpeedLeaderboard(
   const periodStart = vietnamWeekStart();
   const { data } = await admin
     .from("speed_test_ranking_records")
-    .select(
-      "user_id,rank_score,raw_score,accuracy,best_combo,duration_ms,achieved_at",
-    )
+    .select("user_id,rank_score,accuracy,best_combo,duration_ms,achieved_at")
     .eq("game_type", gameType)
     .eq("period_start", periodStart)
     .order("rank_score", { ascending: false })
     .order("accuracy", { ascending: false })
     .order("duration_ms", { ascending: true })
     .order("achieved_at", { ascending: true });
-  const rows = data ?? [];
+  const rows = (data ?? []) as SpeedRankingRow[];
   const profiles = await safeProfiles(rows.map((row) => row.user_id));
   const ranked = withRanks(
     rows.flatMap((row) => {

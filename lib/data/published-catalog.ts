@@ -3,8 +3,9 @@ import "server-only";
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { createClient } from "@supabase/supabase-js";
-import { courses as sourceCourses, getCourseBySlug, getLessonBySlug } from "@/content/catalog";
+import { courses as sourceCourses, getCourseBySlug, getLessonBySlug, type Course } from "@/content/catalog";
 import { lessonSchema, type Lesson } from "@/content/schema";
+import { compressJson, decompressJson } from "@/lib/data/compressed-json";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { getPublishedVocabularyByLesson } from "@/lib/data/published-vocabulary";
@@ -13,7 +14,10 @@ import {
   compactPublishedCatalogRowsForShells,
   type PublishedCatalogRow,
 } from "@/lib/data/published-catalog-normalizer";
-import { publishedLearningCacheTag } from "@/lib/data/published-cache";
+import {
+  publishedLearningCacheSeconds,
+  publishedLearningCacheTag,
+} from "@/lib/data/published-cache";
 
 const loadPublishedCatalogRows = async (): Promise<PublishedCatalogRow[] | null> => {
   if (!isSupabaseConfigured()) return null;
@@ -35,25 +39,38 @@ const getPublishedCatalogRowsAcrossRequests = unstable_cache(
   // v3 invalidates the cached local fallback that could hide newly published
   // courses and lessons after the curriculum library migration.
   ["published-catalog-rows-v3"],
-  { tags: [publishedLearningCacheTag], revalidate: 300 },
+  { tags: [publishedLearningCacheTag], revalidate: publishedLearningCacheSeconds },
 );
 
+const loadPublishedCatalogShellRows = async (): Promise<PublishedCatalogRow[] | null> => {
+  if (!isSupabaseConfigured()) return null;
+  const { supabaseUrl, supabasePublishableKey } = getSupabaseConfig();
+  const supabase = createClient(supabaseUrl, supabasePublishableKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error } = await supabase.rpc("get_published_catalog_shells");
+  if (!error && data?.length) return data as PublishedCatalogRow[];
+
+  // Keep deployments functional while the additive migration rolls out.
+  if (error?.code === "PGRST202" || error?.code === "42883") {
+    const rows = await loadPublishedCatalogRows();
+    return rows ? compactPublishedCatalogRowsForShells(rows) : null;
+  }
+  return null;
+};
+
 const loadPublishedCourseShells = async () => {
-  // Do not read the full-payload row cache here. The shelf result only needs
-  // lightweight lesson metadata and must stay below Next.js' 2 MB item limit.
-  const rows = await loadPublishedCatalogRows();
+  const rows = await loadPublishedCatalogShellRows();
   if (!rows) return sourceCourses;
 
-  const databaseCourses = buildPublishedCourses(
-    compactPublishedCatalogRowsForShells(rows),
-  );
+  const databaseCourses = buildPublishedCourses(rows);
   return databaseCourses.length > 0 ? databaseCourses : sourceCourses;
 };
 
 const getPublishedCourseShellsAcrossRequests = unstable_cache(
   loadPublishedCourseShells,
   ["published-course-shells-v3"],
-  { tags: [publishedLearningCacheTag], revalidate: 300 },
+  { tags: [publishedLearningCacheTag], revalidate: publishedLearningCacheSeconds },
 );
 
 export const getPublishedCourseShells = cache(
@@ -73,13 +90,15 @@ const loadPublishedCourses = async () => {
   return databaseCourses.length > 0 ? databaseCourses : sourceCourses;
 };
 
-const getPublishedCoursesAcrossRequests = unstable_cache(
-  loadPublishedCourses,
-  ["published-courses-v3"],
-  { tags: [publishedLearningCacheTag], revalidate: 300 },
+const getCompressedPublishedCoursesAcrossRequests = unstable_cache(
+  async () => compressJson(await loadPublishedCourses()),
+  ["published-courses-compressed-v4"],
+  { tags: [publishedLearningCacheTag], revalidate: publishedLearningCacheSeconds },
 );
 
-export const getPublishedCourses = cache(getPublishedCoursesAcrossRequests);
+export const getPublishedCourses = cache(async (): Promise<Course[]> =>
+  decompressJson<Course[]>(await getCompressedPublishedCoursesAcrossRequests()),
+);
 
 const loadPublishedLessonRouteData = async (
   courseSlug: string,
@@ -125,7 +144,7 @@ const loadPublishedLessonRouteData = async (
 const getPublishedLessonAcrossRequests = unstable_cache(
   loadPublishedLessonRouteData,
   ["published-lesson-route-v3"],
-  { tags: [publishedLearningCacheTag], revalidate: 300 },
+  { tags: [publishedLearningCacheTag], revalidate: publishedLearningCacheSeconds },
 );
 
 export const getPublishedLessonRouteData = cache(getPublishedLessonAcrossRequests);

@@ -96,8 +96,9 @@ export function SpeedTestArena({
         dailyBestAccuracy={lessonGame.dailyBestAccuracy}
         rankedMode={lessonGame.rankedGame === "typing_sprint"}
         rankedAttemptsRemaining={lessonGame.rankedAttemptsRemaining}
-        backHref={lessonGame.backHref}
-        backLabel="Về bài học"
+        backHref="/speed-test?game=typing"
+        backLabel="Quay lại"
+        onBackToArena={() => setActiveGame("arena")}
       />
     </ArenaGameShell>;
   }
@@ -116,7 +117,8 @@ export function SpeedTestArena({
         courseSlug={lessonGame.courseSlug}
         lessonSlug={lessonGame.lessonSlug}
         progressById={lessonGame.progressById}
-        backHref={lessonGame.backHref}
+        backHref="/speed-test?game=audio"
+        onBackToArena={() => setActiveGame("arena")}
         rankedMode={lessonGame.rankedGame === "audio_reaction"}
         rankedAttemptsRemaining={lessonGame.rankedAttemptsRemaining}
       />
@@ -137,7 +139,8 @@ export function SpeedTestArena({
         courseSlug={lessonGame.courseSlug}
         lessonSlug={lessonGame.lessonSlug}
         progressById={lessonGame.progressById}
-        backHref={lessonGame.backHref}
+        backHref="/speed-test?game=flash"
+        onBackToArena={() => setActiveGame("arena")}
         rankedMode={lessonGame.rankedGame === "flash_reaction"}
         rankedAttemptsRemaining={lessonGame.rankedAttemptsRemaining}
       />
@@ -158,7 +161,8 @@ export function SpeedTestArena({
         courseSlug={lessonGame.courseSlug}
         lessonSlug={lessonGame.lessonSlug}
         progressById={lessonGame.progressById}
-        backHref={lessonGame.backHref}
+        backHref="/speed-test?game=card"
+        onBackToArena={() => setActiveGame("arena")}
         rankedMode={lessonGame.rankedGame === "card_reaction"}
         rankedAttemptsRemaining={lessonGame.rankedAttemptsRemaining}
       />
@@ -172,7 +176,7 @@ export function SpeedTestArena({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link href={backHref} className="rounded-2xl bg-white/90 px-5 py-3 font-black text-[#10243e] shadow-lg">← Quay lại</Link>
           <div className="flex flex-wrap gap-2">
-            <Link href="/bang-xep-hang?board=typing_sprint" className="rounded-2xl border border-amber-200 bg-amber-300 px-5 py-3 font-black text-amber-950 shadow-lg">♛ Đấu xếp hạng</Link>
+            <Link href="/bang-xep-hang?board=typing_sprint" className="rounded-2xl border border-amber-200 bg-amber-300 px-5 py-3 font-black text-amber-950 shadow-lg">♛ Bảng xếp hạng</Link>
             <Link href="/speed-test/lich-su" className="rounded-2xl border border-white/25 bg-white/10 px-5 py-3 font-black backdrop-blur">🏆 Thành tích</Link>
           </div>
         </div>

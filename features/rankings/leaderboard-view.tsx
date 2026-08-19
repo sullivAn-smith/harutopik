@@ -64,29 +64,30 @@ function LeaderboardHero({
   periodLabel: string;
 }) {
   return (
-    <header className="relative rounded-[1.75rem] border border-slate-200/80 bg-white/80 px-5 py-5 shadow-[0_16px_42px_rgba(15,43,76,.08)] sm:px-8 sm:py-6">
+    <header className="relative overflow-hidden rounded-[1.75rem] border border-sky-300/20 bg-[radial-gradient(circle_at_72%_-25%,rgba(34,211,238,.28),transparent_38%),linear-gradient(125deg,#0b2340_0%,#0c4f7f_58%,#087eba_100%)] px-5 py-4 text-white shadow-[0_22px_54px_rgba(8,70,120,.2)] sm:px-8">
+      <span aria-hidden="true" className="absolute -bottom-20 -left-12 h-44 w-44 rounded-full border-[28px] border-white/5" />
       <div className="flex items-center justify-between gap-3">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-sm font-black text-[#38506d] transition hover:-translate-y-0.5 hover:border-sky-200 hover:text-[#087eba]"
+          className="relative inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-2 text-sm font-black text-white shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/18"
         >
           <span aria-hidden="true">←</span>
           Trang chủ
         </Link>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-black text-amber-800">
+        <span className="relative inline-flex items-center gap-1.5 rounded-full border border-amber-200/70 bg-amber-100/95 px-3 py-2 text-xs font-black text-amber-900 shadow-sm">
           <span aria-hidden="true">🔥</span>
           {periodLabel}
         </span>
       </div>
 
-      <div className="mx-auto mt-5 max-w-2xl text-center">
-        <p className="text-[.68rem] font-black uppercase tracking-[.24em] text-[#087eba]">
+      <div className="mx-auto -mt-1 max-w-2xl text-center sm:-mt-3">
+        <p className="text-[.68rem] font-black uppercase tracking-[.28em] text-cyan-200">
           Harutopik League
         </p>
-        <h1 className="mt-2 text-4xl font-black tracking-[-.045em] text-[#10243e] sm:text-5xl">
+        <h1 className="mt-1 text-3xl font-black tracking-[-.045em] text-white sm:text-4xl">
           Bảng xếp hạng
         </h1>
-        <p className="mt-2 text-sm font-semibold leading-6 text-[#66758a] sm:text-base">
+        <p className="mt-1 text-sm font-semibold leading-5 text-blue-100 sm:text-base">
           Ghi nhận thành tích nổi bật và duy trì động lực học tiếng Hàn mỗi ngày.
         </p>
       </div>
@@ -98,7 +99,7 @@ function LeaderboardTabs({ board }: { board: LeaderboardBoard }) {
   return (
     <nav
       aria-label="Loại bảng xếp hạng"
-      className="mt-4 flex gap-1.5 overflow-x-auto rounded-2xl border border-slate-200/80 bg-white/80 p-1.5 shadow-[0_10px_26px_rgba(16,36,62,.06)] sm:justify-center"
+      className="mt-4 flex gap-1.5 overflow-x-auto rounded-2xl border border-white/80 bg-white/72 p-1.5 shadow-[0_12px_30px_rgba(8,70,120,.09)] backdrop-blur-xl sm:justify-center"
     >
       {leaderboardBoards.map((item) => {
         const active = board === item.key;
@@ -109,8 +110,8 @@ function LeaderboardTabs({ board }: { board: LeaderboardBoard }) {
             aria-current={active ? "page" : undefined}
             className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-black transition duration-200 ${
               active
-                ? "bg-[#087eba] text-white shadow-[0_6px_16px_rgba(8,126,186,.22)]"
-                : "text-[#59697e] hover:bg-slate-50 hover:text-[#10243e]"
+                ? "bg-gradient-to-r from-[#075f98] to-[#12a4d3] text-white shadow-[0_8px_20px_rgba(8,126,186,.26)]"
+                : "text-[#52667f] hover:bg-sky-50/90 hover:text-[#075f98]"
             }`}
           >
             <span aria-hidden="true">{item.icon}</span>
@@ -142,24 +143,26 @@ function PodiumMember({
   place: 1 | 2 | 3;
 }) {
   const featured = place === 1;
+  const score = displayLeaderboardScore(board, entry);
+  const showDetail = entry.detail.trim() !== score;
   const styles = {
     1: {
-      card: "order-1 col-span-2 min-h-[18rem] border-amber-200 bg-[radial-gradient(circle_at_50%_0%,rgba(253,230,138,.72),transparent_54%),linear-gradient(180deg,#fffdf4,#fff)] shadow-[0_20px_46px_rgba(190,130,16,.15)] md:order-2 md:col-span-1 md:-translate-y-4",
-      avatar: "bg-gradient-to-br from-amber-200 via-yellow-50 to-amber-400 p-1.5 shadow-[0_10px_24px_rgba(190,130,16,.22)]",
+      card: "order-1 col-span-2 min-h-[13rem] border-amber-200 bg-[radial-gradient(circle_at_50%_0%,rgba(253,230,138,.72),transparent_58%),linear-gradient(180deg,#fffdf4,#fff)] shadow-[0_16px_34px_rgba(190,130,16,.14)] md:order-2 md:col-span-1 md:-translate-y-2",
+      avatar: "bg-gradient-to-br from-amber-200 via-yellow-50 to-amber-400 p-1 shadow-[0_8px_18px_rgba(190,130,16,.2)]",
       label: "bg-amber-100 text-amber-900",
       score: "border-amber-100 bg-white/80",
       floor: "bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300",
     },
     2: {
-      card: "order-2 min-h-[14rem] border-slate-200 bg-[radial-gradient(circle_at_50%_0%,rgba(226,232,240,.72),transparent_55%),linear-gradient(180deg,#f8fafc,#fff)] md:order-1 md:mb-5",
-      avatar: "bg-gradient-to-br from-slate-200 via-white to-slate-400 p-1 shadow-[0_8px_18px_rgba(71,85,105,.14)]",
+      card: "order-2 min-h-[11.5rem] border-slate-200 bg-[radial-gradient(circle_at_50%_0%,rgba(226,232,240,.72),transparent_58%),linear-gradient(180deg,#f8fafc,#fff)] md:order-1 md:mb-1",
+      avatar: "bg-gradient-to-br from-slate-200 via-white to-slate-400 p-0.5 shadow-[0_6px_14px_rgba(71,85,105,.14)]",
       label: "bg-slate-100 text-slate-700",
       score: "border-slate-100 bg-white/80",
       floor: "bg-gradient-to-r from-slate-300 via-slate-400 to-slate-300",
     },
     3: {
-      card: "order-3 min-h-[13rem] border-orange-200 bg-[radial-gradient(circle_at_50%_0%,rgba(254,215,170,.68),transparent_55%),linear-gradient(180deg,#fff7ed,#fff)] md:mb-2",
-      avatar: "bg-gradient-to-br from-orange-200 via-orange-50 to-orange-400 p-1 shadow-[0_8px_18px_rgba(194,65,12,.15)]",
+      card: "order-3 min-h-[11.5rem] border-orange-200 bg-[radial-gradient(circle_at_50%_0%,rgba(254,215,170,.68),transparent_58%),linear-gradient(180deg,#fff7ed,#fff)]",
+      avatar: "bg-gradient-to-br from-orange-200 via-orange-50 to-orange-400 p-0.5 shadow-[0_6px_14px_rgba(194,65,12,.15)]",
       label: "bg-orange-100 text-orange-800",
       score: "border-orange-100 bg-white/80",
       floor: "bg-gradient-to-r from-orange-300 via-orange-400 to-orange-300",
@@ -170,14 +173,14 @@ function PodiumMember({
 
   return (
     <article
-      className={`relative flex flex-col items-center justify-center overflow-hidden rounded-[1.5rem] border px-4 py-5 text-center sm:px-5 ${styles[place].card}`}
+      className={`relative flex flex-col items-center justify-center overflow-hidden rounded-[1.35rem] border px-3 py-4 text-center ${styles[place].card}`}
     >
       <span
         aria-hidden="true"
         className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-white/55 blur-2xl"
       />
       <span
-        className={`absolute left-4 top-4 grid h-8 w-8 place-items-center rounded-full text-lg ${
+        className={`absolute left-3 top-3 grid h-7 w-7 place-items-center rounded-full text-base ${
           place === 1
             ? "bg-amber-100"
             : place === 2
@@ -191,7 +194,7 @@ function PodiumMember({
       {place === 1 && (
         <span
           aria-hidden="true"
-          className="absolute right-4 top-4 text-xl text-amber-500"
+          className="absolute right-3 top-3 text-lg text-amber-500"
         >
           ♛
         </span>
@@ -200,28 +203,26 @@ function PodiumMember({
         <LeaderboardAvatar
           avatarUrl={entry.avatarUrl}
           displayName={entry.displayName}
-          size={featured ? "champion" : "podium"}
+          size={featured ? "podium" : "row"}
         />
       </div>
-      <span className={`mt-3 rounded-full px-2.5 py-1 text-[.65rem] font-black uppercase tracking-[.12em] ${styles[place].label}`}>
+      <span className={`mt-2 rounded-full px-2.5 py-0.5 text-[.62rem] font-black uppercase tracking-[.12em] ${styles[place].label}`}>
         {title}
       </span>
-      <h3 className="mt-2 max-w-full truncate text-base font-black text-[#10243e] sm:text-lg">
+      <h3 className="mt-1.5 max-w-full truncate text-base font-black text-[#10243e]">
         {entry.displayName}
       </h3>
-      <div className={`mt-3 rounded-2xl border px-4 py-2 ${styles[place].score}`}>
+      <div className={`mt-2 rounded-xl border px-3 py-1.5 ${styles[place].score}`}>
         <strong
           className={`block font-black tracking-tight ${
             featured
-              ? "text-3xl text-[#087eba]"
-              : "text-2xl text-[#245d93]"
+              ? "text-2xl text-[#087eba]"
+              : "text-xl text-[#245d93]"
           }`}
         >
-          {displayLeaderboardScore(board, entry)}
+          {score}
         </strong>
-        <span className="mt-0.5 block text-xs font-bold text-[#708095]">
-          {entry.detail}
-        </span>
+        {showDetail && <span className="mt-0.5 block max-w-48 truncate text-[.68rem] font-bold text-[#708095]">{entry.detail}</span>}
       </div>
       <span
         aria-hidden="true"
@@ -243,20 +244,20 @@ function TopThreePodium({
   return (
     <section
       aria-labelledby="leaderboard-podium-title"
-      className="rounded-[1.75rem] border border-slate-200/90 bg-white/90 p-4 shadow-[0_18px_42px_rgba(16,36,62,.08)] sm:p-6"
+      className="rounded-[1.5rem] border border-white/90 bg-white/82 p-4 shadow-[0_18px_46px_rgba(8,70,120,.1)] backdrop-blur-xl"
     >
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs font-black uppercase tracking-[.18em] text-[#087eba]">
             Top 3
           </p>
           <h2
             id="leaderboard-podium-title"
-            className="mt-1 text-2xl font-black tracking-tight text-[#10243e] sm:text-3xl"
+            className="mt-0.5 text-xl font-black tracking-tight text-[#10243e] sm:text-2xl"
           >
             {leaderboard.title}
           </h2>
-          <p className="mt-1 max-w-2xl text-sm font-semibold leading-6 text-[#64748b]">
+          <p className="mt-0.5 max-w-2xl text-sm font-semibold leading-5 text-[#64748b]">
             {leaderboard.subtitle}
           </p>
         </div>
@@ -264,7 +265,7 @@ function TopThreePodium({
       </div>
 
       {podium.length > 0 ? (
-        <div className="mt-6 grid grid-cols-2 items-end gap-3 md:mt-8 md:grid-cols-3 md:gap-4">
+        <div className="mt-4 grid grid-cols-2 items-end gap-3 md:grid-cols-3">
           {podium[1] && (
             <PodiumMember board={board} entry={podium[1]} place={2} />
           )}
@@ -294,15 +295,12 @@ function RankingTable({
   periodLabel: string;
 }) {
   const detailLabel = detailColumnLabel(board);
-  const showTrend = board !== "exam";
-  const desktopColumns = showTrend
-    ? "md:grid-cols-[3rem_minmax(13rem,1fr)_minmax(8rem,.7fr)_minmax(8rem,.7fr)_minmax(7rem,.55fr)]"
-    : "md:grid-cols-[3rem_minmax(13rem,1fr)_minmax(8rem,.7fr)_minmax(8rem,.7fr)]";
+  const desktopColumns = "md:grid-cols-[3rem_minmax(13rem,1fr)_minmax(8rem,.7fr)_minmax(8rem,.7fr)]";
 
   return (
     <section
       aria-labelledby="leaderboard-table-title"
-      className="mt-5 overflow-hidden rounded-[1.75rem] border border-slate-200/90 bg-white/90 shadow-[0_18px_42px_rgba(16,36,62,.08)]"
+      className="mt-5 overflow-hidden rounded-[1.75rem] border border-white/90 bg-white/84 shadow-[0_18px_46px_rgba(8,70,120,.1)] backdrop-blur-xl"
     >
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:px-6">
         <div>
@@ -326,7 +324,6 @@ function RankingTable({
             <span>Người học</span>
             <span className="text-right">Điểm trung bình</span>
             <span className="text-right">{detailLabel}</span>
-            {showTrend && <span className="text-right">Xu hướng</span>}
           </div>
           <div>
             {entries.map((entry) => {
@@ -378,11 +375,6 @@ function RankingTable({
                   <span className="hidden text-right text-sm font-bold text-[#617087] md:block">
                     {entry.detail}
                   </span>
-                  {showTrend && (
-                    <span className="hidden text-right text-xs font-bold text-slate-400 md:block">
-                      — Chưa có dữ liệu
-                    </span>
-                  )}
                 </article>
               );
             })}
@@ -459,25 +451,25 @@ export function LeaderboardView({
     : null;
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[linear-gradient(105deg,#edf9ff_0%,#ffffff_48%,#fff9e9_100%)] px-4 py-5 text-[#10243e] sm:px-6 sm:py-7">
+    <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_8%_12%,rgba(56,189,248,.16),transparent_28rem),radial-gradient(circle_at_92%_18%,rgba(251,191,36,.13),transparent_26rem),linear-gradient(135deg,#edf8ff_0%,#f8fbff_48%,#fff8ea_100%)] px-4 py-5 text-[#10243e] sm:px-6 sm:py-7">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 opacity-40 [background-image:linear-gradient(rgba(8,126,186,.045)_1px,transparent_1px),linear-gradient(90deg,rgba(8,126,186,.045)_1px,transparent_1px)] [background-size:34px_34px]"
+        className="pointer-events-none absolute inset-0 opacity-35 [background-image:linear-gradient(rgba(8,126,186,.055)_1px,transparent_1px),linear-gradient(90deg,rgba(8,126,186,.055)_1px,transparent_1px)] [background-size:36px_36px]"
       />
       <div className="relative mx-auto max-w-6xl">
         <LeaderboardHero periodLabel={leaderboard.periodLabel} />
         <LeaderboardTabs board={board} />
 
         <div className="mt-5 flex items-center justify-between gap-3">
-          <p className="text-sm font-bold text-[#6b7a8e]">
-            Thành tích được cập nhật theo chu kỳ xếp hạng hiện tại.
+          <p className="text-sm font-bold text-[#526b86]">
+            Mỗi lượt chơi được cập nhật ngay và hệ thống giữ thành tích tốt nhất trong tuần.
           </p>
           {speedGame && (
             <Link
-              href={`/speed-test?game=${rankedSpeedGameDetails[speedGame].query}&ranked=1`}
+              href={`/speed-test?game=${rankedSpeedGameDetails[speedGame].query}`}
               className="hidden shrink-0 rounded-xl bg-[#10243e] px-4 py-2.5 text-sm font-black text-white shadow-[0_10px_22px_rgba(16,36,62,.16)] transition hover:-translate-y-0.5 hover:bg-[#087eba] sm:inline-flex"
             >
-              Chơi xếp hạng
+              Chọn bài để chơi
             </Link>
           )}
         </div>
@@ -488,10 +480,10 @@ export function LeaderboardView({
           )}
           {speedGame && (
             <Link
-              href={`/speed-test?game=${rankedSpeedGameDetails[speedGame].query}&ranked=1`}
+              href={`/speed-test?game=${rankedSpeedGameDetails[speedGame].query}`}
               className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-[#10243e] px-4 py-3 text-sm font-black text-white shadow-[0_10px_22px_rgba(16,36,62,.16)] sm:hidden"
             >
-              Chơi xếp hạng
+              Chọn bài để chơi
             </Link>
           )}
           <RankingTable
@@ -503,7 +495,7 @@ export function LeaderboardView({
         </div>
 
         <p className="mt-5 text-center text-xs font-semibold text-[#7b8797]">
-          ⓘ Bảng xếp hạng được cập nhật liên tục theo chu kỳ của từng hạng mục.
+          ⓘ Bảng cập nhật hằng ngày và làm mới mỗi tuần.
         </p>
 
         {leaderboard.currentUserEntry &&

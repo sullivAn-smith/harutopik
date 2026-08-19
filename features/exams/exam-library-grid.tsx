@@ -10,6 +10,7 @@ type LevelFilter = "all" | "topik_i" | "topik_ii";
 type ExamLibraryGridProps = {
   exams: ExamSummary[];
   history: ExamHistorySummary[];
+  historyPending?: boolean;
 };
 
 const filters: Array<{ value: LevelFilter; label: string }> = [
@@ -31,7 +32,7 @@ function clampScore(score: number, maximum: number) {
   return Math.min(100, Math.max(0, (score / maximum) * 100));
 }
 
-export function ExamLibraryGrid({ exams, history }: ExamLibraryGridProps) {
+export function ExamLibraryGrid({ exams, history, historyPending = false }: ExamLibraryGridProps) {
   const [level, setLevel] = useState<LevelFilter>("all");
   const [query, setQuery] = useState("");
   const historyByExam = useMemo(
@@ -147,7 +148,11 @@ export function ExamLibraryGrid({ exams, history }: ExamLibraryGridProps) {
               </div>
 
               <div className="mt-auto pt-6">
-                {best ? (
+                {historyPending ? (
+                  <div className="flex min-h-[3.25rem] animate-pulse items-center rounded-2xl bg-slate-50 px-4" aria-label="Đang tải điểm cao nhất">
+                    <span className="h-4 w-32 rounded-full bg-slate-200" />
+                  </div>
+                ) : best ? (
                   <div aria-label={`Điểm cao nhất ${best.best_score} trên ${best.best_max_score}`}>
                     <div className="flex items-end justify-between gap-3 text-sm">
                       <span className="font-bold text-slate-500">Điểm cao nhất</span>

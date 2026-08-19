@@ -15,10 +15,12 @@ const coverTheme = {
   "3": "from-[#ffbd20] via-[#f5a607] to-[#dc8500]",
 } as const;
 
-export function CurriculumSeriesCover({ series, priority = false, compact = false }: {
+export function CurriculumSeriesCover({ series, priority = false, compact = false, showAction = true, showCopy = true }: {
   series: CurriculumSeriesDefinition;
   priority?: boolean;
   compact?: boolean;
+  showAction?: boolean;
+  showCopy?: boolean;
 }) {
   const copy = coverCopy[series.id];
 
@@ -46,12 +48,12 @@ export function CurriculumSeriesCover({ series, priority = false, compact = fals
         </span>
       )}
 
-      <span className={`absolute left-[11%] top-[8%] z-30 flex flex-col items-start text-left drop-shadow-[0_3px_7px_rgba(16,36,62,.2)] ${compact ? "gap-0" : "gap-1"}`}>
+      {showCopy && <span className={`absolute left-[11%] top-[8%] z-30 flex flex-col items-start text-left drop-shadow-[0_3px_7px_rgba(16,36,62,.2)] ${compact ? "gap-0" : "gap-1"}`}>
         <span className={`font-black uppercase tracking-[.17em] text-white/95 ${compact ? "text-[clamp(.55rem,1vw,.8rem)]" : "text-[clamp(.65rem,1.4vw,.95rem)]"}`}>Bộ sách</span>
         <strong className={`mt-1 font-black leading-none text-white ${compact ? "text-[clamp(2.4rem,5vw,4.1rem)]" : "text-[clamp(3rem,7vw,5.2rem)]"}`}>{series.id}</strong>
-      </span>
+      </span>}
 
-      {series.id === "1" ? (
+      {showCopy && (series.id === "1" ? (
         <span className={`absolute z-20 grid aspect-square place-items-center rounded-full bg-[#f8fbff] text-center text-[#071744] shadow-[0_0_0_7px_rgba(255,255,255,.18),0_12px_28px_rgba(4,37,79,.28)] ${compact ? "bottom-[12%] right-[8%] w-[43%]" : "bottom-[12%] right-[9%] w-[62%]"}`}>
           <span>
             <strong className={`block font-black leading-none ${compact ? "text-[clamp(1.35rem,3vw,2.35rem)]" : "text-[clamp(1.8rem,4.5vw,3.2rem)]"}`}>{copy.title}</strong>
@@ -63,9 +65,9 @@ export function CurriculumSeriesCover({ series, priority = false, compact = fals
           <strong className={`block whitespace-nowrap leading-tight ${compact ? "text-[clamp(.9rem,2vw,1.45rem)]" : "text-[clamp(1.1rem,3vw,2rem)]"}`}>{copy.title}</strong>
           <span className={`mt-1 block whitespace-nowrap ${compact ? "text-[clamp(.45rem,.9vw,.72rem)]" : "text-[clamp(.58rem,1.4vw,.9rem)]"}`}>{copy.subtitle}</span>
         </span>
-      )}
+      ))}
 
-      <span className={`absolute bottom-[8%] left-[11%] z-30 rounded-full bg-white font-black shadow-[0_7px_16px_rgba(16,36,62,.2)] transition duration-300 group-hover:-translate-y-0.5 group-hover:shadow-[0_9px_20px_rgba(16,36,62,.28)] ${series.id === "1" ? "text-[#087eba]" : series.id === "2" ? "text-[#087f3c]" : "text-[#d98500]"} ${compact ? "px-3 py-1.5 text-[clamp(.5rem,.95vw,.75rem)]" : "px-4 py-2 text-[clamp(.65rem,1.4vw,.95rem)]"}`}>HỌC NGAY</span>
+      {showAction && <span className={`absolute bottom-[8%] left-[11%] z-30 rounded-full bg-white font-black shadow-[0_7px_16px_rgba(16,36,62,.2)] transition duration-300 group-hover:-translate-y-0.5 group-hover:shadow-[0_9px_20px_rgba(16,36,62,.28)] ${series.id === "1" ? "text-[#087eba]" : series.id === "2" ? "text-[#087f3c]" : "text-[#d98500]"} ${compact ? "px-3 py-1.5 text-[clamp(.5rem,.95vw,.75rem)]" : "px-4 py-2 text-[clamp(.65rem,1.4vw,.95rem)]"}`}>HỌC NGAY</span>}
 
       <span aria-hidden="true" className="pointer-events-none absolute inset-y-[-25%] left-[-65%] z-40 w-[38%] rotate-[18deg] bg-gradient-to-r from-transparent via-white/55 to-transparent blur-[1px] transition-transform duration-700 ease-out group-hover:translate-x-[450%] group-focus-visible:translate-x-[450%] motion-reduce:hidden" />
       <span aria-hidden="true" className="pointer-events-none absolute inset-0 z-30 bg-gradient-to-b from-white/12 via-transparent to-[#10243e]/10" />

@@ -1,11 +1,12 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { getCurrentActor } from "@/lib/auth/authorize";
+import { getCurrentUser } from "@/lib/auth/authorize";
 import { getExamAttempt } from "@/lib/data/exams";
 import { examAttemptModeLabel, examAttemptModeSchema } from "@/lib/exams/attempt-mode";
 import { ExamResultHighlights } from "@/features/exams/exam-result-highlights";
 import { ExamResultAudioPlayer } from "@/features/exams/exam-result-audio-player";
+import { ExamResultExplanationDialog } from "@/features/exams/exam-result-explanation-dialog";
 
 type ResultHighlight = {
   id: string;
@@ -21,14 +22,14 @@ export default async function ExamResultPage({
   params: Promise<{ examId: string }>;
   searchParams: Promise<{ attempt?: string; section?: string; filter?: string }>;
 }) {
-  const [{ examId }, query, actor] = await Promise.all([
+  const [{ examId }, query, user] = await Promise.all([
     params,
     searchParams,
-    getCurrentActor(),
+    getCurrentUser(),
   ]);
-  if (!actor) redirect(`/dang-nhap?next=${encodeURIComponent(`/luyen-de/${examId}`)}`);
+  if (!user) redirect(`/dang-nhap?next=${encodeURIComponent(`/luyen-de/${examId}`)}`);
   if (!query.attempt) notFound();
-  const attempt = await getExamAttempt(query.attempt, actor.id);
+  const attempt = await getExamAttempt(query.attempt, user.id);
   if (!attempt || attempt.exam_id !== examId || attempt.status === "in_progress") notFound();
 
   const answers = (attempt.answers ?? {}) as Record<string, number>;
@@ -76,7 +77,7 @@ export default async function ExamResultPage({
   return (
     <main className="min-h-screen bg-slate-100 text-[#10243e]">
       <div className="mx-auto max-w-5xl px-5 py-10">
-        <Link href={`/luyen-de/${examId}/lich-su`} className="font-black text-[#087eba]">← Lịch sử đề này</Link>
+        <Link href="/luyen-de" className="font-black text-[#087eba]">← Danh sách đề</Link>
         <section className="mt-6 rounded-[2rem] bg-white p-8 shadow-2xl">
           <p className="text-xs font-black uppercase tracking-[.2em] text-emerald-600">Đã hoàn thành · {examAttemptModeLabel(attemptMode)}</p>
           <h1 className="mt-2 text-4xl font-black">Kết quả bài thi</h1>
@@ -128,11 +129,10 @@ export default async function ExamResultPage({
                 const options = Array.isArray(question.options) ? question.options.map(String) : [];
                 const optionImages = Array.isArray(question.option_images) ? question.option_images.map(String) : [];
                 const displayPosition = Number(question.position) + (activeSection === "reading" ? readingOffset : 0);
-                return (
-                  <details key={id} open={status !== "correct"} className={`group rounded-2xl border bg-white shadow-sm ${status === "correct" ? "border-emerald-200" : "border-red-200"}`}>
-                    <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5"><div><h3 className="font-black">Câu {displayPosition}</h3><p className="mt-1 text-sm font-semibold text-slate-500">Bạn chọn: {selected ? `${selected}. ${options[selected - 1] ?? ""}` : "Chưa trả lời"} · Đáp án: {correct}</p></div><div className="flex items-center gap-3"><span className={`rounded-full px-3 py-1 text-xs font-black ${status === "correct" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>{status === "correct" ? "Đúng" : status === "wrong" ? "Sai" : "Bỏ trống"}</span><span className="text-slate-400 transition group-open:rotate-180">⌄</span></div></summary>
-                    <div className="border-t border-slate-100 px-5 pb-6 pt-5">
-                    {instruction && <p className="font-black text-slate-700">{instruction}</p>}{prompt && <p className="mt-2 text-lg font-semibold">{prompt}</p>}
+                const questionContent = (
+                  <>
+                    {instruction && <p className="font-black text-slate-700">{instruction}</p>}
+                    {prompt && <p className="mt-2 text-lg font-semibold">{prompt}</p>}
                     {passage && <p className="mt-4 whitespace-pre-wrap rounded-2xl bg-slate-50 p-5 font-semibold leading-8">{passage}</p>}
                     {audioUrl && <ExamResultAudioPlayer src={audioUrl} questionNumber={displayPosition} />}
                     {imageUrl && <Image unoptimized src={imageUrl} alt={`Ngữ liệu câu ${displayPosition}`} width={640} height={480} className="mt-4 aspect-[4/3] w-full max-w-[420px] border border-slate-200 object-cover" />}
@@ -145,9 +145,29 @@ export default async function ExamResultPage({
                         ))}
                       </div>
                     )}
+                  </>
+                );
+                return (
+                  <details key={id} open={status !== "correct"} className={`group rounded-2xl border bg-white shadow-sm ${status === "correct" ? "border-emerald-200" : "border-red-200"}`}>
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5"><div><h3 className="font-black">Câu {displayPosition}</h3><p className="mt-1 text-sm font-semibold text-slate-500">Bạn chọn: {selected ? `${selected}. ${options[selected - 1] ?? ""}` : "Chưa trả lời"} · Đáp án: {correct}</p></div><div className="flex items-center gap-3"><span className={`rounded-full px-3 py-1 text-xs font-black ${status === "correct" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>{status === "correct" ? "Đúng" : status === "wrong" ? "Sai" : "Bỏ trống"}</span><span className="text-slate-400 transition group-open:rotate-180">⌄</span></div></summary>
+                    <div className="border-t border-slate-100 px-5 pb-6 pt-5">
+                    {questionContent}
                     <p className="mt-2 font-semibold text-slate-600">Bạn chọn: {selected ? `${selected}. ${options[selected - 1] ?? ""}` : "Chưa trả lời"}</p>
                     <p className="mt-1 font-bold text-emerald-700">Đáp án: {correct}. {options[correct - 1] ?? ""}</p>
-                    {explanation && <div className="mt-4 rounded-2xl bg-amber-50 p-4"><p className="text-xs font-black uppercase tracking-widest text-amber-700">Giải thích</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{explanation}</p></div>}
+                    {explanation && (
+                      <ExamResultExplanationDialog
+                        explanation={explanation}
+                        questionNumber={displayPosition}
+                      >
+                        {questionContent}
+                        <p className="mt-4 font-semibold text-slate-600">
+                          Bạn chọn: {selected ? `${selected}. ${options[selected - 1] ?? ""}` : "Chưa trả lời"}
+                        </p>
+                        <p className="mt-1 font-bold text-emerald-700">
+                          Đáp án: {correct}. {options[correct - 1] ?? ""}
+                        </p>
+                      </ExamResultExplanationDialog>
+                    )}
                     </div>
                   </details>
                 );

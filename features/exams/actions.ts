@@ -1,15 +1,16 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { requirePermission, getCurrentActor } from "@/lib/auth/authorize";
-import { buildExamAttemptPlan, examAttemptModeSchema } from "@/lib/exams/attempt-mode";
+import { getCurrentUser, requirePermission } from "@/lib/auth/authorize";
+import { buildExamAttemptPlan, examAttemptModeSchema, type ExamAttemptMode } from "@/lib/exams/attempt-mode";
 import { canManageExam } from "@/lib/exams/access";
 import { examDraftSchema, examLevelSchema, formatExamValidationError } from "@/lib/exams/types";
 import { withErrorMessage } from "@/lib/navigation/redirect-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { publishedExamsCacheTag } from "@/lib/data/exams";
 
 function text(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -296,6 +297,7 @@ export async function publishExam(formData: FormData) {
   const supabase = await createClient();
   const { error } = await supabase.rpc("publish_exam", { p_exam_id: examId });
   if (error) redirect(withErrorMessage(`/quan-tri/de-thi/${examId}`, message(error)));
+  updateTag(publishedExamsCacheTag);
   revalidatePath("/luyen-de");
   revalidatePath(`/luyen-de/${examId}`);
   redirect("/quan-tri/de-thi?published=1");
@@ -308,6 +310,7 @@ export async function changeExamRelease(formData: FormData) {
   const supabase = await createClient();
   const { error } = await supabase.rpc("change_exam_release", { p_exam_id: examId, p_action: action });
   if (error) redirect(withErrorMessage(`/quan-tri/de-thi/${examId}`, message(error)));
+  updateTag(publishedExamsCacheTag);
   revalidatePath("/bien-tap/de-thi");
   revalidatePath(`/bien-tap/de-thi/${examId}`);
   revalidatePath(`/bien-tap/de-thi/${examId}/xem-truoc`);
@@ -318,21 +321,26 @@ export async function changeExamRelease(formData: FormData) {
   redirect("/quan-tri/de-thi?reviewed=1");
 }
 
-export async function startExam(formData: FormData) {
-  const actor = await getCurrentActor();
-  const examId = text(formData, "examId");
-  if (!actor) redirect(`/dang-nhap?next=${encodeURIComponent(`/luyen-de/${examId}`)}`);
-  const parsedMode = examAttemptModeSchema.safeParse(text(formData, "attemptMode"));
-  if (!parsedMode.success) redirect(withErrorMessage(`/luyen-de/${examId}`, "Hãy chọn một chế độ thi hợp lệ."));
+async function startExamWithoutRpc(examId: string, attemptMode: ExamAttemptMode) {
+  const user = await getCurrentUser();
+  if (!user) redirect(`/dang-nhap?next=${encodeURIComponent(`/luyen-de/${examId}`)}`);
+
   const admin = createAdminClient();
-  const { data: exam } = await admin.from("exam_sets").select("id,status,version,listening_duration_minutes,reading_duration_minutes,exam_questions(id,position,section,audio_block_key,reading_type,passage_block_key,passage,answer_type,instruction,prompt,audio_url,audio_text,image_url,play_limit,options,option_images,correct_option,explanation)").eq("id", examId).eq("status", "published").maybeSingle();
+  const { data: exam } = await admin.from("exam_sets")
+    .select("id,status,version,listening_duration_minutes,reading_duration_minutes,exam_questions(id,position,section,audio_block_key,reading_type,passage_block_key,passage,answer_type,instruction,prompt,audio_url,audio_text,image_url,play_limit,options,option_images,correct_option,explanation)")
+    .eq("id", examId)
+    .eq("status", "published")
+    .maybeSingle();
   if (!exam || !exam.exam_questions?.length) redirect(withErrorMessage("/luyen-de", "Đề thi chưa sẵn sàng."));
-  if (!exam.exam_questions.some((question) => question.section === "listening") || !exam.exam_questions.some((question) => question.section === "reading")) redirect(withErrorMessage("/luyen-de", "Đề thi chưa có đủ phần Nghe và Đọc."));
+  if (!exam.exam_questions.some((question) => question.section === "listening") || !exam.exam_questions.some((question) => question.section === "reading")) {
+    redirect(withErrorMessage("/luyen-de", "Đề thi chưa có đủ phần Nghe và Đọc."));
+  }
+
   const { data: activeAttempt } = await admin.from("exam_attempts")
-    .select("id,expires_at,exam_version")
+    .select("id,exam_version")
     .eq("exam_id", examId)
-    .eq("user_id", actor.id)
-    .eq("attempt_mode", parsedMode.data)
+    .eq("user_id", user.id)
+    .eq("attempt_mode", attemptMode)
     .eq("status", "in_progress")
     .gt("expires_at", new Date().toISOString())
     .order("started_at", { ascending: false })
@@ -340,29 +348,55 @@ export async function startExam(formData: FormData) {
     .maybeSingle();
   if (activeAttempt && activeAttempt.exam_version === exam.version) redirect(`/luyen-de/${examId}/lam-bai?attempt=${activeAttempt.id}`);
   if (activeAttempt) {
-    const staleAttemptId = activeAttempt.id;
-    await admin.from("exam_attempts").update({ status: "expired", expires_at: new Date().toISOString() }).eq("id", staleAttemptId).eq("user_id", actor.id);
+    await admin.from("exam_attempts")
+      .update({ status: "expired", expires_at: new Date().toISOString() })
+      .eq("id", activeAttempt.id)
+      .eq("user_id", user.id);
   }
+
   const plan = buildExamAttemptPlan({
-    mode: parsedMode.data,
+    mode: attemptMode,
     listeningDurationMinutes: exam.listening_duration_minutes,
     readingDurationMinutes: exam.reading_duration_minutes,
     questions: exam.exam_questions,
   });
   if (!plan.questions.length) redirect(withErrorMessage(`/luyen-de/${examId}`, "Đề chưa có câu hỏi cho chế độ bạn chọn."));
-  const now = Date.now();
-  const expiresAt = new Date(now + plan.durationMinutes * 60_000).toISOString();
-  const { data, error } = await admin.from("exam_attempts").insert({
-    exam_id: examId, user_id: actor.id,
-    attempt_mode: parsedMode.data,
+
+  const expiresAt = new Date(Date.now() + plan.durationMinutes * 60_000).toISOString();
+  const { data: attempt, error } = await admin.from("exam_attempts").insert({
+    exam_id: examId,
+    user_id: user.id,
+    attempt_mode: attemptMode,
     expires_at: expiresAt,
-    listening_expires_at: parsedMode.data === "reading" ? null : expiresAt,
-    reading_expires_at: parsedMode.data === "listening" ? null : expiresAt,
+    listening_expires_at: attemptMode === "reading" ? null : expiresAt,
+    reading_expires_at: attemptMode === "listening" ? null : expiresAt,
     exam_version: exam.version,
     current_section: plan.initialSection,
     total_questions: plan.questions.length,
     question_snapshot: plan.questions,
   }).select("id").single();
   if (error) redirect(withErrorMessage("/luyen-de", "Chưa thể bắt đầu đề thi."));
-  redirect(`/luyen-de/${examId}/lam-bai?attempt=${data.id}`);
+  redirect(`/luyen-de/${examId}/lam-bai?attempt=${attempt.id}`);
+}
+
+export async function startExam(formData: FormData) {
+  const examId = text(formData, "examId");
+  const parsedMode = examAttemptModeSchema.safeParse(text(formData, "attemptMode"));
+  if (!parsedMode.success) redirect(withErrorMessage(`/luyen-de/${examId}`, "Hãy chọn một chế độ thi hợp lệ."));
+  const supabase = await createClient();
+  const { data: attemptId, error } = await supabase.rpc("start_exam_attempt", {
+    p_exam_id: examId,
+    p_attempt_mode: parsedMode.data,
+  });
+  if (error) {
+    const rpcUnavailable = error.code === "PGRST202"
+      || error.code === "42883"
+      || error.message.includes("start_exam_attempt");
+    if (rpcUnavailable) return startExamWithoutRpc(examId, parsedMode.data);
+    if (error.message.includes("AUTH_REQUIRED")) redirect(`/dang-nhap?next=${encodeURIComponent(`/luyen-de/${examId}`)}`);
+    if (error.message.includes("EXAM_NOT_READY")) redirect(withErrorMessage("/luyen-de", "Đề thi chưa sẵn sàng."));
+    if (error.message.includes("SECTION_NOT_READY")) redirect(withErrorMessage(`/luyen-de/${examId}`, "Đề chưa có câu hỏi cho chế độ bạn chọn."));
+    redirect(withErrorMessage("/luyen-de", "Chưa thể bắt đầu đề thi."));
+  }
+  redirect(`/luyen-de/${examId}/lam-bai?attempt=${attemptId}`);
 }

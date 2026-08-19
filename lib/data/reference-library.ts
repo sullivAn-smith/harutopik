@@ -1,7 +1,12 @@
 import "server-only";
 
+import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseConfig, isSupabaseConfigured } from "@/lib/supabase/config";
+
+export const referenceLibraryCacheTag = "published-reference-library";
+const referenceLibraryCacheSeconds = 86_400;
 
 export type ReferenceItem = {
   id: string;
@@ -79,7 +84,7 @@ function mapSet(row: ReferenceSetRow, items: ReferenceItemRow[]): ReferenceSet {
   };
 }
 
-export async function getPublishedReferenceSets(): Promise<ReferenceSet[]> {
+async function loadPublishedReferenceSetSummaries(): Promise<Omit<ReferenceSet, "items">[]> {
   if (!isSupabaseConfigured()) return [];
   const supabase = publicClient();
   const { data: sets, error: setsError } = await supabase
@@ -89,20 +94,50 @@ export async function getPublishedReferenceSets(): Promise<ReferenceSet[]> {
     .order("created_at");
 
   if (setsError || !sets?.length) return [];
-  const ids = (sets as ReferenceSetRow[]).map((set) => set.id);
+  return (sets as ReferenceSetRow[]).map((set) => ({
+    id: set.id,
+    slug: set.slug,
+    titleVi: set.title_vi,
+    titleKo: set.title_ko,
+    description: set.description,
+    category: set.category,
+  }));
+}
+
+const getReferenceSetSummariesAcrossRequests = unstable_cache(
+  loadPublishedReferenceSetSummaries,
+  ["published-reference-set-summaries-v1"],
+  { tags: [referenceLibraryCacheTag], revalidate: referenceLibraryCacheSeconds },
+);
+
+export const getPublishedReferenceSetSummaries = cache(
+  getReferenceSetSummariesAcrossRequests,
+);
+
+async function loadPublishedReferenceSet(slug: string): Promise<ReferenceSet | null> {
+  if (!isSupabaseConfigured()) return null;
+  const supabase = publicClient();
+  const { data: set, error: setError } = await supabase
+    .from("reference_sets")
+    .select("id,slug,title_vi,title_ko,description,category")
+    .eq("status", "published")
+    .eq("slug", slug)
+    .maybeSingle();
+  if (setError || !set) return null;
   const { data: items, error: itemsError } = await supabase
     .from("reference_items")
     .select("id,reference_set_id,value_label,korean,romanization,note_vi,short_form,audio_url,group_key,order_index")
-    .in("reference_set_id", ids)
+    .eq("reference_set_id", set.id)
     .order("order_index");
 
-  if (itemsError) return [];
-  return (sets as ReferenceSetRow[]).map((set) =>
-    mapSet(set, (items ?? []) as ReferenceItemRow[]),
-  );
+  if (itemsError) return null;
+  return mapSet(set as ReferenceSetRow, (items ?? []) as ReferenceItemRow[]);
 }
 
-export async function getPublishedReferenceSet(slug: string) {
-  const sets = await getPublishedReferenceSets();
-  return sets.find((set) => set.slug === slug) ?? null;
-}
+const getReferenceSetAcrossRequests = unstable_cache(
+  loadPublishedReferenceSet,
+  ["published-reference-set-v1"],
+  { tags: [referenceLibraryCacheTag], revalidate: referenceLibraryCacheSeconds },
+);
+
+export const getPublishedReferenceSet = cache(getReferenceSetAcrossRequests);

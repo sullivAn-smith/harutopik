@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Exercise, GrammarPoint } from "@/content/schema";
 import { isAcceptedAnswer } from "@/lib/learning-core/answers";
-import { SaveGrammarButton } from "@/features/grammar-lists/save-grammar-button";
 
 type FillBlankExercise = Extract<Exercise, { type: "fill-blank" }>;
 
@@ -17,7 +16,6 @@ type GrammarSectionProps = {
 };
 
 export function GrammarSection({
-  lessonId,
   grammar,
   exercises,
   onSpeak,
@@ -100,11 +98,8 @@ export function GrammarSection({
                   {item.title}
                 </p>
               </div>
-              <div className="flex items-start gap-3">
-                <div className="rounded-2xl border-2 border-blue-200 bg-white px-5 py-4 text-center text-lg font-black text-blue-900 shadow-sm">
-                  {item.formula}
-                </div>
-                <SaveGrammarButton lessonId={lessonId} item={item} />
+              <div className="rounded-2xl border-2 border-blue-200 bg-white px-5 py-4 text-center text-lg font-black text-blue-900 shadow-sm">
+                {item.formula}
               </div>
             </div>
             <p className="mt-6 text-lg leading-8 text-[#344b67]">

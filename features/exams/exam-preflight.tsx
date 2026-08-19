@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useState } from "react";
+import { useFormStatus } from "react-dom";
 import { examAttemptModeLabel, type ExamAttemptMode } from "@/lib/exams/attempt-mode";
 import { startExam } from "./actions";
 
@@ -15,6 +16,21 @@ const modes: Array<{
   { id: "reading", title: "Chỉ thi Đọc", description: "Tập trung luyện toàn bộ câu đọc", icon: "文" },
   { id: "full", title: "Thi mô phỏng", description: "Làm đầy đủ cả Nghe và Đọc", icon: "◎" },
 ];
+
+function StartExamButton({ disabled, label }: { disabled: boolean; label: string }) {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      type="submit"
+      disabled={disabled || pending}
+      aria-disabled={disabled || pending}
+      className="w-full rounded-2xl bg-[#102b5c] px-6 py-4 text-lg font-black text-white shadow-lg transition hover:bg-[#173d70] disabled:cursor-wait disabled:opacity-40"
+    >
+      {pending ? "Đang chuẩn bị đề…" : label}
+    </button>
+  );
+}
 
 export function ExamPreflight({ examId, listeningMinutes, readingMinutes, activeAttempts = [] }: {
   examId: string;
@@ -152,9 +168,10 @@ export function ExamPreflight({ examId, listeningMinutes, readingMinutes, active
       <form action={startExam} className="mt-5">
         <input type="hidden" name="examId" value={examId} />
         <input type="hidden" name="attemptMode" value={mode} />
-        <button disabled={!agreed || (needsSpeaker && !speakerChecked)} className="w-full rounded-2xl bg-[#102b5c] px-6 py-4 text-lg font-black text-white shadow-lg transition hover:bg-[#173d70] disabled:cursor-not-allowed disabled:opacity-40">
-          {resumable ? "Tiếp tục bài đang làm →" : buttonLabel}
-        </button>
+        <StartExamButton
+          disabled={!agreed || (needsSpeaker && !speakerChecked)}
+          label={resumable ? "Tiếp tục bài đang làm →" : buttonLabel}
+        />
       </form>
     </div>
   );

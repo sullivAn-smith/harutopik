@@ -1,0 +1,21 @@
+{
+  "publishedCatalog": {
+    "maxRows": 100,
+    "maxJsonBytes": 2097152
+  },
+  "publishedCatalogShells": {
+    "maxRows": 100,
+    "maxJsonBytes": 131072
+  },
+  "tables": {
+    "vocabularyItems": { "maxAverageJsonBytesPerRow": 1024 },
+    "vocabularyExamples": { "maxAverageJsonBytesPerRow": 768 },
+    "examQuestions": { "maxAverageJsonBytesPerRow": 2048 }
+  },
+  "storage": {
+    "vocabulary-images": { "maxObjectBytes": 2097152 },
+    "vocabulary-audio": { "maxObjectBytes": 65536 },
+    "exam-images": { "maxObjectBytes": 262144 },
+    "exam-audio": { "maxObjectBytes": 5242880 }
+  }
+}
