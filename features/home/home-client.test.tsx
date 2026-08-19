@@ -27,7 +27,7 @@ describe("HomeClient library navigation", () => {
     expect(screen.getByRole("link", { name: "Lộ trình" }).getAttribute("href")).toBe("/lo-trinh");
     expect(screen.queryByText("Sắp ra mắt")).toBeNull();
     expect(screen.getAllByRole("link", { name: "Bộ từ" }).some((link) => link.getAttribute("href") === "/tu-cua-toi")).toBe(true);
-    expect(screen.getByRole("link", { name: "Bộ ngữ pháp" }).getAttribute("href")).toBe("/ngu-phap-cua-toi");
+    expect(screen.queryByRole("link", { name: "Bộ ngữ pháp" })).toBeNull();
 
     expect(screen.getAllByRole("link", { name: /Mở bộ [123]/ })).toHaveLength(3);
     expect(screen.queryByRole("button", { name: /Quyển/ })).toBeNull();
