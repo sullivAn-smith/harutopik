@@ -176,16 +176,15 @@ async function getExamLeaderboard(
   const admin = createAdminClient();
   const { data: exams } = await admin
     .from("exam_sets")
-    .select("id,title,published_at")
+    .select("id")
     .eq("status", "published")
-    .order("published_at", { ascending: false, nullsFirst: false })
-    .limit(3);
+    .order("published_at", { ascending: true, nullsFirst: false });
   const examIds = (exams ?? []).map((exam) => exam.id);
   if (!examIds.length) {
     return {
       board: "exam",
       title: "Luyện đề tổng hợp",
-      subtitle: "Chỉ tính lượt làm đầy đủ cả Nghe và Đọc",
+      subtitle: "Tổng điểm tốt nhất từ tất cả đề đã hoàn thành",
       entries: [],
       currentUserEntry: null,
       periodLabel: "Chưa có đề được xếp hạng",
@@ -194,13 +193,15 @@ async function getExamLeaderboard(
   const { data } = await admin
     .from("exam_user_records")
     .select(
-      "user_id,exam_id,best_percentage,correct_count,duration_seconds,achieved_at",
+      "user_id,exam_id,best_score,max_score,best_percentage,correct_count,duration_seconds,achieved_at",
     )
     .in("exam_id", examIds);
   const byUser = new Map<
     string,
     Array<{
       best_percentage: number | string;
+      best_score: number;
+      max_score: number;
       correct_count: number;
       duration_seconds: number;
       achieved_at: string;
@@ -211,19 +212,14 @@ async function getExamLeaderboard(
     current.push(row);
     byUser.set(row.user_id, current);
   }
-  const required = examIds.length;
-  const eligible = [...byUser.entries()].filter(
-    ([, records]) => records.length === required,
-  );
-  const profiles = await safeProfiles(eligible.map(([userId]) => userId));
-  const rows = eligible.flatMap(([userId, records]) => {
+  const participants = [...byUser.entries()];
+  const profiles = await safeProfiles(participants.map(([userId]) => userId));
+  const rows = participants.flatMap(([userId, records]) => {
     const profile = profiles.get(userId);
     if (!profile) return [];
-    const average =
-      records.reduce(
-        (sum, record) => sum + Number(record.best_percentage),
-        0,
-      ) / records.length;
+    const score = records.reduce((sum, record) => sum + record.best_score, 0);
+    const maxScore = records.reduce((sum, record) => sum + record.max_score, 0);
+    const accuracy = maxScore > 0 ? score / maxScore * 100 : 0;
     const correct = records.reduce(
       (sum, record) => sum + record.correct_count,
       0,
@@ -236,10 +232,10 @@ async function getExamLeaderboard(
       userId,
       displayName: profile.display_name,
       avatarUrl: profile.avatar_url,
-      score: Math.round(average * 100),
-      accuracy: Math.round(average * 10) / 10,
+      score,
+      accuracy: Math.round(accuracy * 10) / 10,
       durationMs: duration * 1000,
-      detail: `${Math.round(average * 10) / 10}% · ${correct} câu đúng`,
+      detail: `${records.length} đề · ${correct} câu đúng · ${formatDuration(duration)}`,
       achievedAt: records
         .map((record) => record.achieved_at)
         .sort()
@@ -248,17 +244,26 @@ async function getExamLeaderboard(
   }).sort(
     (left, right) =>
       right.score - left.score ||
-      Number(right.accuracy ?? 0) - Number(left.accuracy ?? 0) ||
       Number(left.durationMs ?? 0) - Number(right.durationMs ?? 0) ||
+      Number(right.accuracy ?? 0) - Number(left.accuracy ?? 0) ||
       String(left.achievedAt).localeCompare(String(right.achievedAt)),
   );
   return {
     board: "exam",
     title: "Luyện đề tổng hợp",
-    subtitle: `Điểm trung bình tốt nhất của ${required} đề đầy đủ Nghe + Đọc gần nhất`,
-    periodLabel: `${required} đề đang xếp hạng`,
+    subtitle: "Cộng điểm tốt nhất của mọi đề; bằng điểm ưu tiên tổng thời gian thấp hơn",
+    periodLabel: `${examIds.length} đề đã phát hành`,
     ...withRanks(rows, currentUserId),
   };
+}
+
+function formatDuration(totalSeconds: number) {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return [hours, minutes, seconds]
+    .map((value) => String(value).padStart(2, "0"))
+    .join(":");
 }
 
 export async function getLeaderboard(

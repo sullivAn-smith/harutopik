@@ -40,7 +40,7 @@ export function displayLeaderboardScore(
   board: LeaderboardBoard,
   entry: LeaderboardEntry,
 ) {
-  if (board === "exam") return `${(entry.score / 100).toFixed(1)}%`;
+  if (board === "exam") return `${entry.score.toLocaleString("vi-VN")} điểm`;
   if (board === "current_streak" || board === "longest_streak") {
     return `${entry.score} ngày`;
   }
@@ -48,7 +48,7 @@ export function displayLeaderboardScore(
 }
 
 function detailColumnLabel(board: LeaderboardBoard) {
-  return board === "exam" ? "Câu đúng" : "Thành tích";
+  return board === "exam" ? "Đề · thời gian" : "Thành tích";
 }
 
 function rankPresentation(rank: number) {
@@ -322,7 +322,7 @@ function RankingTable({
           <div className={`hidden items-center gap-4 border-b border-slate-100 bg-slate-50/75 px-6 py-3 text-xs font-black uppercase tracking-[.12em] text-slate-400 md:grid ${desktopColumns}`}>
             <span>#</span>
             <span>Người học</span>
-            <span className="text-right">Điểm trung bình</span>
+            <span className="text-right">{board === "exam" ? "Tổng điểm" : "Điểm"}</span>
             <span className="text-right">{detailLabel}</span>
           </div>
           <div>
@@ -444,12 +444,6 @@ export function LeaderboardView({
   leaderboard: LeaderboardData;
   currentUserId: string;
 }) {
-  const speedGame = rankedSpeedGames.includes(
-    board as (typeof rankedSpeedGames)[number],
-  )
-    ? (board as (typeof rankedSpeedGames)[number])
-    : null;
-
   return (
     <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_8%_12%,rgba(56,189,248,.16),transparent_28rem),radial-gradient(circle_at_92%_18%,rgba(251,191,36,.13),transparent_26rem),linear-gradient(135deg,#edf8ff_0%,#f8fbff_48%,#fff8ea_100%)] px-4 py-5 text-[#10243e] sm:px-6 sm:py-7">
       <div
@@ -460,31 +454,17 @@ export function LeaderboardView({
         <LeaderboardHero periodLabel={leaderboard.periodLabel} />
         <LeaderboardTabs board={board} />
 
-        <div className="mt-5 flex items-center justify-between gap-3">
+        <div className="mt-5 flex items-center gap-3">
           <p className="text-sm font-bold text-[#526b86]">
-            Mỗi lượt chơi được cập nhật ngay và hệ thống giữ thành tích tốt nhất trong tuần.
+            {board === "exam"
+              ? "Mỗi đề lấy kết quả tốt nhất, sau đó cộng tổng điểm và tổng thời gian."
+              : "Mọi lượt chơi được tự động cập nhật; hệ thống giữ thành tích tốt nhất trong tuần."}
           </p>
-          {speedGame && (
-            <Link
-              href={`/speed-test?game=${rankedSpeedGameDetails[speedGame].query}`}
-              className="hidden shrink-0 rounded-xl bg-[#10243e] px-4 py-2.5 text-sm font-black text-white shadow-[0_10px_22px_rgba(16,36,62,.16)] transition hover:-translate-y-0.5 hover:bg-[#087eba] sm:inline-flex"
-            >
-              Chọn bài để chơi
-            </Link>
-          )}
         </div>
 
         <div className="mt-5">
           {leaderboard.entries.length > 0 && (
             <TopThreePodium board={board} leaderboard={leaderboard} />
-          )}
-          {speedGame && (
-            <Link
-              href={`/speed-test?game=${rankedSpeedGameDetails[speedGame].query}`}
-              className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-[#10243e] px-4 py-3 text-sm font-black text-white shadow-[0_10px_22px_rgba(16,36,62,.16)] sm:hidden"
-            >
-              Chọn bài để chơi
-            </Link>
           )}
           <RankingTable
             board={board}
