@@ -35,13 +35,14 @@ import {
 } from "@/lib/learning-core/session";
 import { generateLessonPractice } from "@/lib/learning-core/practice-generator";
 import { enqueueAudioPlayback } from "@/lib/audio/playback-queue";
+import { HaruLoadingMessage } from "@/components/ui/haru-lesson-loading";
 import type {
   LessonProgressMode,
   LessonProgressSnapshot,
 } from "@/lib/learning-core/lesson-progress";
 
 function ExerciseLoading() {
-  return <div className="min-h-72 animate-pulse rounded-3xl bg-gradient-to-br from-sky-50 to-slate-100" aria-label="Đang tải chế độ luyện tập" />;
+  return <div className="grid min-h-72 place-items-center rounded-3xl bg-gradient-to-br from-sky-50 to-slate-100"><HaruLoadingMessage compact /></div>;
 }
 
 const FlashcardExercise = dynamic(

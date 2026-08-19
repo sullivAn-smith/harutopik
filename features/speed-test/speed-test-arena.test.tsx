@@ -16,6 +16,9 @@ describe("SpeedTestArena", () => {
       name: "Bài 5: Công việc hằng ngày",
     }]} />);
 
+    expect(screen.getByRole("link", { name: "← Trang chủ" }).getAttribute("href"))
+      .toBe("/");
+
     fireEvent.click(screen.getByRole("button", { name: /Chơi Typing Sprint/ }));
 
     expect(screen.getByRole("heading", { name: "Chọn bài học" })).toBeTruthy();
