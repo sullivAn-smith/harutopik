@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import type { VocabularyItem } from "@/content/schema";
+import { HaruLessonLoading } from "@/components/ui/haru-lesson-loading";
 import { FloatingLanguageKeyboard } from "@/features/lesson/components/floating-language-keyboard";
 import type { RankedSpeedGame } from "@/lib/rankings/speed-ranking";
 import type { SpeedTestWordProgress } from "@/lib/speed-test/domain";
@@ -63,7 +64,6 @@ export function SpeedTestArena({
   audioLessons = [],
   initialGame = "arena",
   typingDailyMode = false,
-  backHref = "/",
 }: {
   typingGame?: ReactNode;
   audioGame?: ReactNode;
@@ -73,7 +73,6 @@ export function SpeedTestArena({
   audioLessons?: AudioLesson[];
   initialGame?: ArenaGame;
   typingDailyMode?: boolean;
-  backHref?: string;
 }) {
   const [activeGame, setActiveGame] = useState<ArenaGame>(initialGame);
   const hasAudioGame = Boolean(audioGame || lessonGame);
@@ -174,7 +173,7 @@ export function SpeedTestArena({
     <main className="min-h-dvh bg-[radial-gradient(circle_at_top_left,#72dbfa_0%,transparent_32rem),linear-gradient(145deg,#0a84c1,#063b77)] px-4 py-6 text-white sm:px-6 sm:py-10">
       <section className="mx-auto max-w-6xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link href={backHref} className="rounded-2xl bg-white/90 px-5 py-3 font-black text-[#10243e] shadow-lg">← Quay lại</Link>
+          <Link href="/" className="rounded-2xl bg-white/90 px-5 py-3 font-black text-[#10243e] shadow-lg">← Trang chủ</Link>
           <div className="flex flex-wrap gap-2">
             <Link href="/bang-xep-hang?board=typing_sprint" className="rounded-2xl border border-amber-200 bg-amber-300 px-5 py-3 font-black text-amber-950 shadow-lg">♛ Bảng xếp hạng</Link>
             <Link href="/speed-test/lich-su" className="rounded-2xl border border-white/25 bg-white/10 px-5 py-3 font-black backdrop-blur">🏆 Thành tích</Link>
@@ -274,14 +273,7 @@ function ArenaGameCard({
 }
 
 function GameLoading() {
-  return (
-    <main className="grid min-h-dvh place-items-center bg-slate-950 p-6 text-white" aria-busy="true">
-      <div className="text-center">
-        <div className="mx-auto h-12 w-12 animate-pulse rounded-full bg-cyan-300" />
-        <p className="mt-4 font-black">Đang chuẩn bị thử thách…</p>
-      </div>
-    </main>
-  );
+  return <HaruLessonLoading />;
 }
 
 function ReactionLessonPicker({ lessons, game, dailyMode = false, onBack }: { lessons: AudioLesson[]; game: "typing" | "audio" | "flash" | "card"; dailyMode?: boolean; onBack: () => void }) {

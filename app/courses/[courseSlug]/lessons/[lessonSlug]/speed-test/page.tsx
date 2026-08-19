@@ -98,7 +98,6 @@ export default async function LessonSpeedTestPage({
 
   return (
     <SpeedTestArena
-      backHref={href}
       initialGame={dailyMode || query.game === "typing" ? "typing" : query.game === "audio" ? "audio" : query.game === "flash" ? "flash" : query.game === "card" ? "card" : "arena"}
       lessonGame={{
         vocabulary: data.lesson.vocabulary,

@@ -15,8 +15,8 @@ afterEach(cleanup);
 const leaderboard: LeaderboardData = {
   board: "exam",
   title: "Luyện đề tổng hợp",
-  subtitle: "Điểm trung bình tốt nhất của 1 đề đầy đủ Nghe + Đọc",
-  periodLabel: "1 đề đang xếp hạng",
+  subtitle: "Cộng điểm tốt nhất của mọi đề; bằng điểm ưu tiên tổng thời gian thấp hơn",
+  periodLabel: "1 đề đã phát hành",
   currentUserEntry: null,
   entries: [
     {
@@ -24,16 +24,16 @@ const leaderboard: LeaderboardData = {
       userId: "loan",
       displayName: "Loan Đặng",
       avatarUrl: null,
-      score: 4250,
-      detail: "42.5% · 29 câu đúng",
+      score: 170,
+      detail: "1 đề · 29 câu đúng · 01:02:03",
     },
     {
       rank: 2,
       userId: "tuan",
       displayName: "Tuấn Hoàng",
       avatarUrl: null,
-      score: 150,
-      detail: "1.5% · 1 câu đúng",
+      score: 6,
+      detail: "1 đề · 1 câu đúng · 01:15:00",
     },
     {
       rank: 3,
@@ -41,7 +41,7 @@ const leaderboard: LeaderboardData = {
       displayName: "Ngọc Khoa - Mikey",
       avatarUrl: null,
       score: 0,
-      detail: "0% · 0 câu đúng",
+      detail: "1 đề · 0 câu đúng · 01:20:00",
     },
     {
       rank: 4,
@@ -49,7 +49,7 @@ const leaderboard: LeaderboardData = {
       displayName: "Người học hiện tại",
       avatarUrl: null,
       score: 0,
-      detail: "0% · 0 câu đúng",
+      detail: "1 đề · 0 câu đúng · 01:30:00",
     },
   ],
 };
@@ -75,9 +75,9 @@ describe("LeaderboardView", () => {
     ).toBeTruthy();
     expect(screen.getAllByLabelText("Hạng 1")).toHaveLength(2);
     expect(screen.getAllByText("Loan Đặng")).toHaveLength(2);
-    expect(screen.getByText("Điểm trung bình")).toBeTruthy();
-    expect(screen.getByText("Câu đúng")).toBeTruthy();
-    expect(screen.getAllByText("1 đề đang xếp hạng")).toHaveLength(3);
+    expect(screen.getByText("Tổng điểm")).toBeTruthy();
+    expect(screen.getByText("Đề · thời gian")).toBeTruthy();
+    expect(screen.getAllByText("1 đề đã phát hành")).toHaveLength(3);
     expect(screen.queryByText("Hôm nay")).toBeNull();
     expect(screen.queryByText("Xu hướng")).toBeNull();
     expect(screen.queryByText("— Chưa có dữ liệu")).toBeNull();
@@ -85,7 +85,7 @@ describe("LeaderboardView", () => {
 
   it("định dạng điểm và chỉ nhận board hợp lệ mà không thay đổi data contract", () => {
     expect(displayLeaderboardScore("exam", leaderboard.entries[0])).toBe(
-      "42.5%",
+      "170 điểm",
     );
     expect(isLeaderboardBoard("typing_sprint")).toBe(true);
     expect(isLeaderboardBoard("not-a-board")).toBe(false);
@@ -111,5 +111,6 @@ describe("LeaderboardView", () => {
     expect(screen.queryByText("— Chưa có dữ liệu")).toBeNull();
     expect(screen.queryByText("Lịch sử tuần")).toBeNull();
     expect(screen.queryByText("Top 10 tuần trước")).toBeNull();
+    expect(screen.queryByRole("link", { name: "Chọn bài để chơi" })).toBeNull();
   });
 });
