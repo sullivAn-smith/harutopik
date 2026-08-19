@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { VocabularyItem } from "@/content/schema";
+import { promoteAudioPreload, releaseAudio } from "@/lib/audio/client-preload";
 import {
   audioReactionRules,
   buildAudioReactionQuestions,
@@ -130,6 +131,7 @@ export function AudioReactionExperience({
   const [soundEnabled, setSoundEnabled] = useState(true);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const nextAudioRef = useRef<HTMLAudioElement | null>(null);
+  const nextAudioUrlRef = useRef("");
   const answerStartedAt = useRef(0);
   const gameStartedAt = useRef(0);
   const attemptId = useRef("");
@@ -147,8 +149,11 @@ export function AudioReactionExperience({
 
   useEffect(() => () => {
     clearAnswerTimeout();
-    audioRef.current?.pause();
-    nextAudioRef.current?.pause();
+    releaseAudio(audioRef.current);
+    releaseAudio(nextAudioRef.current);
+    audioRef.current = null;
+    nextAudioRef.current = null;
+    nextAudioUrlRef.current = "";
   }, [clearAnswerTimeout]);
 
   useEffect(() => {
@@ -175,7 +180,11 @@ export function AudioReactionExperience({
     if (finishing.current) return;
     finishing.current = true;
     clearAnswerTimeout();
-    audioRef.current?.pause();
+    releaseAudio(audioRef.current);
+    releaseAudio(nextAudioRef.current);
+    audioRef.current = null;
+    nextAudioRef.current = null;
+    nextAudioUrlRef.current = "";
     setElapsedMs(finalElapsedMs);
     setStage("result");
     setSyncState("saving");
@@ -266,21 +275,40 @@ export function AudioReactionExperience({
       }, 0);
       return () => window.clearTimeout(startTimer);
     }
-    const audio = new Audio(question.audioUrl);
-    audio.preload = "auto";
+    const prefetchedAudio = nextAudioUrlRef.current === question.audioUrl
+      ? nextAudioRef.current
+      : null;
+    if (!prefetchedAudio) releaseAudio(nextAudioRef.current);
+    nextAudioRef.current = null;
+    nextAudioUrlRef.current = "";
+
+    const audio = prefetchedAudio ?? new Audio(question.audioUrl);
+    promoteAudioPreload(audio);
     audioRef.current = audio;
     const next = questions[position + 1];
-    nextAudioRef.current = next ? new Audio(next.audioUrl) : null;
-    if (nextAudioRef.current) nextAudioRef.current.preload = "auto";
-    audio.onended = () => {
+    const nextAudio = next ? new Audio(next.audioUrl) : null;
+    nextAudioRef.current = nextAudio;
+    nextAudioUrlRef.current = next?.audioUrl ?? "";
+    if (nextAudio) nextAudio.preload = "none";
+    const handlePlaying = () => promoteAudioPreload(nextAudio);
+    const handleEnded = () => {
       answerStartedAt.current = performance.now();
       setTurnPhase("answer");
       timeoutRef.current = window.setTimeout(() => answerQuestionRef.current(""), audioReactionRules.answerWindowMs[mode]);
       window.setTimeout(() => inputRef.current?.focus(), 0);
     };
-    audio.onerror = () => setAudioError(true);
+    const handleError = () => setAudioError(true);
+    audio.addEventListener("playing", handlePlaying);
+    audio.addEventListener("ended", handleEnded);
+    audio.addEventListener("error", handleError);
     void audio.play().catch(() => setAudioError(true));
-    return () => { audio.onended = null; audio.onerror = null; audio.pause(); };
+    return () => {
+      audio.removeEventListener("playing", handlePlaying);
+      audio.removeEventListener("ended", handleEnded);
+      audio.removeEventListener("error", handleError);
+      releaseAudio(audio);
+      if (audioRef.current === audio) audioRef.current = null;
+    };
   }, [isFlash, mode, position, question, questions, stage, turnPhase]);
 
   function start() {
@@ -297,11 +325,16 @@ export function AudioReactionExperience({
   function retryAudio() {
     if (!question) return;
     setAudioError(false);
+    releaseAudio(audioRef.current);
     const audio = new Audio(question.audioUrl);
+    audio.preload = "auto";
     audioRef.current = audio;
+    audio.onplaying = () => promoteAudioPreload(nextAudioRef.current);
     audio.onended = () => {
       answerStartedAt.current = performance.now(); setTurnPhase("answer");
       timeoutRef.current = window.setTimeout(() => answerQuestionRef.current(""), audioReactionRules.answerWindowMs[mode]);
+      releaseAudio(audio);
+      if (audioRef.current === audio) audioRef.current = null;
     };
     audio.onerror = () => setAudioError(true);
     void audio.play().catch(() => setAudioError(true));

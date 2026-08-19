@@ -83,6 +83,54 @@ const tracks: RoadmapTrack[] = [
   },
 ];
 
+const beginnerSteps = [
+  {
+    number: "01",
+    icon: "한",
+    title: "Làm quen Hangul",
+    description: "Học mặt chữ, ghép âm tiết và cách đọc trước khi vào giáo trình.",
+    action: "Học bảng chữ cái",
+    href: "/hangul",
+    color: "border-indigo-200 bg-indigo-50 text-indigo-950",
+  },
+  {
+    number: "02",
+    icon: "📖",
+    title: "Học từng bài giáo trình",
+    description: "Đi theo thứ tự bài học, kết hợp từ vựng, ngữ pháp và bài tập trong bài.",
+    action: "Bắt đầu Sơ cấp 1",
+    href: "/courses/topik-1",
+    color: "border-sky-200 bg-sky-50 text-sky-950",
+  },
+  {
+    number: "03",
+    icon: "＋",
+    title: "Giữ lại phần cần nhớ",
+    description: "Trong lúc học, thêm từ và ngữ pháp khó vào bộ riêng để không bị quên.",
+    action: "Xem bộ từ của tôi",
+    href: "/tu-cua-toi",
+    color: "border-emerald-200 bg-emerald-50 text-emerald-950",
+  },
+  {
+    number: "04",
+    icon: "⚡",
+    title: "Tăng phản xạ",
+    description: "Sau mỗi bài, dùng Audio Reaction, Flash Recall và Card Match để củng cố trí nhớ.",
+    action: "Vào Speed Test",
+    href: "/speed-test",
+    color: "border-amber-200 bg-amber-50 text-amber-950",
+  },
+  {
+    number: "05",
+    icon: "✓",
+    title: "Kiểm tra và quay lại",
+    description: "Luyện đề theo chặng, xem từ yếu rồi quay lại bộ từ hoặc bài học cần ôn.",
+    action: "Xem đề luyện tập",
+    href: "/luyen-de",
+    color: "border-violet-200 bg-violet-50 text-violet-950",
+  },
+] as const;
+
 const theme = {
   blue: {
     header: "bg-gradient-to-r from-blue-500 to-cyan-500",
@@ -134,75 +182,39 @@ export function LearningRoadmap() {
   }, [selected]);
 
   return (
-    <main className="relative isolate min-h-screen overflow-hidden bg-[linear-gradient(180deg,#28a8f2_0%,#38b4f3_38%,#83d7f5_72%,#e8faff_100%)] text-[#10243e]">
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-        <span className="absolute -left-32 top-[15%] h-72 w-72 rounded-full bg-white/22 blur-sm" />
-        <span className="absolute -left-16 top-[22%] h-36 w-80 rounded-[50%] bg-white/24 blur-md" />
-        <span className="absolute -right-36 top-[28%] h-80 w-80 rounded-full bg-white/24 blur-sm" />
-        <span className="absolute -right-10 top-[35%] h-36 w-96 rounded-[50%] bg-white/22 blur-md" />
-        <span className="absolute left-[4%] top-[10%] text-3xl text-white/70">✦</span>
-        <span className="absolute right-[7%] top-[15%] text-4xl text-white/65">✦</span>
-        <span className="absolute left-[2%] top-[55%] text-2xl text-cyan-50/85">◆</span>
-        <span className="absolute right-[3%] top-[52%] text-3xl text-cyan-50/80">◆</span>
-        <span className="absolute -bottom-44 -left-[12%] h-96 w-[72%] rotate-[-3deg] rounded-[50%] bg-white/78" />
-        <span className="absolute -bottom-52 right-[-18%] h-[26rem] w-[78%] rotate-[4deg] rounded-[50%] bg-cyan-50/82" />
-        <span className="absolute bottom-0 left-[12%] h-40 w-[76%] rounded-[50%] bg-white/38 blur-2xl" />
-      </div>
-      <div className="relative z-10 mx-auto max-w-6xl px-5 pb-12 pt-7 md:px-8 md:pb-16 md:pt-10">
-        <Link href="/" className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 font-black shadow-lg transition hover:-translate-x-1">
-          ← Trang chủ
-        </Link>
-        <Image src="/haru-mascot-clean.png" alt="Linh vật Harutopik" width={150} height={150} className="absolute right-5 top-3 h-auto w-24 object-contain drop-shadow-xl md:right-8 md:top-5 md:w-32" priority />
+    <main className="relative isolate h-dvh overflow-hidden bg-[radial-gradient(circle_at_top_left,#68d5ff_0%,#2cacec_42%,#168bd5_100%)] text-[#10243e]">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden"><span className="absolute -left-28 top-1/3 h-72 w-72 rounded-full bg-white/25 blur-3xl" /><span className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-violet-400/25 blur-2xl" /><span className="absolute bottom-2 left-[8%] text-3xl text-white/65">✦</span><span className="absolute right-[5%] top-[18%] text-4xl text-white/65">✦</span></div>
 
-        <section className="relative mx-auto mt-12 max-w-6xl overflow-hidden rounded-[2rem] border border-violet-300 bg-gradient-to-r from-indigo-700 via-violet-700 to-purple-700 p-6 text-white shadow-[0_20px_48px_rgba(60,32,180,.3)] md:mt-16 md:p-7">
-          <span aria-hidden="true" className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-white/8" />
-          <div className="relative grid items-center gap-5 md:grid-cols-[auto_minmax(0,1fr)_auto]">
-            <span aria-hidden="true" className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-white/15 text-4xl shadow-inner md:mx-0">📚</span>
-            <div className="text-center md:text-left">
-              <h2 className="text-2xl font-black">Nhập môn tiếng Hàn (2–3 tuần)</h2>
-              <p className="mt-1 text-sm font-bold text-indigo-100">Xây nền tảng vững chắc – Bắt đầu hành trình</p>
-            </div>
-            <Link href="/hangul" className="mx-auto rounded-xl bg-white px-5 py-3 font-black text-indigo-700 shadow-lg transition hover:-translate-y-0.5 md:mx-0">Học bảng chữ cái →</Link>
-          </div>
-          <div className="relative mt-5 grid gap-2 text-xs font-bold text-indigo-50 sm:grid-cols-2 lg:grid-cols-4">
-            {["Bảng chữ cái Hangul", "Nguyên âm và phụ âm", "Ghép âm tiết", "Quy tắc biến âm cơ bản"].map((item, index) => <span key={item} className="rounded-full bg-white/10 px-4 py-3"><b className="mr-2 inline-grid h-6 w-6 place-items-center rounded-full bg-white text-indigo-700">{index + 1}</b>{item}</span>)}
-          </div>
+      <div className="relative z-10 mx-auto grid h-full max-w-[1500px] grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-2.5 px-3 py-3 sm:px-5 lg:gap-3 lg:px-8 lg:py-4">
+        <header className="flex items-center justify-between gap-3">
+          <Link href="/" className="inline-flex items-center rounded-xl border border-white/80 bg-white/95 px-3 py-2 text-sm font-black shadow-md transition hover:-translate-x-1">← Trang chủ</Link>
+          <div className="flex min-w-0 items-center gap-2 text-right"><div><p className="text-[10px] font-black uppercase tracking-[.2em] text-white/80">Haru Learning Path</p><h1 className="truncate text-lg font-black text-white sm:text-2xl">Lộ trình cho người mới</h1></div><Image src="/haru-mascot-clean.png" alt="Linh vật Harutopik" width={64} height={64} className="h-11 w-11 object-contain drop-shadow-lg sm:h-14 sm:w-14" priority /></div>
+        </header>
+
+        <section className="flex items-center justify-between gap-3 overflow-hidden rounded-2xl border border-violet-300/70 bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-700 px-4 py-3 text-white shadow-xl lg:px-6" aria-labelledby="beginner-path-title">
+          <div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-[.2em] text-fuchsia-200">Một vòng học hoàn chỉnh</p><h2 id="beginner-path-title" className="mt-0.5 truncate text-lg font-black sm:text-2xl">Hangul → Giáo trình → Lưu phần khó → Speed Test → Luyện đề</h2><p className="mt-1 hidden text-xs font-semibold text-indigo-100 sm:block">Lặp lại bước 2–5 sau mỗi bài để ghi nhớ lâu và nhận ra phần cần ôn.</p></div>
+          <Link href="/courses/topik-1" className="shrink-0 rounded-xl bg-white px-4 py-2.5 text-xs font-black text-indigo-700 shadow-lg sm:text-sm">Bắt đầu học →</Link>
         </section>
 
-        <div className="mx-auto hidden h-24 max-w-6xl lg:block" aria-label="Sơ đồ chia ba giáo trình">
-          <svg viewBox="0 0 900 96" preserveAspectRatio="none" role="img" aria-hidden="true" className="h-full w-full overflow-visible drop-shadow-[0_3px_6px_rgba(16,36,62,.18)]">
-            <path d="M450 2V34 M150 34H750" fill="none" stroke="#d8f6ff" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M150 34V78 M450 34V78 M750 34V78" fill="none" stroke="#d8f6ff" strokeWidth="4" strokeLinecap="round" />
-            <path d="M142 72L150 82L158 72 M442 72L450 82L458 72 M742 72L750 82L758 72" fill="none" stroke="#d8f6ff" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </div>
+        <ol className="grid min-h-0 grid-cols-2 gap-2 lg:grid-cols-5 lg:gap-3" aria-label="Các bước trong lộ trình">
+          {beginnerSteps.map((step, index) => (
+            <li key={step.number} className={`relative flex min-h-0 flex-col overflow-hidden rounded-2xl border p-3 shadow-lg lg:p-4 ${step.color} ${index === beginnerSteps.length - 1 ? "col-span-2 lg:col-span-1" : ""}`}>
+              {index < beginnerSteps.length - 1 && <span aria-hidden="true" className="absolute -right-2.5 top-1/2 z-10 hidden h-6 w-6 -translate-y-1/2 place-items-center rounded-full bg-white text-slate-400 shadow lg:grid">›</span>}
+              <div className="flex items-center justify-between gap-2"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white text-base shadow-sm lg:h-10 lg:w-10 lg:text-lg">{step.icon}</span><b className="text-[9px] tracking-[.14em] opacity-50 lg:text-[10px]">BƯỚC {step.number}</b></div>
+              <h3 className="mt-2 text-sm font-black leading-tight lg:mt-3 lg:text-base">{step.title}</h3>
+              <p className="mt-1 line-clamp-3 text-[11px] font-semibold leading-4 opacity-70 lg:mt-2 lg:text-xs lg:leading-5 [@media(max-height:720px)]:line-clamp-2">{step.description}</p>
+              <Link href={step.href} className="mt-auto pt-2 text-[11px] font-black underline decoration-2 underline-offset-4 lg:text-xs">{step.action} →</Link>
+            </li>
+          ))}
+        </ol>
 
-        <section className="mx-auto grid max-w-6xl items-start gap-5 lg:grid-cols-3" aria-label="Các giáo trình tiếng Hàn">
-          {tracks.map((track) => {
-            const colors = theme[track.accent as keyof typeof theme];
-            return (
-              <article key={track.id} className="group flex flex-col overflow-hidden rounded-[2rem] border border-white/90 bg-white/95 shadow-[0_20px_48px_rgba(5,72,128,.18)] backdrop-blur transition hover:-translate-y-1">
-                <div className={`${colors.header} px-4 py-3.5 text-white`}>
-                  <div className="flex min-h-12 items-center justify-center text-center">
-                    <div className="flex min-w-0 flex-col items-center justify-center">
-                      <div className="flex items-center gap-2">
-                        <h2 className="text-xl font-black">{track.title}</h2>
-                        <button type="button" aria-label={`Tìm hiểu thêm về ${track.title}`} onClick={() => setSelected(track)} className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-white/70 bg-white/20 text-sm font-black transition hover:bg-white hover:text-[#10243e]">?</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex flex-1 flex-col p-4">
-                  <div className={`grid gap-2.5 pb-4 ${track.id === "seoul" ? "sm:grid-cols-2 lg:grid-cols-2" : "grid-cols-1"}`}>
-                    {track.levels.map((level) => <div key={level.title} className={`rounded-2xl border p-3 ${colors.soft}`}><div className="flex items-center gap-2.5"><span className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl ${colors.icon}`}>{level.icon}</span><h3 className="min-w-0 flex-1 font-black">{level.title}</h3><span aria-hidden="true" className="text-lg font-black opacity-45">›</span></div></div>)}
-                  </div>
-                  <Link href={track.href} className={`mt-auto flex w-full items-center justify-center rounded-2xl px-5 py-3 font-black text-white shadow-lg transition hover:-translate-y-0.5 ${colors.button}`}>Học ngay →</Link>
-                </div>
-              </article>
-            );
-          })}
+        <section className="grid gap-2 rounded-2xl border border-white/80 bg-white/95 p-2.5 shadow-xl sm:grid-cols-[auto_1fr] sm:items-center lg:grid-cols-[auto_1fr_auto] lg:px-4" aria-label="Chọn giáo trình tiếng Hàn">
+          <div className="hidden lg:block"><p className="text-[10px] font-black uppercase tracking-[.18em] text-sky-600">Giáo trình</p><p className="text-sm font-black">Chọn hướng học</p></div>
+          <div className="grid grid-cols-3 gap-2">
+            {tracks.map((track) => { const colors = theme[track.accent as keyof typeof theme]; return <div key={track.id} className={`flex min-w-0 items-center gap-1.5 rounded-xl border p-1.5 ${colors.soft}`}><Link href={track.href} className="min-w-0 flex-1 truncate px-1 text-center text-[10px] font-black sm:text-xs">{track.title}</Link><button type="button" aria-label={`Tìm hiểu thêm về ${track.title}`} onClick={() => setSelected(track)} className={`grid h-6 w-6 shrink-0 place-items-center rounded-lg text-xs font-black text-white ${colors.button}`}>?</button></div>; })}
+          </div>
+          <p className="hidden max-w-60 text-right text-[11px] font-semibold leading-4 text-slate-500 lg:block">Chưa biết chọn? Bắt đầu với <b>Giáo trình tổng hợp Sơ cấp 1</b>.</p>
         </section>
-
       </div>
 
       {selected && selectedTheme && (

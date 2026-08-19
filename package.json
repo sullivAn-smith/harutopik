@@ -11,7 +11,10 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "check:performance": "node scripts/check-performance-budget.mjs",
-    "verify": "npm run lint && npm run typecheck && npm run test && npm run build && npm run check:performance && npm run test:e2e"
+    "audit:egress": "node --env-file=.env.local scripts/audit-supabase-egress.mjs",
+    "optimize:vocabulary-images": "node --env-file=.env.local scripts/optimize-vocabulary-images.mjs",
+    "check:egress-budget": "node scripts/check-egress-budget.mjs",
+    "verify": "npm run lint && npm run typecheck && npm run test && npm run build && npm run check:performance && npm run check:egress-budget && npm run test:e2e"
   },
   "dependencies": {
     "@payos/node": "^2.0.5",

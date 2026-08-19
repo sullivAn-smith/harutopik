@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 2,
+  "capturedAt": "2026-08-19T13:02:13.102Z",
+  "environment": "production",
+  "database": {
+    "publishedCatalog": { "rows": 66, "jsonBytes": 1837542 },
+    "publishedCatalogShells": { "available": true, "rows": 66, "jsonBytes": 41434 },
+    "vocabularyItems": { "rows": 1489, "sampleRows": 1000, "sampleJsonBytes": 628796 },
+    "vocabularyExamples": { "rows": 1488, "sampleRows": 1000, "sampleJsonBytes": 457419 },
+    "examQuestions": { "rows": 453, "sampleRows": 453, "sampleJsonBytes": 470962 }
+  },
+  "storage": {
+    "vocabulary-audio": { "objects": 3416, "totalBytes": 63206352, "largestObjectBytes": 54864 },
+    "vocabulary-images": { "objects": 130, "totalBytes": 62263936, "largestObjectBytes": 1977347 },
+    "exam-audio": { "objects": 28, "totalBytes": 35575541, "largestObjectBytes": 3810044 },
+    "exam-images": { "objects": 181, "totalBytes": 7962452, "largestObjectBytes": 113744 },
+    "streak-banners": { "objects": 0, "totalBytes": 0, "largestObjectBytes": 0 }
+  },
+  "notes": [
+    "The shell RPC was separately verified with both anon and service_role keys.",
+    "Database byte counts are compact JSON response sizes measured client-side, not billed-byte totals."
+  ]
+}

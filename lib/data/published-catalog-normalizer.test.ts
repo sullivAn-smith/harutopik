@@ -106,6 +106,64 @@ describe("buildPublishedCourses", () => {
     expect(buildPublishedCourses(rows)).toEqual([]);
   });
 
+  it("giữ nguyên nội dung học khi dựng dữ liệu đầy đủ cho learner", () => {
+    const completeLesson = {
+      ...lesson,
+      vocabulary: [{
+        id: "word-1",
+        korean: "한국",
+        vietnamese: "Hàn Quốc",
+        romanization: "hanguk",
+        category: "country",
+        examples: [],
+      }],
+      grammar: [{
+        id: "grammar-1",
+        form: "은/는",
+        title: "은/는",
+        explanation: "Tiểu từ chủ đề",
+        formula: "Danh từ + 은/는",
+        examples: [{
+          id: "grammar-example-1",
+          korean: "저는 학생이에요.",
+          vietnamese: "Tôi là học sinh.",
+        }],
+      }],
+      exercises: [{
+        id: "exercise-1",
+        type: "fill-blank",
+        prompt: "저는 ___ 사람이에요.",
+        translation: "Tôi là người Hàn Quốc.",
+        acceptedAnswers: ["한국"],
+      }],
+    };
+    const courses = buildPublishedCourses([
+      {
+        content_id: "course-topik-2",
+        content_type: "course",
+        parent_id: null,
+        payload: {
+          id: "course-topik-2",
+          slug: "topik-2",
+          title: { ko: "한국어 초급 2", vi: "Tiếng Hàn sơ cấp 2" },
+          summary: "Lộ trình sơ cấp.",
+        },
+      },
+      {
+        content_id: lesson.id,
+        content_type: "lesson",
+        parent_id: lesson.moduleId,
+        payload: completeLesson,
+      },
+    ]);
+
+    expect(courses[0].lessons[0]).toMatchObject({
+      vocabulary: completeLesson.vocabulary,
+      grammar: completeLesson.grammar,
+      exercises: completeLesson.exercises,
+    });
+  });
+
   it("giữ từ loại trong bản phát hành cho tới khi admin chọn giá trị mới", () => {
     const courseRow: PublishedCatalogRow = {
       content_id: "course-topik-2",

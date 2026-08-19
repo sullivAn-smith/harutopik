@@ -36,6 +36,25 @@ test("API catalog dùng envelope ổn định", async ({ request }) => {
   expect(body.data.courses).toEqual(
     expect.arrayContaining([expect.objectContaining({ slug: "topik-1" })]),
   );
+  const firstPublishedLesson = body.data.courses
+    .flatMap((course: { lessons?: unknown[] }) => course.lessons ?? [])
+    .find((lesson: { status?: string }) => lesson.status === "published");
+  expect(firstPublishedLesson).toEqual(expect.objectContaining({
+    vocabulary: expect.any(Array),
+    grammar: expect.any(Array),
+    exercises: expect.any(Array),
+  }));
+});
+
+test("thư viện kiến thức giữ danh sách và nội dung chi tiết", async ({ page }) => {
+  await page.goto("/kien-thuc");
+  await expect(
+    page.getByRole("heading", { name: "Kiến thức nền tảng" }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: /Số thuần Hàn/ }).click();
+  await expect(page).toHaveURL(/\/kien-thuc\/so-thuan-han$/);
+  await expect(page.getByRole("heading", { name: "Số thuần Hàn" })).toBeVisible();
+  await expect(page.getByText("하나", { exact: true })).toBeVisible();
 });
 
 test("endpoint riêng tư từ chối người chưa đăng nhập", async ({ request }) => {
@@ -54,11 +73,12 @@ test("response có các security header bắt buộc", async ({ request }) => {
   expect(headers["content-security-policy"]).toContain("frame-ancestors 'none'");
 });
 
-test("mobile có điều hướng học tập và nâng cấp", async ({ page }, testInfo) => {
+test("mobile khách có điều hướng học tập và đăng nhập", async ({ page }, testInfo) => {
   test.skip(!testInfo.project.name.includes("mobile"), "Chỉ kiểm tra mobile");
   await page.goto("/");
-  await expect(page.getByRole("navigation", { name: "Điều hướng di động" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Pro" })).toBeVisible();
+  const accountNavigation = page.getByRole("navigation", { name: "Điều hướng di động" });
+  await expect(accountNavigation).toBeVisible();
+  await expect(accountNavigation.getByRole("link", { name: "Đăng nhập" })).toHaveAttribute("href", "/dang-nhap");
   const mobileNavigation = page.getByRole("navigation", {
     name: "Điều hướng chính trên điện thoại",
   });

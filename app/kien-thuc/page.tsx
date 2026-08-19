@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getPublishedReferenceSets } from "@/lib/data/reference-library";
+import { getPublishedReferenceSetSummaries } from "@/lib/data/reference-library";
 
 export const metadata: Metadata = { title: "Kiến thức nền tảng" };
-export const dynamic = "force-dynamic";
+export const revalidate = 86_400;
 
 export default async function FoundationLibraryPage() {
-  const sets = await getPublishedReferenceSets();
+  const sets = await getPublishedReferenceSetSummaries();
   const cards = [
     {
       id: "hangul",

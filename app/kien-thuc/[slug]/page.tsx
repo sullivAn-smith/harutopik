@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { ReferenceAudioButton } from "@/features/reference-library/reference-audio-button";
 import { getPublishedReferenceSet } from "@/lib/data/reference-library";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 86_400;
 
 const groupTitles: Record<string, string> = {
   basic: "Số cơ bản",
