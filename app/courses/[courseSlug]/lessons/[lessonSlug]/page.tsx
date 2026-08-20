@@ -7,8 +7,6 @@ import { LessonExperience } from "@/features/lesson/lesson-experience";
 import { getTopikBookLevelLabel } from "@/lib/catalog/course-shelf";
 import { getPublishedLessonRouteData } from "@/lib/data/published-catalog";
 import { getCurrentActor } from "@/lib/auth/authorize";
-import { createClient } from "@/lib/supabase/server";
-import { getLessonLearningProgress } from "@/lib/data/lesson-progress";
 
 type LessonPageProps = {
   params: Promise<{
@@ -47,13 +45,6 @@ export default async function LessonPage({ params }: LessonPageProps) {
   }
   const data = await lessonData;
   if (!data) notFound();
-  const supabase = await createClient();
-  const progress = await getLessonLearningProgress({
-    supabase,
-    userId: actor.id,
-    lesson: data.lesson,
-  });
-
   return (
     <LessonExperience
       lesson={data.lesson}
@@ -63,7 +54,6 @@ export default async function LessonPage({ params }: LessonPageProps) {
       speedTestHref={`/courses/${encodeURIComponent(courseSlug)}/lessons/${encodeURIComponent(lessonSlug)}/speed-test`}
       courseSlug={courseSlug}
       lessonSlug={lessonSlug}
-      initialProgress={progress}
     />
   );
 }

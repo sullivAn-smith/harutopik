@@ -176,6 +176,7 @@ export function HomeClient({
 }) {
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [streakData, setStreakData] = useState<HomeStreakData | undefined>(undefined);
+  const [rankingPrefetchReady, setRankingPrefetchReady] = useState(false);
   const publishedCourses = initialCourses.length ? initialCourses : fallbackCourses;
   const primaryCourse = publishedCourses.find((course) => course.slug === "topik-1") ?? publishedCourses[0];
   const dailyLesson = primaryCourse.lessons[0];
@@ -214,6 +215,7 @@ export function HomeClient({
       setUser(nextUser);
 
       if (!nextUser) {
+        setRankingPrefetchReady(false);
         setStreakData(defaultHomeStreakData());
         return;
       }
@@ -228,9 +230,11 @@ export function HomeClient({
       }).catch(() => null);
       if (!active) return;
       if (!response?.ok) {
+        setRankingPrefetchReady(false);
         if (!cached) setStreakData(defaultHomeStreakData());
         return;
       }
+      setRankingPrefetchReady(true);
       const payload = await response.json().catch(() => null) as {
         data?: HomeStreakData;
       } | null;
@@ -282,7 +286,7 @@ export function HomeClient({
           <Link href="/tu-cua-toi" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-cyan-100 text-[#087eba]"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4.5 w-4.5 fill-none stroke-current" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="3" /><path d="M7 9h10M7 13h6" /><path d="M17.5 12.5v4M15.5 14.5h4" /></svg></span><span>Bộ từ</span></Link>
           <Link href="/luyen-de" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-[#087eba]">✎</span><span>Luyện đề</span></Link>
           <Link href="/speed-test" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-700">⚡</span><span>Speed Test</span></Link>
-          <Link href="/bang-xep-hang" className="flex items-center gap-3 rounded-2xl border border-amber-200/80 bg-gradient-to-r from-amber-50/90 to-yellow-50/80 px-4 py-3.5 font-bold text-amber-900 shadow-[0_8px_18px_rgba(146,94,10,0.11)] backdrop-blur transition hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-50"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-200 text-amber-900">♛</span><span>Bảng xếp hạng</span></Link>
+          <Link href="/bang-xep-hang" prefetch={rankingPrefetchReady} className="flex items-center gap-3 rounded-2xl border border-amber-200/80 bg-gradient-to-r from-amber-50/90 to-yellow-50/80 px-4 py-3.5 font-bold text-amber-900 shadow-[0_8px_18px_rgba(146,94,10,0.11)] backdrop-blur transition hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-50"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-200 text-amber-900">♛</span><span>Bảng xếp hạng</span></Link>
           <Link href="/tro-ly" className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 px-4 py-3.5 font-bold text-[#10243e]/80 shadow-[0_8px_18px_rgba(16,36,62,0.09)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/75"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-[#087eba]">✦</span><span>Trợ lý Haru AI</span></Link>
         </nav>
         <div className="mt-auto space-y-3">

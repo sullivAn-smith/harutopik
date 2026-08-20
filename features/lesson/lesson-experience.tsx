@@ -126,8 +126,12 @@ function LessonContent({
     return allowedModes ? result.filter((mode) => allowedModes.includes(mode)) : result;
   }, [allowedModes, dictationExercises.length, practiceBundle, translationExercises.length]);
 
-  const activeTab: Tab =
+  const initialTab: Tab =
     searchParams.get("tab") === "grammar" ? "grammar" : "vocabulary";
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
+  const [lockedSpeedTestRedirect, setLockedSpeedTestRedirect] = useState(
+    () => searchParams.get("speedTest") === "locked",
+  );
   const [mode, setMode] = useState<StudyMode>("flashcard");
   const [query, setQuery] = useState("");
   const [current, setCurrent] = useState(0);
@@ -138,6 +142,11 @@ function LessonContent({
   const flashcardAutoAudioTimerRef = useRef<number | null>(null);
   const flashcardAutoAudioRef = useRef<HTMLAudioElement | null>(null);
   const [lessonProgress, setLessonProgress] = useState(initialProgress);
+  const [progressLoading, setProgressLoading] = useState(
+    !previewMode &&
+      !initialProgress &&
+      Boolean(courseSlug && lessonSlug),
+  );
   const [progressDialogOpen, setProgressDialogOpen] = useState(false);
   const [restartDialogOpen, setRestartDialogOpen] = useState(false);
   const [unlockToastVisible, setUnlockToastVisible] = useState(false);
@@ -151,24 +160,54 @@ function LessonContent({
         : undefined,
     [courseSlug, lessonSlug],
   );
-  const redirectedFromLockedSpeedTest =
-    searchParams.get("speedTest") === "locked";
+  const redirectedFromLockedSpeedTest = lockedSpeedTestRedirect;
   const progressDialogVisible =
     progressDialogOpen || redirectedFromLockedSpeedTest;
   const canRestartLesson =
     (lessonProgress?.completionPercent ?? 0) >=
     LESSON_RESTART_AVAILABLE_PERCENT;
+  const replaceLessonQuery = useCallback(
+    (tab: Tab, clearSpeedTest = false) => {
+      setActiveTab(tab);
+      if (typeof window === "undefined") return;
+
+      const params = new URLSearchParams(window.location.search);
+      if (tab === "grammar") params.set("tab", "grammar");
+      else params.delete("tab");
+
+      if (clearSpeedTest) {
+        params.delete("speedTest");
+        setLockedSpeedTestRedirect(false);
+      }
+
+      const query = params.toString();
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`,
+      );
+    },
+    [],
+  );
   const closeProgressDialog = useCallback(() => {
     setProgressDialogOpen(false);
     if (redirectedFromLockedSpeedTest) {
-      router.replace(
-        activeTab === "grammar" ? "?tab=grammar" : "?tab=vocabulary",
-        { scroll: false },
-      );
+      replaceLessonQuery(activeTab, true);
     }
-  }, [activeTab, redirectedFromLockedSpeedTest, router]);
+  }, [activeTab, replaceLessonQuery, redirectedFromLockedSpeedTest]);
+
+  useEffect(() => {
+    const syncFromHistory = () => {
+      const params = new URLSearchParams(window.location.search);
+      setActiveTab(params.get("tab") === "grammar" ? "grammar" : "vocabulary");
+      setLockedSpeedTestRedirect(params.get("speedTest") === "locked");
+    };
+    window.addEventListener("popstate", syncFromHistory);
+    return () => window.removeEventListener("popstate", syncFromHistory);
+  }, []);
   const handleLessonProgress = useCallback(
     (nextProgress: LessonProgressSnapshot) => {
+      setProgressLoading(false);
       if (
         !previousSpeedTestUnlocked.current &&
         nextProgress.speedTestUnlocked
@@ -180,6 +219,49 @@ function LessonContent({
     },
     [],
   );
+
+  useEffect(() => {
+    if (previewMode || initialProgress || !courseSlug || !lessonSlug) return;
+
+    const progressCourseSlug = courseSlug;
+    const progressLessonSlug = lessonSlug;
+    let active = true;
+    async function loadProgress() {
+      try {
+        const query = new URLSearchParams({
+          courseSlug: progressCourseSlug,
+          lessonSlug: progressLessonSlug,
+        });
+        const response = await fetch(
+          `/api/v1/learning/progress?${query.toString()}`,
+          {
+            credentials: "same-origin",
+            cache: "no-store",
+            headers: { accept: "application/json" },
+          },
+        );
+        const payload = await response.json().catch(() => null) as {
+          data?: LessonProgressSnapshot;
+        } | null;
+        const progress = payload?.data;
+        if (
+          active &&
+          response.ok &&
+          progress &&
+          typeof progress.completionPercent === "number"
+        ) {
+          setLessonProgress(progress);
+        }
+      } finally {
+        if (active) setProgressLoading(false);
+      }
+    }
+
+    void loadProgress();
+    return () => {
+      active = false;
+    };
+  }, [courseSlug, initialProgress, lessonSlug, previewMode]);
 
   useEffect(() => {
     router.prefetch("/");
@@ -552,7 +634,7 @@ function LessonContent({
   ]);
 
   function changeTab(tab: Tab) {
-    router.push(`?tab=${tab}`, { scroll: false });
+    replaceLessonQuery(tab);
   }
 
   function changeMode(nextMode: StudyMode) {
@@ -591,11 +673,11 @@ function LessonContent({
     if (!mode) return;
     setProgressDialogOpen(false);
     if (mode === "grammar") {
-      router.replace("?tab=grammar", { scroll: false });
+      replaceLessonQuery("grammar", true);
       return;
     }
     if (activeTab !== "vocabulary" || redirectedFromLockedSpeedTest) {
-      router.replace("?tab=vocabulary", { scroll: false });
+      replaceLessonQuery("vocabulary", true);
     }
     if (availableStudyModes.includes(mode)) changeMode(mode);
   }
@@ -979,6 +1061,7 @@ function LessonContent({
               onChange={changeMode}
               speedTestHref={speedTestHref}
               speedTestProgress={lessonProgress}
+              speedTestProgressLoading={progressLoading}
               onLockedSpeedTestClick={() => setProgressDialogOpen(true)}
             />
 

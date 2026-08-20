@@ -6,10 +6,18 @@ import type { ReactNode } from "react";
 export function ExamResultExplanationDialog({
   explanation,
   questionNumber,
+  options,
+  correctOption,
+  selectedOption,
+  showTextOptions = false,
   children,
 }: {
   explanation: string;
   questionNumber: number;
+  options: string[];
+  correctOption: number;
+  selectedOption?: number;
+  showTextOptions?: boolean;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -54,7 +62,7 @@ export function ExamResultExplanationDialog({
             role="dialog"
             aria-modal="true"
             aria-labelledby={`explanation-title-${questionNumber}`}
-            className="max-h-[80dvh] w-full max-w-xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl sm:p-7"
+            className="max-h-[80dvh] w-full max-w-4xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:p-7"
           >
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -78,6 +86,72 @@ export function ExamResultExplanationDialog({
             <div className="mt-5 border-t border-slate-100 pt-5">
               {children}
             </div>
+            {showTextOptions && options.length > 0 && (
+              <div className="mt-5">
+                <p className="text-xs font-black uppercase tracking-widest text-slate-500">
+                  Các đáp án
+                </p>
+                <ol
+                  aria-label={`Các đáp án câu nghe ${questionNumber}`}
+                  className="mt-2 grid grid-cols-4 gap-2.5"
+                >
+                  {options.slice(0, 4).map((option, index) => {
+                    const optionNumber = index + 1;
+                    const isCorrect = optionNumber === correctOption;
+                    const isSelectedWrong =
+                      optionNumber === selectedOption && !isCorrect;
+                    return (
+                      <li
+                        key={`${optionNumber}-${option}`}
+                        className={`min-w-0 rounded-2xl border-2 px-3 py-3 ${
+                          isCorrect
+                            ? "border-emerald-500 bg-emerald-50 text-emerald-900"
+                            : isSelectedWrong
+                              ? "border-red-400 bg-red-50 text-red-900"
+                              : "border-slate-200 bg-slate-50 text-slate-700"
+                        }`}
+                      >
+                        <div className="flex items-start gap-2">
+                          <span
+                            className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-black ${
+                              isCorrect
+                                ? "bg-emerald-600 text-white"
+                                : isSelectedWrong
+                                  ? "bg-red-500 text-white"
+                                  : "bg-white text-slate-600 shadow-sm"
+                            }`}
+                          >
+                            {optionNumber}
+                          </span>
+                          <span
+                            lang="ko"
+                            className="font-korean min-w-0 break-words text-sm font-bold leading-6"
+                          >
+                            {option}
+                          </span>
+                        </div>
+                        {isCorrect && (
+                          <span className="mt-2 block text-[11px] font-black uppercase tracking-wide text-emerald-700">
+                            Đáp án đúng
+                          </span>
+                        )}
+                        {isSelectedWrong && (
+                          <span className="mt-2 block text-[11px] font-black uppercase tracking-wide text-red-700">
+                            Bạn đã chọn
+                          </span>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
+            )}
+            <p className="mt-5 font-semibold text-slate-600">
+              Bạn chọn: {selectedOption ? `${selectedOption}. ${options[selectedOption - 1] ?? ""}` : "Chưa trả lời"}
+            </p>
+            <p className="mt-1 font-bold text-emerald-700">
+              Đáp án: {correctOption}. {options[correctOption - 1] ?? ""}
+            </p>
             <p className="mt-5 whitespace-pre-wrap rounded-2xl bg-amber-50 p-5 text-sm leading-7 text-slate-700">
               {explanation}
             </p>

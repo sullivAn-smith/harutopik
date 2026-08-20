@@ -3,6 +3,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   rankedSpeedGameDetails,
+  rankedSpeedGames,
   type RankedSpeedGame,
   vietnamWeekStart,
   vietnamDateParts,
@@ -39,6 +40,11 @@ export type LeaderboardData = {
   };
 };
 
+export type LeaderboardSnapshot = {
+  generatedAt: string;
+  boards: Record<LeaderboardBoard, LeaderboardData>;
+};
+
 type SafeProfile = {
   id: string;
   display_name: string;
@@ -54,6 +60,27 @@ type SpeedRankingRow = {
   duration_ms: number;
   achieved_at: string;
 };
+
+type SnapshotRow = {
+  rank?: unknown;
+  userId?: unknown;
+  displayName?: unknown;
+  avatarUrl?: unknown;
+  score?: unknown;
+  accuracy?: unknown;
+  durationMs?: unknown;
+  bestCombo?: unknown;
+  examCount?: unknown;
+  correctCount?: unknown;
+  achievedAt?: unknown;
+};
+
+const allLeaderboardBoards: LeaderboardBoard[] = [
+  "exam",
+  ...rankedSpeedGames,
+  "current_streak",
+  "longest_streak",
+];
 
 async function safeProfiles(userIds: string[]) {
   if (!userIds.length) return new Map<string, SafeProfile>();
@@ -266,7 +293,146 @@ function formatDuration(totalSeconds: number) {
     .join(":");
 }
 
-export async function getLeaderboard(
+function finiteNumber(value: unknown) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function snapshotEntry(
+  board: LeaderboardBoard,
+  value: unknown,
+): LeaderboardEntry | null {
+  if (!value || typeof value !== "object") return null;
+  const row = value as SnapshotRow;
+  const rank = finiteNumber(row.rank);
+  const score = finiteNumber(row.score);
+  if (
+    rank === null ||
+    rank < 1 ||
+    score === null ||
+    typeof row.userId !== "string" ||
+    typeof row.displayName !== "string"
+  ) {
+    return null;
+  }
+
+  const accuracy = finiteNumber(row.accuracy);
+  const durationMs = finiteNumber(row.durationMs);
+  const bestCombo = finiteNumber(row.bestCombo);
+  const examCount = finiteNumber(row.examCount);
+  const correctCount = finiteNumber(row.correctCount);
+  let detail: string;
+  if (board === "exam") {
+    detail = `${examCount ?? 0} đề · ${correctCount ?? 0} câu đúng · ${formatDuration(
+      Math.floor((durationMs ?? 0) / 1000),
+    )}`;
+  } else if (board === "current_streak" || board === "longest_streak") {
+    detail = `${score} ngày`;
+  } else {
+    detail = `${accuracy ?? 0}% · combo ${bestCombo ?? 0}`;
+  }
+
+  return {
+    rank,
+    userId: row.userId,
+    displayName: row.displayName,
+    avatarUrl: typeof row.avatarUrl === "string" ? row.avatarUrl : null,
+    score,
+    ...(accuracy === null ? {} : { accuracy }),
+    ...(durationMs === null ? {} : { durationMs }),
+    detail,
+    ...(typeof row.achievedAt === "string"
+      ? { achievedAt: row.achievedAt }
+      : {}),
+  };
+}
+
+function leaderboardMetadata(
+  board: LeaderboardBoard,
+  periodStart: string,
+  publishedExamCount: number,
+) {
+  if (board === "exam") {
+    return {
+      title: "Luyện đề tổng hợp",
+      subtitle:
+        "Cộng điểm tốt nhất của mọi đề; bằng điểm ưu tiên tổng thời gian thấp hơn",
+      periodLabel:
+        publishedExamCount > 0
+          ? `${publishedExamCount} đề đã phát hành`
+          : "Chưa có đề được xếp hạng",
+    };
+  }
+  if (board === "current_streak" || board === "longest_streak") {
+    return {
+      title: board === "current_streak" ? "Chuỗi hiện tại" : "Kỷ lục chuỗi",
+      subtitle:
+        board === "current_streak"
+          ? "Những chuỗi học tập đang được duy trì"
+          : "Chuỗi học dài nhất mỗi người từng đạt",
+      periodLabel: "Mọi thời đại",
+    };
+  }
+  const game = rankedSpeedGameDetails[board];
+  return {
+    title: game.label,
+    subtitle: game.config,
+    periodLabel: `Tuần từ ${new Date(
+      `${periodStart}T00:00:00Z`,
+    ).toLocaleDateString("vi-VN")}`,
+  };
+}
+
+function normalizeLeaderboardSnapshot(
+  value: unknown,
+  currentUserId: string,
+): LeaderboardSnapshot | null {
+  if (!value || typeof value !== "object") return null;
+  const root = value as {
+    generatedAt?: unknown;
+    periodStart?: unknown;
+    publishedExamCount?: unknown;
+    boards?: unknown;
+  };
+  if (!root.boards || typeof root.boards !== "object") return null;
+  const rawBoards = root.boards as Record<string, unknown>;
+  if (
+    !allLeaderboardBoards.every((board) => Array.isArray(rawBoards[board]))
+  ) {
+    return null;
+  }
+  const periodStart =
+    typeof root.periodStart === "string"
+      ? root.periodStart
+      : vietnamWeekStart();
+  const publishedExamCount = finiteNumber(root.publishedExamCount) ?? 0;
+  const boards = {} as Record<LeaderboardBoard, LeaderboardData>;
+
+  for (const board of allLeaderboardBoards) {
+    const rows = Array.isArray(rawBoards[board]) ? rawBoards[board] : [];
+    const ranked = rows
+      .map((row) => snapshotEntry(board, row))
+      .filter((entry): entry is LeaderboardEntry => entry !== null)
+      .sort((left, right) => left.rank - right.rank);
+    boards[board] = {
+      board,
+      ...leaderboardMetadata(board, periodStart, publishedExamCount),
+      entries: ranked.filter((entry) => entry.rank <= 30),
+      currentUserEntry:
+        ranked.find((entry) => entry.userId === currentUserId) ?? null,
+    };
+  }
+
+  return {
+    generatedAt:
+      typeof root.generatedAt === "string"
+        ? root.generatedAt
+        : new Date().toISOString(),
+    boards,
+  };
+}
+
+async function getLegacyLeaderboard(
   board: LeaderboardBoard,
   currentUserId: string,
 ) {
@@ -275,6 +441,59 @@ export async function getLeaderboard(
     return getStreakLeaderboard(board, currentUserId);
   }
   return getSpeedLeaderboard(board, currentUserId);
+}
+
+function emptyLeaderboard(board: LeaderboardBoard): LeaderboardData {
+  return {
+    board,
+    ...leaderboardMetadata(board, vietnamWeekStart(), 0),
+    entries: [],
+    currentUserEntry: null,
+  };
+}
+
+export async function getLeaderboardSnapshot(
+  currentUserId: string,
+): Promise<LeaderboardSnapshot> {
+  const admin = createAdminClient();
+  const { data, error } = await admin.rpc("get_leaderboard_snapshot", {
+    p_current_user_id: currentUserId,
+  });
+  if (!error) {
+    const snapshot = normalizeLeaderboardSnapshot(data, currentUserId);
+    if (snapshot) return snapshot;
+  } else if (error.code !== "PGRST202" && error.code !== "42883") {
+    console.error("Leaderboard snapshot RPC failed; using legacy reads.", error);
+  }
+
+  const entries = await Promise.allSettled(
+    allLeaderboardBoards.map(async (board) => [
+      board,
+      await getLegacyLeaderboard(board, currentUserId),
+    ] as const),
+  );
+  const boards = {} as Record<LeaderboardBoard, LeaderboardData>;
+  entries.forEach((result, index) => {
+    const board = allLeaderboardBoards[index];
+    if (result.status === "fulfilled") {
+      boards[board] = result.value[1];
+    } else {
+      console.error(`Legacy leaderboard fallback failed for ${board}.`, result.reason);
+      boards[board] = emptyLeaderboard(board);
+    }
+  });
+  return {
+    generatedAt: new Date().toISOString(),
+    boards,
+  };
+}
+
+export async function getLeaderboard(
+  board: LeaderboardBoard,
+  currentUserId: string,
+) {
+  const snapshot = await getLeaderboardSnapshot(currentUserId);
+  return snapshot.boards[board];
 }
 
 export async function getRankedAttemptsRemaining(

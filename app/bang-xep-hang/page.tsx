@@ -3,13 +3,13 @@ import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/lib/auth/authorize";
 import {
-  getLeaderboard,
+  getLeaderboardSnapshot,
   type LeaderboardBoard,
 } from "@/lib/data/rankings";
 import {
-  isLeaderboardBoard,
   LeaderboardView,
 } from "@/features/rankings/leaderboard-view";
+import { isLeaderboardBoard } from "@/lib/rankings/leaderboard-config";
 
 export const metadata: Metadata = { title: "Bảng xếp hạng" };
 export default async function LeaderboardPage({
@@ -22,7 +22,13 @@ export default async function LeaderboardPage({
   const board: LeaderboardBoard = isLeaderboardBoard(query.board)
     ? query.board
     : "exam";
-  const leaderboard = await getLeaderboard(board, user.id);
+  const snapshot = await getLeaderboardSnapshot(user.id);
 
-  return <LeaderboardView board={board} leaderboard={leaderboard} currentUserId={user.id} />;
+  return (
+    <LeaderboardView
+      initialBoard={board}
+      initialSnapshot={snapshot}
+      currentUserId={user.id}
+    />
+  );
 }
