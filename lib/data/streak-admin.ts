@@ -37,23 +37,18 @@ export async function getStreakAdminData(query = "") {
 
   const authUsers = authResult.data.users;
   const userIds = authUsers.map((user) => user.id);
-  const [{ data: profiles, error: profileError }, { data: streaks, error: streakError }] =
+  const [profiles, streaks] =
     userIds.length > 0
       ? await Promise.all([
-          admin.from("learner_profiles").select("id,display_name").in("id", userIds),
-          admin.from("user_streaks").select("user_id,current_streak,longest_streak,shield_count,last_activity_date").in("user_id", userIds),
+          readProfilesInBatches(admin, userIds),
+          readStreaksInBatches(admin, userIds),
         ])
-      : [{ data: [], error: null }, { data: [], error: null }];
-
-  if (profileError || streakError) {
-    const cause = profileError ?? streakError;
-    throw new Error(`Không thể tải streak của người học: ${cause?.message ?? "Lỗi không xác định"}`);
-  }
+      : [[], []];
   const normalizedQuery = query.trim().toLocaleLowerCase("vi");
   const users: StreakManagedUser[] = authUsers
     .map((user) => {
-      const profile = profiles?.find((item) => item.id === user.id);
-      const streak = streaks?.find((item) => item.user_id === user.id);
+      const profile = profiles.find((item) => item.id === user.id);
+      const streak = streaks.find((item) => item.user_id === user.id);
       return {
         id: user.id,
         email: user.email ?? "",
@@ -82,4 +77,56 @@ export async function getStreakAdminData(query = "") {
     users,
     totalUsers: authUsers.length,
   };
+}
+
+const adminQueryBatchSize = 100;
+
+async function readProfilesInBatches(
+  admin: ReturnType<typeof createAdminClient>,
+  userIds: string[],
+) {
+  const rows = [];
+  for (const batch of chunk(userIds, adminQueryBatchSize)) {
+    const { data, error } = await admin
+      .from("learner_profiles")
+      .select("id,display_name")
+      .in("id", batch);
+    if (error) {
+      throw new Error(
+        `Không thể tải hồ sơ người học: ${error.message || "Lỗi không xác định"}`,
+      );
+    }
+    rows.push(...(data ?? []));
+  }
+  return rows;
+}
+
+async function readStreaksInBatches(
+  admin: ReturnType<typeof createAdminClient>,
+  userIds: string[],
+) {
+  const rows = [];
+  for (const batch of chunk(userIds, adminQueryBatchSize)) {
+    const { data, error } = await admin
+      .from("user_streaks")
+      .select(
+        "user_id,current_streak,longest_streak,shield_count,last_activity_date",
+      )
+      .in("user_id", batch);
+    if (error) {
+      throw new Error(
+        `Không thể tải streak của người học: ${error.message || "Lỗi không xác định"}`,
+      );
+    }
+    rows.push(...(data ?? []));
+  }
+  return rows;
+}
+
+function chunk<T>(items: T[], size: number) {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
 }

@@ -7,17 +7,22 @@ type FlashcardExerciseProps = {
   position: number;
   total: number;
   learnedCount: number;
+  flaggedCount?: number;
   learned: boolean;
+  flagged: boolean;
+  reviewMode?: boolean;
+  reviewPosition?: number;
+  reviewTotal?: number;
   flipped: boolean;
   skipFlipAnimation: boolean;
   onFlip: () => void;
   onReplayAudio: () => void;
-  onToggleLearned: () => void;
+  onToggleFlag: () => void;
   onMarkLearned: () => void;
-  onMarkUnlearned: () => void;
   onPrevious: () => void;
   onNext: () => void;
   onRestart: () => void;
+  nextLabel?: string;
 };
 
 function capitalizeFirst(value: string) {
@@ -30,20 +35,31 @@ export function FlashcardExercise({
   position,
   total,
   learnedCount,
+  flaggedCount = 0,
   learned,
+  flagged,
+  reviewMode = false,
+  reviewPosition,
+  reviewTotal,
   flipped,
   skipFlipAnimation,
   onFlip,
   onReplayAudio,
-  onToggleLearned,
+  onToggleFlag,
   onMarkLearned,
-  onMarkUnlearned,
   onPrevious,
   onNext,
   onRestart,
+  nextLabel,
 }: FlashcardExerciseProps) {
-  const first = position === 0;
+  const first = reviewMode
+    ? reviewPosition === undefined || reviewPosition === 0
+    : position === 0;
   const last = position === total - 1;
+  const displayPosition = reviewMode && reviewPosition !== undefined
+    ? reviewPosition + 1
+    : position + 1;
+  const displayTotal = reviewMode && reviewTotal !== undefined ? reviewTotal : total;
   return (
     <section className="mt-7 grid items-stretch gap-5 lg:grid-cols-[230px_1fr]">
       <aside className="rounded-3xl border border-white bg-white/95 p-6 shadow-[0_16px_35px_rgba(16,36,62,0.16)]">
@@ -52,6 +68,9 @@ export function FlashcardExercise({
         </p>
         <p className="mt-3 text-4xl font-black tracking-tight text-[#10243e]">
           {learnedCount}/{total}
+        </p>
+        <p className="mt-2 text-sm font-black text-amber-700">
+          {flaggedCount} từ cần ôn lại
         </p>
         <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-blue-100">
           <div
@@ -67,7 +86,7 @@ export function FlashcardExercise({
       <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-[#d6e7f3] bg-[#dceef9] shadow-[0_16px_35px_rgba(16,36,62,0.12)] backdrop-blur-xl">
         <div className="flex items-center justify-between border-b border-[#b9d9e8] bg-gradient-to-r from-[#dceef9] to-[#d3e7f5] px-5 py-4">
           <span className="font-black">
-            {position + 1} / {total}
+            {displayPosition} / {displayTotal}
           </span>
           <div className="flex gap-2">
             <SaveToListButton lessonId={lessonId} item={word} />
@@ -83,15 +102,18 @@ export function FlashcardExercise({
             </button>
             <button
               type="button"
-              onClick={onToggleLearned}
+              onClick={onToggleFlag}
               className={`rounded-xl border-2 border-[#10243e] px-3 py-2 font-black ${
-                learned ? "bg-green-600 text-white" : "bg-white"
+                flagged ? "bg-amber-300 text-amber-950" : "bg-white"
               }`}
               aria-label={
-                learned ? "Bỏ đánh dấu đã thuộc" : "Đánh dấu đã thuộc"
+                flagged
+                  ? "Bỏ đánh dấu cần ôn lại"
+                  : "Đánh dấu cần ôn lại"
               }
+              title={flagged ? "Bỏ đánh dấu cần ôn lại" : "Đánh dấu cần ôn lại"}
             >
-              ✓
+              🚩
             </button>
           </div>
         </div>
@@ -159,17 +181,6 @@ export function FlashcardExercise({
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={onMarkUnlearned}
-              className={`rounded-xl border-2 border-[#10243e] px-4 py-3 text-base font-black shadow-[0_5px_0_#10243e] ${
-                !learned
-                  ? "bg-[#d9574c] text-white"
-                  : "bg-red-50 text-red-800"
-              }`}
-            >
-              ✕ Chưa thuộc
-            </button>
-            <button
-              type="button"
               onClick={onMarkLearned}
               className={`rounded-xl border-2 border-[#10243e] px-4 py-3 text-base font-black shadow-[0_5px_0_#10243e] ${
                 learned
@@ -183,14 +194,13 @@ export function FlashcardExercise({
           <button
             type="button"
             onClick={onNext}
-            disabled={last}
-            aria-label="Thẻ sau"
-            title="Thẻ sau"
-            className="grid h-12 w-12 place-items-center rounded-full border-2 border-[#10243e] bg-[#10243e] text-3xl font-black leading-none text-white shadow-[0_4px_0_#071224] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35"
+            aria-label={nextLabel ?? (last ? "Kết thúc phiên flashcard" : "Thẻ sau")}
+            title={nextLabel ?? (last ? "Kết thúc phiên flashcard" : "Thẻ sau")}
+            className="grid min-h-12 min-w-12 place-items-center rounded-full border-2 border-[#10243e] bg-[#10243e] px-4 text-base font-black leading-none text-white shadow-[0_4px_0_#071224] transition hover:-translate-y-0.5"
           >
-            →
+            {nextLabel ?? (last ? "Kết thúc" : "Tiếp →")}
           </button>
-          {last && (
+          {last && !reviewMode && (
             <button
               type="button"
               onClick={onRestart}
@@ -200,6 +210,98 @@ export function FlashcardExercise({
             </button>
           )}
         </div>
+      </div>
+    </section>
+  );
+}
+
+export function FlashcardSummary({
+  flaggedCount,
+  learnedCount,
+  total,
+  reviewAvailable,
+  complete = false,
+  onReview,
+  onFinish,
+  onRestart,
+}: {
+  flaggedCount: number;
+  learnedCount: number;
+  total: number;
+  reviewAvailable: boolean;
+  complete?: boolean;
+  onReview?: () => void;
+  onFinish?: () => void;
+  onRestart: () => void;
+}) {
+  return (
+    <section className="mx-auto mt-7 max-w-3xl rounded-3xl border border-white/80 bg-white/95 p-8 text-center shadow-[0_18px_45px_rgba(16,36,62,0.16)] md:p-10">
+      <p className="text-xs font-black uppercase tracking-[0.2em] text-[#087eba]">
+        {complete ? "Flashcard đã lưu" : "Đã xem hết bộ từ"}
+      </p>
+      <h2 className="mt-3 text-3xl font-black text-[#10243e] md:text-4xl">
+        {complete ? "Tiến độ đã được lưu" : "Bạn muốn làm gì tiếp theo?"}
+      </h2>
+      <div className="mx-auto mt-7 grid max-w-xl grid-cols-2 gap-3">
+        <div className="rounded-2xl bg-emerald-50 p-4 text-left">
+          <strong className="block text-2xl font-black text-emerald-700">
+            {learnedCount}/{total}
+          </strong>
+          <span className="text-sm font-bold text-emerald-900/65">Đã thuộc</span>
+        </div>
+        <div className="rounded-2xl bg-amber-50 p-4 text-left">
+          <strong className="block text-2xl font-black text-amber-700">
+            {flaggedCount}
+          </strong>
+          <span className="text-sm font-bold text-amber-900/65">Cần ôn lại</span>
+        </div>
+      </div>
+      {complete ? (
+        <p className="mt-6 text-sm font-semibold leading-6 text-[#52637a]">
+          Các từ cần ôn đã được đưa vào lịch ôn lại. Bạn có thể quay lại bài học
+          hoặc học lại flashcard bất cứ lúc nào.
+        </p>
+      ) : (
+        <p className="mt-6 text-sm font-semibold leading-6 text-[#52637a]">
+          Những từ chưa đánh giá hoặc đã gắn cờ sẽ được đưa vào vòng ôn lại.
+        </p>
+      )}
+      <div className="mt-7 grid gap-3 sm:grid-cols-2">
+        {!complete && reviewAvailable && onReview && (
+          <button
+            type="button"
+            onClick={onReview}
+            className="min-h-14 rounded-xl bg-amber-300 px-5 py-3 font-black text-amber-950 shadow-[0_5px_0_#b7791f]"
+          >
+            ÔN LẠI NGAY ({flaggedCount})
+          </button>
+        )}
+        {!complete && onFinish && (
+          <button
+            type="button"
+            onClick={onFinish}
+            className="min-h-14 rounded-xl bg-[#10243e] px-5 py-3 font-black text-white shadow-[0_5px_0_#071224]"
+          >
+            KẾT THÚC
+          </button>
+        )}
+        {complete ? (
+          <button
+            type="button"
+            onClick={onRestart}
+            className="min-h-14 rounded-xl bg-emerald-500 px-5 py-3 font-black text-emerald-950 shadow-[0_5px_0_#047857]"
+          >
+            HỌC LẠI FLASHCARD
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onRestart}
+            className="min-h-14 rounded-xl border-2 border-[#10243e] bg-white px-5 py-3 font-black text-[#10243e]"
+          >
+            QUAY LẠI THẺ ĐẦU
+          </button>
+        )}
       </div>
     </section>
   );

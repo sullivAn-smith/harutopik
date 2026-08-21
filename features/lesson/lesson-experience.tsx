@@ -49,6 +49,10 @@ const FlashcardExercise = dynamic(
   () => import("@/features/lesson/components/flashcard-exercise").then((module) => module.FlashcardExercise),
   { loading: ExerciseLoading },
 );
+const FlashcardSummary = dynamic(
+  () => import("@/features/lesson/components/flashcard-exercise").then((module) => module.FlashcardSummary),
+  { loading: ExerciseLoading },
+);
 const TypingExercise = dynamic(
   () => import("@/features/lesson/components/typing-exercise").then((module) => module.TypingExercise),
   { loading: ExerciseLoading },
@@ -138,6 +142,18 @@ function LessonContent({
   const [flipped, setFlipped] = useState(false);
   const [skipFlipAnimation, setSkipFlipAnimation] = useState(false);
   const [learnedIndices, setLearnedIndices] = useState<number[]>([]);
+  const [flaggedIndices, setFlaggedIndices] = useState<number[]>([]);
+  const [ratedIndices, setRatedIndices] = useState<number[]>([]);
+  const [flashcardView, setFlashcardView] = useState<"study" | "review">(
+    "study",
+  );
+  const [flashcardReviewIndices, setFlashcardReviewIndices] = useState<
+    number[]
+  >([]);
+  const [flashcardReviewPosition, setFlashcardReviewPosition] = useState(0);
+  const [flashcardSummary, setFlashcardSummary] = useState<
+    "initial" | "complete" | null
+  >(null);
   const [shuffleSeed, setShuffleSeed] = useState(1);
   const flashcardAutoAudioTimerRef = useRef<number | null>(null);
   const flashcardAutoAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -324,6 +340,18 @@ function LessonContent({
       setCurrent(Math.min(session.current, maxVocabularyIndex));
       setFlipped(session.flipped);
       setLearnedIndices(validVocabularyIndices(session.learnedIndices));
+      setFlaggedIndices(validVocabularyIndices(session.flaggedIndices));
+      setRatedIndices(validVocabularyIndices(session.ratedIndices));
+      setFlashcardView(session.flashcardView);
+      setFlashcardReviewIndices(
+        validVocabularyIndices(session.flashcardReviewIndices),
+      );
+      setFlashcardReviewPosition(
+        Math.min(
+          session.flashcardReviewPosition,
+          Math.max(0, session.flashcardReviewIndices.length - 1),
+        ),
+      );
       setShuffleSeed(session.shuffleSeed);
       setQuizAnswer(session.quizAnswer);
       setQuizCorrectCount(session.quizCorrectCount);
@@ -383,6 +411,11 @@ function LessonContent({
       current,
       flipped,
       learnedIndices,
+      flaggedIndices,
+      ratedIndices,
+      flashcardView,
+      flashcardReviewIndices,
+      flashcardReviewPosition,
       shuffleSeed,
       quizAnswer,
       quizCorrectCount,
@@ -417,6 +450,10 @@ function LessonContent({
       dictationInput,
       dictationWrongIndices,
       flipped,
+      flaggedIndices,
+      flashcardReviewIndices,
+      flashcardReviewPosition,
+      flashcardView,
       learnedIndices,
       matchedIndices,
       matchingWrongIndices,
@@ -427,6 +464,7 @@ function LessonContent({
       quizCorrectCount,
       quizReviewIndices,
       quizWrongIndices,
+      ratedIndices,
       selectedKorean,
       shuffleSeed,
       translationChecked,
@@ -642,6 +680,10 @@ function LessonContent({
     setMode(nextMode);
     setShuffleSeed(Date.now());
     setCurrent(0);
+    setFlashcardView("study");
+    setFlashcardReviewIndices([]);
+    setFlashcardReviewPosition(0);
+    setFlashcardSummary(null);
     setQuizAnswer(null);
     setQuizCorrectCount(0);
     setQuizWrongIndices([]);
@@ -734,6 +776,24 @@ function LessonContent({
     );
   }
 
+  function jumpToFlashcard(index: number) {
+    if (index < 0 || index >= vocabulary.length) return;
+
+    stopFlashcardAudio();
+    setSkipFlipAnimation(true);
+    setFlipped(false);
+    setCurrent(index);
+    const nextAudioUrl = vocabulary[index]?.audioUrl;
+    if (nextAudioUrl) {
+      flashcardAutoAudioTimerRef.current = window.setTimeout(() => {
+        playFlashcardAudio(nextAudioUrl);
+      }, 500);
+    }
+    window.requestAnimationFrame(() =>
+      window.requestAnimationFrame(() => setSkipFlipAnimation(false)),
+    );
+  }
+
   function restartFlashcards() {
     stopFlashcardAudio();
     setSkipFlipAnimation(true);
@@ -748,6 +808,126 @@ function LessonContent({
     window.requestAnimationFrame(() =>
       window.requestAnimationFrame(() => setSkipFlipAnimation(false)),
     );
+  }
+
+  function restartFlashcardSession() {
+    setFlashcardSummary(null);
+    setFlashcardView("study");
+    setFlashcardReviewIndices([]);
+    setFlashcardReviewPosition(0);
+    setFlaggedIndices([]);
+    setRatedIndices([]);
+    restartFlashcards();
+  }
+
+  function returnToFlashcardStart() {
+    setFlashcardSummary(null);
+    setFlashcardView("study");
+    setFlashcardReviewIndices([]);
+    setFlashcardReviewPosition(0);
+    restartFlashcards();
+  }
+
+  function toggleFlashcardFlag() {
+    const isFlagged = flaggedIndices.includes(current);
+    if (isFlagged) {
+      setFlaggedIndices((items) => items.filter((item) => item !== current));
+      return;
+    }
+
+    setFlaggedIndices((items) =>
+      items.includes(current) ? items : [...items, current],
+    );
+    setLearnedIndices((items) => items.filter((item) => item !== current));
+    setRatedIndices((items) => items.filter((item) => item !== current));
+  }
+
+  function finishFlashcardSession(pendingFlagged = flaggedIndices) {
+    const reviewIndices = [...new Set(pendingFlagged)].filter(
+      (index) => index >= 0 && index < vocabulary.length,
+    );
+    for (const index of reviewIndices) {
+      void rateContent("flashcard", vocabulary[index].id, "again");
+    }
+    void clearSession();
+    setFlashcardSummary("complete");
+  }
+
+  function startFlashcardReview() {
+    const reviewIndices = [...new Set(flaggedIndices)].filter(
+      (index) => index >= 0 && index < vocabulary.length,
+    );
+    if (reviewIndices.length === 0) {
+      finishFlashcardSession([]);
+      return;
+    }
+    setFlashcardSummary(null);
+    setFlashcardView("review");
+    setFlashcardReviewIndices(reviewIndices);
+    setFlashcardReviewPosition(0);
+    jumpToFlashcard(reviewIndices[0]);
+  }
+
+  function finishInitialFlashcards() {
+    setFlashcardSummary("initial");
+  }
+
+  function nextFlashcard() {
+    if (flashcardView === "review") {
+      const shouldKeepFlagged =
+        !learnedIndices.includes(current) && !flaggedIndices.includes(current);
+      const nextFlagged = shouldKeepFlagged
+        ? [...flaggedIndices, current]
+        : flaggedIndices;
+      if (shouldKeepFlagged) setFlaggedIndices(nextFlagged);
+
+      const nextPosition = flashcardReviewPosition + 1;
+      if (nextPosition >= flashcardReviewIndices.length) {
+        finishFlashcardSession(nextFlagged);
+        return;
+      }
+      setFlashcardReviewPosition(nextPosition);
+      jumpToFlashcard(flashcardReviewIndices[nextPosition]);
+      return;
+    }
+
+    if (!ratedIndices.includes(current) && !flaggedIndices.includes(current)) {
+      setFlaggedIndices((items) => [...items, current]);
+    }
+    if (current === vocabulary.length - 1) {
+      finishInitialFlashcards();
+      return;
+    }
+    move(1);
+  }
+
+  function markFlashcardLearned() {
+    const nextFlagged = flaggedIndices.filter((index) => index !== current);
+    setFlaggedIndices(nextFlagged);
+    setLearnedIndices((items) =>
+      items.includes(current) ? items : [...items, current],
+    );
+    setRatedIndices((items) =>
+      items.includes(current) ? items : [...items, current],
+    );
+    void rateContent("flashcard", activeWord.id, "good");
+
+    if (flashcardView === "review") {
+      const nextPosition = flashcardReviewPosition + 1;
+      if (nextPosition >= flashcardReviewIndices.length) {
+        finishFlashcardSession(nextFlagged);
+        return;
+      }
+      setFlashcardReviewPosition(nextPosition);
+      jumpToFlashcard(flashcardReviewIndices[nextPosition]);
+      return;
+    }
+
+    if (current === vocabulary.length - 1) {
+      finishInitialFlashcards();
+      return;
+    }
+    move(1);
   }
 
   function chooseQuizAnswer(answer: string) {
@@ -890,6 +1070,12 @@ function LessonContent({
     await clearSession();
     setRestartDialogOpen(false);
     setLearnedIndices([]);
+    setFlaggedIndices([]);
+    setRatedIndices([]);
+    setFlashcardView("study");
+    setFlashcardReviewIndices([]);
+    setFlashcardReviewPosition(0);
+    setFlashcardSummary(null);
     setFlipped(false);
     changeMode("flashcard");
   }
@@ -1065,48 +1251,73 @@ function LessonContent({
               onLockedSpeedTestClick={() => setProgressDialogOpen(true)}
             />
 
-            {mode === "flashcard" && (
+            {mode === "flashcard" && flashcardSummary && (
+              <FlashcardSummary
+                flaggedCount={flaggedIndices.length}
+                learnedCount={learnedIndices.length}
+                total={vocabulary.length}
+                reviewAvailable={flaggedIndices.length > 0}
+                complete={flashcardSummary === "complete"}
+                onReview={
+                  flashcardSummary === "initial"
+                    ? startFlashcardReview
+                    : undefined
+                }
+                onFinish={
+                  flashcardSummary === "initial"
+                    ? () => finishFlashcardSession()
+                    : undefined
+                }
+                onRestart={
+                  flashcardSummary === "complete"
+                    ? restartFlashcardSession
+                    : returnToFlashcardStart
+                }
+              />
+            )}
+
+            {mode === "flashcard" && !flashcardSummary && (
               <FlashcardExercise
                 word={activeWord}
                 lessonId={lesson.id}
                 position={current}
                 total={vocabulary.length}
                 learnedCount={learnedIndices.length}
+                flaggedCount={flaggedIndices.length}
                 learned={learnedIndices.includes(current)}
+                flagged={flaggedIndices.includes(current)}
+                reviewMode={flashcardView === "review"}
+                reviewPosition={flashcardReviewPosition}
+                reviewTotal={flashcardReviewIndices.length}
                 flipped={flipped}
                 skipFlipAnimation={skipFlipAnimation}
                 onFlip={() => setFlipped((value) => !value)}
                 onReplayAudio={() => {
                   if (activeWord.audioUrl) playFlashcardAudio(activeWord.audioUrl);
                 }}
-                onToggleLearned={() => {
-                  const learned = learnedIndices.includes(current);
-                  setLearnedIndices((items) =>
-                    learned
-                      ? items.filter((item) => item !== current)
-                      : [...items, current],
-                  );
-                  void rateContent(
-                    "flashcard",
-                    activeWord.id,
-                    learned ? "again" : "good",
-                  );
+                onToggleFlag={toggleFlashcardFlag}
+                onMarkLearned={markFlashcardLearned}
+                onPrevious={() => {
+                  if (flashcardView === "review") {
+                    const previousPosition = flashcardReviewPosition - 1;
+                    if (previousPosition < 0) return;
+                    setFlashcardReviewPosition(previousPosition);
+                    jumpToFlashcard(flashcardReviewIndices[previousPosition]);
+                    return;
+                  }
+                  move(-1);
                 }}
-                onMarkLearned={() => {
-                  addUniqueIndex(setLearnedIndices, current);
-                  void rateContent("flashcard", activeWord.id, "good");
-                  move(1);
-                }}
-                onMarkUnlearned={() => {
-                  setLearnedIndices((items) =>
-                    items.filter((item) => item !== current),
-                  );
-                  void rateContent("flashcard", activeWord.id, "again");
-                  move(1);
-                }}
-                onPrevious={() => move(-1)}
-                onNext={() => move(1)}
+                onNext={nextFlashcard}
                 onRestart={restartFlashcards}
+                nextLabel={
+                  flashcardView === "review" &&
+                  flashcardReviewPosition === flashcardReviewIndices.length - 1
+                    ? "Kết thúc"
+                    : current === vocabulary.length - 1 &&
+                        flashcardView === "study"
+                      ? "Kết thúc"
+                      : undefined
+                }
               />
             )}
 

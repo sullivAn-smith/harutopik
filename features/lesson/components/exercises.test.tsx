@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { DictationExercise } from "./dictation-exercise";
-import { FlashcardExercise } from "./flashcard-exercise";
+import { FlashcardExercise, FlashcardSummary } from "./flashcard-exercise";
 import { MatchingExercise } from "./matching-exercise";
 import { ModeNavigation } from "./mode-navigation";
 import { QuizExercise } from "./quiz-exercise";
@@ -36,13 +36,13 @@ describe("FlashcardExercise", () => {
         total={55}
         learnedCount={0}
         learned={false}
+        flagged={false}
         flipped={false}
         skipFlipAnimation={false}
         onFlip={onFlip}
         onReplayAudio={onReplayAudio}
-        onToggleLearned={vi.fn()}
+        onToggleFlag={vi.fn()}
         onMarkLearned={onMarkLearned}
-        onMarkUnlearned={vi.fn()}
         onPrevious={vi.fn()}
         onNext={vi.fn()}
         onRestart={vi.fn()}
@@ -63,6 +63,62 @@ describe("FlashcardExercise", () => {
     ).toBe(true);
     expect(screen.getByRole("button", { name: "Thẻ sau" })).toBeTruthy();
     expect(screen.queryByText("Lưu vào bộ từ")).toBeNull();
+  });
+
+  it("gắn cờ ôn lại bằng nút tích ở góc và giữ hàng nút điều hướng gọn", () => {
+    const onToggleFlag = vi.fn();
+    render(
+      <FlashcardExercise
+        lessonId="lesson-test"
+        word={word}
+        position={0}
+        total={2}
+        learnedCount={0}
+        flaggedCount={1}
+        learned={false}
+        flagged={true}
+        flipped={false}
+        skipFlipAnimation={false}
+        onFlip={vi.fn()}
+        onReplayAudio={vi.fn()}
+        onToggleFlag={onToggleFlag}
+        onMarkLearned={vi.fn()}
+        onPrevious={vi.fn()}
+        onNext={vi.fn()}
+        onRestart={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Bỏ đánh dấu cần ôn lại" }),
+    );
+
+    expect(onToggleFlag).toHaveBeenCalledOnce();
+    expect(screen.getByRole("button", { name: "✓ Đã thuộc" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Thẻ sau" })).toBeTruthy();
+    expect(screen.queryByText("Chưa thuộc")).toBeNull();
+  });
+
+  it("hiển thị lựa chọn ôn lại hoặc kết thúc sau vòng xem thẻ", () => {
+    const onReview = vi.fn();
+    const onFinish = vi.fn();
+    render(
+      <FlashcardSummary
+        flaggedCount={2}
+        learnedCount={3}
+        total={5}
+        reviewAvailable
+        onReview={onReview}
+        onFinish={onFinish}
+        onRestart={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /ÔN LẠI NGAY/ }));
+    fireEvent.click(screen.getByRole("button", { name: "KẾT THÚC" }));
+
+    expect(onReview).toHaveBeenCalledOnce();
+    expect(onFinish).toHaveBeenCalledOnce();
   });
 });
 

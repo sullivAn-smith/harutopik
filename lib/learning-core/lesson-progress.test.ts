@@ -5,56 +5,36 @@ import {
 } from "./lesson-progress";
 
 const vocabularyIds = Array.from({ length: 10 }, (_, index) => `word-${index}`);
-const practiceModes = [
-  "quiz",
-  "typing",
-  "matching",
-  "dictation",
-  "translation",
-] as const;
+const practiceModes = ["quiz"] as const;
 
 describe("lesson progress", () => {
-  it("mở Speed Test khi hoàn thành 100% và có bài luyện đạt ít nhất 70%", () => {
+  it("mở Speed Test khi đã thuộc toàn bộ từ flashcard", () => {
     const progress = calculateLessonProgress({
       vocabularyIds,
       learnedVocabularyIds: vocabularyIds,
       hasGrammar: true,
       availablePracticeModes: practiceModes,
-      practices: [
-        { mode: "grammar", score: 4, total: 5 },
-        { mode: "quiz", score: 7, total: 10 },
-        { mode: "typing", score: 7, total: 10 },
-        { mode: "matching", score: 7, total: 10 },
-        { mode: "dictation", score: 7, total: 10 },
-        { mode: "translation", score: 7, total: 10 },
-      ],
+      practices: [],
     });
 
     expect(progress.completionPercent).toBe(100);
-    expect(progress.bestPracticeAccuracy).toBe(70);
     expect(progress.eligibleForSpeedTest).toBe(true);
   });
 
-  it("không mở khóa nếu đã làm đủ hoạt động nhưng chưa đạt 70%", () => {
+  it("không cộng quiz hoặc ngữ pháp vào phần trăm tiến độ", () => {
     const progress = calculateLessonProgress({
       vocabularyIds,
-      learnedVocabularyIds: vocabularyIds,
+      learnedVocabularyIds: vocabularyIds.slice(0, 5),
       hasGrammar: true,
       availablePracticeModes: practiceModes,
       practices: [
         { mode: "grammar", score: 5, total: 5 },
-        { mode: "quiz", score: 6, total: 10 },
-        { mode: "typing", score: 6, total: 10 },
-        { mode: "matching", score: 6, total: 10 },
-        { mode: "dictation", score: 6, total: 10 },
-        { mode: "translation", score: 6, total: 10 },
+        { mode: "quiz", score: 10, total: 10 },
       ],
     });
 
-    expect(progress.completionPercent).toBeLessThan(
-      lessonSpeedTestUnlockPercent,
-    );
-    expect(progress.bestPracticeAccuracy).toBe(60);
+    expect(progress.completionPercent).toBe(50);
+    expect(progress.completionPercent).toBeLessThan(lessonSpeedTestUnlockPercent);
     expect(progress.eligibleForSpeedTest).toBe(false);
   });
 
@@ -71,7 +51,7 @@ describe("lesson progress", () => {
       ],
     });
 
-    expect(progress.components.practice).toBe(20);
+    expect(progress.components.practice).toBe(100);
     expect(progress.bestPracticeAccuracy).toBe(90);
     expect(progress.completedModes.filter((mode) => mode === "quiz")).toHaveLength(1);
   });
@@ -89,7 +69,7 @@ describe("lesson progress", () => {
     expect(progress.eligibleForSpeedTest).toBe(true);
   });
 
-  it("gợi ý học flashcard trước khi độ phủ từ vựng đạt 80%", () => {
+  it("gợi ý học flashcard cho số từ còn thiếu", () => {
     const progress = calculateLessonProgress({
       vocabularyIds,
       learnedVocabularyIds: vocabularyIds.slice(0, 5),
@@ -99,6 +79,6 @@ describe("lesson progress", () => {
     });
 
     expect(progress.recommendedMode).toBe("flashcard");
-    expect(progress.recommendation).toContain("3 từ");
+    expect(progress.recommendation).toContain("5 từ");
   });
 });
