@@ -158,14 +158,15 @@ export default async function ExamResultPage({
                       <ExamResultExplanationDialog
                         explanation={explanation}
                         questionNumber={displayPosition}
+                        options={options}
+                        correctOption={correct}
+                        selectedOption={selected}
+                        showTextOptions={
+                          question.section === "listening" &&
+                          question.answer_type !== "image"
+                        }
                       >
                         {questionContent}
-                        <p className="mt-4 font-semibold text-slate-600">
-                          Bạn chọn: {selected ? `${selected}. ${options[selected - 1] ?? ""}` : "Chưa trả lời"}
-                        </p>
-                        <p className="mt-1 font-bold text-emerald-700">
-                          Đáp án: {correct}. {options[correct - 1] ?? ""}
-                        </p>
                       </ExamResultExplanationDialog>
                     )}
                     </div>

@@ -113,7 +113,7 @@ describe("SpeedTestArena", () => {
     expect(lesson.getAttribute("href"))
       .toBe("/courses/topik-1/lessons/bai-khoa?speedTest=locked");
     expect(screen.getByText("🔒 62%")).toBeTruthy();
-    expect(screen.getByText("Học bài và đạt 75% tiến độ để mở thử thách."))
+    expect(screen.getByText("Hoàn thành bài học để mở thử thách."))
       .toBeTruthy();
   });
 });

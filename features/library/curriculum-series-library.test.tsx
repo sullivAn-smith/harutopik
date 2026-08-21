@@ -124,4 +124,34 @@ describe("CurriculumSeriesLibrary", () => {
     expect(completedProgress.textContent).toContain("✓");
     expect(completedProgress.className).toContain("bg-emerald-500");
   });
+
+  it("keeps lesson navigation available while auth progress is streaming", () => {
+    render(
+      <CurriculumSeriesLibrary
+        series={curriculumSeriesDefinitions[0]}
+        books={books}
+        signedIn={null}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Quyển 1" }));
+    expect(
+      screen.getByRole("link", { name: /Bài 1.*Giới thiệu bản thân/ }).getAttribute("href"),
+    ).toBe("/courses/topik-1/lessons/bai-1");
+  });
+
+  it("keeps the login redirect for a confirmed signed-out learner", () => {
+    render(
+      <CurriculumSeriesLibrary
+        series={curriculumSeriesDefinitions[0]}
+        books={books}
+        signedIn={false}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Quyển 1" }));
+    expect(
+      screen.getByRole("link", { name: /Bài 1.*Giới thiệu bản thân/ }).getAttribute("href"),
+    ).toBe("/dang-nhap?next=%2Fcourses%2Ftopik-1%2Flessons%2Fbai-1");
+  });
 });

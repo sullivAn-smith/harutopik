@@ -2,19 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useRef } from "react";
-import {
-  lessonPracticeAccuracyRequirement,
-  type LessonProgressSnapshot,
-} from "@/lib/learning-core/lesson-progress";
+import type { LessonProgressSnapshot } from "@/lib/learning-core/lesson-progress";
 
 const progressRows: Array<{
   key: keyof LessonProgressSnapshot["components"];
   label: string;
 }> = [
   { key: "vocabulary", label: "Từ vựng" },
-  { key: "grammar", label: "Ngữ pháp" },
-  { key: "practice", label: "Luyện tập" },
-  { key: "accuracy", label: "Độ chính xác" },
 ];
 
 export function LessonProgressDialog({
@@ -98,7 +92,7 @@ export function LessonProgressDialog({
           <p className="mt-3 text-sm font-semibold leading-6 text-[#52637a]">
             {unlocked
               ? "Quyền truy cập được giữ vĩnh viễn, kể cả khi bài học được cập nhật."
-              : `Hoàn thành ${progress.unlockThreshold}% bài học và đạt ít nhất ${lessonPracticeAccuracyRequirement}% chính xác trong một bài luyện để mở khóa.`}
+              : `Đánh dấu đã thuộc toàn bộ từ trong flashcard để đạt ${progress.unlockThreshold}% và mở khóa.`}
           </p>
         </div>
 

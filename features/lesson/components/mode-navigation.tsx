@@ -20,6 +20,7 @@ type ModeNavigationProps = {
   onChange: (mode: StudyMode) => void;
   speedTestHref?: string;
   speedTestProgress?: LessonProgressSnapshot;
+  speedTestProgressLoading?: boolean;
   onLockedSpeedTestClick?: () => void;
 };
 
@@ -29,6 +30,7 @@ export function ModeNavigation({
   onChange,
   speedTestHref,
   speedTestProgress,
+  speedTestProgressLoading = false,
   onLockedSpeedTestClick,
 }: ModeNavigationProps) {
   return (
@@ -51,8 +53,17 @@ export function ModeNavigation({
           {mode.label}
         </button>
       ))}
+      {speedTestHref && speedTestProgressLoading && (
+        <span
+          role="status"
+          className="ml-auto shrink-0 rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm font-black text-slate-500"
+        >
+          ⚡ Đang tải tiến độ...
+        </span>
+      )}
       {speedTestHref &&
-        (!speedTestProgress || speedTestProgress.speedTestUnlocked) && (
+        !speedTestProgressLoading &&
+        speedTestProgress?.speedTestUnlocked && (
         <Link
           href={speedTestHref}
           className="ml-auto shrink-0 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-3 text-sm font-black text-[#10243e] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
@@ -61,6 +72,7 @@ export function ModeNavigation({
         </Link>
       )}
       {speedTestHref &&
+        !speedTestProgressLoading &&
         speedTestProgress &&
         !speedTestProgress.speedTestUnlocked && (
           <button

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { VocabularyItem } from "@/content/schema";
 import { HaruLessonLoading } from "@/components/ui/haru-lesson-loading";
 import { FloatingLanguageKeyboard } from "@/features/lesson/components/floating-language-keyboard";
@@ -39,6 +39,11 @@ type AudioLesson = {
   speedTestUnlocked?: boolean;
 };
 
+type AudioLessonProgress = {
+  completionPercent: number;
+  speedTestUnlocked: boolean;
+};
+
 type LessonGameConfig = {
   vocabulary: VocabularyItem[];
   lessonName: string;
@@ -64,6 +69,7 @@ export function SpeedTestArena({
   audioLessons = [],
   initialGame = "arena",
   typingDailyMode = false,
+  hydrateAudioProgress = false,
 }: {
   typingGame?: ReactNode;
   audioGame?: ReactNode;
@@ -73,8 +79,51 @@ export function SpeedTestArena({
   audioLessons?: AudioLesson[];
   initialGame?: ArenaGame;
   typingDailyMode?: boolean;
+  hydrateAudioProgress?: boolean;
 }) {
   const [activeGame, setActiveGame] = useState<ArenaGame>(initialGame);
+  const [audioProgressByLessonId, setAudioProgressByLessonId] = useState<
+    Record<string, AudioLessonProgress>
+  >({});
+  const hydratedAudioLessons = useMemo(
+    () =>
+      audioLessons.map((lesson) => ({
+        ...lesson,
+        ...(audioProgressByLessonId[lesson.id] ?? {}),
+      })),
+    [audioLessons, audioProgressByLessonId],
+  );
+
+  useEffect(() => {
+    if (!hydrateAudioProgress || audioLessons.length === 0) return;
+
+    let active = true;
+    const lessonIds = audioLessons.map((lesson) => lesson.id).join(",");
+    fetch(
+      `/api/v1/learning/progress?lessonIds=${encodeURIComponent(lessonIds)}`,
+      {
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { accept: "application/json" },
+      },
+    )
+      .then((response) => response.json().catch(() => null))
+      .then((payload: {
+        data?: {
+          progressByLessonId?: Record<string, AudioLessonProgress>;
+        };
+      } | null) => {
+        if (!active || !payload?.data?.progressByLessonId) return;
+        setAudioProgressByLessonId(payload.data.progressByLessonId);
+      })
+      .catch(() => {
+        // The safe server-provided locked state remains in place.
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [audioLessons, hydrateAudioProgress]);
   const hasAudioGame = Boolean(audioGame || lessonGame);
   const hasFlashGame = Boolean(flashGame || lessonGame);
   const hasCardGame = Boolean(cardGame || lessonGame);
@@ -102,7 +151,7 @@ export function SpeedTestArena({
     </ArenaGameShell>;
   }
   if (activeGame === "typing") {
-    return <ReactionLessonPicker lessons={audioLessons} game="typing" dailyMode={typingDailyMode} onBack={() => setActiveGame("arena")} />;
+    return <ReactionLessonPicker lessons={hydratedAudioLessons} game="typing" dailyMode={typingDailyMode} onBack={() => setActiveGame("arena")} />;
   }
   if (activeGame === "audio" && audioGame) {
     return <ArenaGameShell activeGame={activeGame} setActiveGame={setActiveGame} hasAudioGame hasFlashGame={hasFlashGame} hasCardGame={hasCardGame}>{audioGame}</ArenaGameShell>;
@@ -124,7 +173,7 @@ export function SpeedTestArena({
     </ArenaGameShell>;
   }
   if (activeGame === "audio") {
-    return <ReactionLessonPicker lessons={audioLessons} game="audio" onBack={() => setActiveGame("arena")} />;
+    return <ReactionLessonPicker lessons={hydratedAudioLessons} game="audio" onBack={() => setActiveGame("arena")} />;
   }
   if (activeGame === "flash" && flashGame) {
     return <ArenaGameShell activeGame={activeGame} setActiveGame={setActiveGame} hasAudioGame={hasAudioGame} hasFlashGame hasCardGame={hasCardGame}>{flashGame}</ArenaGameShell>;
@@ -146,7 +195,7 @@ export function SpeedTestArena({
     </ArenaGameShell>;
   }
   if (activeGame === "flash") {
-    return <ReactionLessonPicker lessons={audioLessons} game="flash" onBack={() => setActiveGame("arena")} />;
+    return <ReactionLessonPicker lessons={hydratedAudioLessons} game="flash" onBack={() => setActiveGame("arena")} />;
   }
   if (activeGame === "card" && cardGame) {
     return <ArenaGameShell activeGame={activeGame} setActiveGame={setActiveGame} hasAudioGame={hasAudioGame} hasFlashGame={hasFlashGame} hasCardGame>{cardGame}</ArenaGameShell>;
@@ -167,7 +216,7 @@ export function SpeedTestArena({
       />
     </ArenaGameShell>;
   }
-  if (activeGame === "card") return <ReactionLessonPicker lessons={audioLessons} game="card" onBack={() => setActiveGame("arena")} />;
+  if (activeGame === "card") return <ReactionLessonPicker lessons={hydratedAudioLessons} game="card" onBack={() => setActiveGame("arena")} />;
 
   return (
     <main className="min-h-dvh bg-[radial-gradient(circle_at_top_left,#72dbfa_0%,transparent_32rem),linear-gradient(145deg,#0a84c1,#063b77)] px-4 py-6 text-white sm:px-6 sm:py-10">
@@ -286,7 +335,7 @@ function ReactionLessonPicker({ lessons, game, dailyMode = false, onBack }: { le
     const href = unlocked
       ? `${lessonHref}/speed-test?game=${game}${typing && dailyMode ? "&daily=1" : ""}`
       : `${lessonHref}?speedTest=locked`;
-    return <Link key={lesson.id} href={href} className={`group rounded-[1.5rem] border p-6 shadow-lg transition hover:-translate-y-1 ${unlocked ? "border-current/15 bg-white/90" : "border-slate-300 bg-slate-100/90 text-slate-600"}`}><div className="flex items-start justify-between gap-3"><b className="text-xl">{lesson.name}</b><span className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${unlocked ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>{unlocked ? "Đã mở" : `🔒 ${lesson.completionPercent ?? 0}%`}</span></div><span className="mt-2 block text-sm font-bold opacity-60">{unlocked ? typing ? "⌨️ Mở bài học để luyện gõ từ" : audio ? "🎧 Mở bài học để kiểm tra audio khả dụng" : card ? "🃏 Mở bài học để tạo board" : "⚡ Mở bài học để bắt đầu phản xạ" : "Học bài và đạt 75% tiến độ để mở thử thách."}</span><span className="mt-4 inline-flex font-black">{unlocked ? `Mở ${typing ? "Typing" : audio ? "Audio" : card ? "Card" : "Flash"} Test →` : "Tiếp tục học →"}</span></Link>;
+    return <Link key={lesson.id} href={href} className={`group rounded-[1.5rem] border p-6 shadow-lg transition hover:-translate-y-1 ${unlocked ? "border-current/15 bg-white/90" : "border-slate-300 bg-slate-100/90 text-slate-600"}`}><div className="flex items-start justify-between gap-3"><b className="text-xl">{lesson.name}</b><span className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${unlocked ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>{unlocked ? "Đã mở" : `🔒 ${lesson.completionPercent ?? 0}%`}</span></div><span className="mt-2 block text-sm font-bold opacity-60">{unlocked ? typing ? "⌨️ Mở bài học để luyện gõ từ" : audio ? "🎧 Mở bài học để kiểm tra audio khả dụng" : card ? "🃏 Mở bài học để tạo board" : "⚡ Mở bài học để bắt đầu phản xạ" : "Hoàn thành bài học để mở thử thách."}</span><span className="mt-4 inline-flex font-black">{unlocked ? `Mở ${typing ? "Typing" : audio ? "Audio" : card ? "Card" : "Flash"} Test →` : "Tiếp tục học →"}</span></Link>;
   })}</div> : <p className="mt-9 rounded-3xl bg-white/80 p-8 text-center font-semibold">Chưa có bài học nào được phát hành.</p>}</section></main>;
 }
 

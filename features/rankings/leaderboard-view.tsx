@@ -1,40 +1,28 @@
+"use client";
+
 import Link from "next/link";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+} from "react";
 
 import { LeaderboardAvatar } from "@/features/rankings/leaderboard-avatar";
 import type {
   LeaderboardBoard,
-  LeaderboardData,
   LeaderboardEntry,
+  LeaderboardSnapshot,
 } from "@/lib/data/rankings";
 import {
-  rankedSpeedGameDetails,
-  rankedSpeedGames,
-} from "@/lib/rankings/speed-ranking";
+  isLeaderboardBoard,
+  leaderboardBoards,
+  leaderboardHref,
+} from "@/lib/rankings/leaderboard-config";
+import type { LeaderboardData } from "@/lib/data/rankings";
 
-export const leaderboardBoards: Array<{
-  key: LeaderboardBoard;
-  label: string;
-  icon: string;
-}> = [
-  { key: "exam", label: "Luyện đề", icon: "✎" },
-  ...rankedSpeedGames.map((game) => ({
-    key: game,
-    label: rankedSpeedGameDetails[game].shortLabel,
-    icon: rankedSpeedGameDetails[game].icon,
-  })),
-  { key: "current_streak", label: "Streak hiện tại", icon: "♨" },
-  { key: "longest_streak", label: "Streak dài nhất", icon: "♛" },
-];
-
-export function isLeaderboardBoard(
-  value: string | undefined,
-): value is LeaderboardBoard {
-  return leaderboardBoards.some((board) => board.key === value);
-}
-
-function leaderboardHref(board: LeaderboardBoard) {
-  return board === "exam" ? "/bang-xep-hang" : `/bang-xep-hang?board=${board}`;
-}
+export { isLeaderboardBoard };
 
 export function displayLeaderboardScore(
   board: LeaderboardBoard,
@@ -95,7 +83,16 @@ function LeaderboardHero({
   );
 }
 
-function LeaderboardTabs({ board }: { board: LeaderboardBoard }) {
+function LeaderboardTabs({
+  board,
+  onSelect,
+}: {
+  board: LeaderboardBoard;
+  onSelect: (
+    event: MouseEvent<HTMLAnchorElement>,
+    board: LeaderboardBoard,
+  ) => void;
+}) {
   return (
     <nav
       aria-label="Loại bảng xếp hạng"
@@ -107,6 +104,7 @@ function LeaderboardTabs({ board }: { board: LeaderboardBoard }) {
           <Link
             key={item.key}
             href={leaderboardHref(item.key)}
+            onClick={(event) => onSelect(event, item.key)}
             aria-current={active ? "page" : undefined}
             className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-black transition duration-200 ${
               active
@@ -436,14 +434,92 @@ function CurrentUserPosition({
 }
 
 export function LeaderboardView({
-  board,
-  leaderboard,
+  initialBoard,
+  initialSnapshot,
   currentUserId,
 }: {
-  board: LeaderboardBoard;
-  leaderboard: LeaderboardData;
+  initialBoard: LeaderboardBoard;
+  initialSnapshot: LeaderboardSnapshot;
   currentUserId: string;
 }) {
+  const [board, setBoard] = useState(initialBoard);
+  const [snapshot, setSnapshot] = useState(initialSnapshot);
+  const mounted = useRef(true);
+  const refreshing = useRef(false);
+  const parsedGeneratedAt = Date.parse(initialSnapshot.generatedAt);
+  const lastRefreshAt = useRef(
+    Number.isFinite(parsedGeneratedAt) ? parsedGeneratedAt : 0,
+  );
+  const leaderboard = snapshot.boards[board];
+
+  const refreshSnapshot = useCallback(async () => {
+    if (
+      refreshing.current ||
+      Date.now() - lastRefreshAt.current < 30_000
+    ) {
+      return;
+    }
+    refreshing.current = true;
+    try {
+      const response = await fetch("/api/v1/rankings", {
+        cache: "no-store",
+        headers: { accept: "application/json" },
+      });
+      if (!response.ok) return;
+      const payload = (await response.json()) as {
+        data?: LeaderboardSnapshot;
+      };
+      if (!payload.data?.boards || !mounted.current) return;
+      setSnapshot(payload.data);
+      const refreshedAt = Date.parse(payload.data.generatedAt);
+      lastRefreshAt.current = Number.isFinite(refreshedAt)
+        ? refreshedAt
+        : Date.now();
+    } catch {
+      // Keep the last valid snapshot visible if a background refresh fails.
+    } finally {
+      refreshing.current = false;
+    }
+  }, []);
+
+  useEffect(() => {
+    mounted.current = true;
+    const syncBoardFromUrl = () => {
+      const value = new URLSearchParams(window.location.search).get("board");
+      const nextBoard =
+        value && isLeaderboardBoard(value) ? value : "exam";
+      setBoard(nextBoard);
+      void refreshSnapshot();
+    };
+    window.addEventListener("popstate", syncBoardFromUrl);
+    return () => {
+      mounted.current = false;
+      window.removeEventListener("popstate", syncBoardFromUrl);
+    };
+  }, [refreshSnapshot]);
+
+  function selectBoard(
+    event: MouseEvent<HTMLAnchorElement>,
+    nextBoard: LeaderboardBoard,
+  ) {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+    event.preventDefault();
+    if (nextBoard !== board) {
+      window.history.pushState(null, "", leaderboardHref(nextBoard));
+      setBoard(nextBoard);
+    }
+    void refreshSnapshot();
+  }
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_8%_12%,rgba(56,189,248,.16),transparent_28rem),radial-gradient(circle_at_92%_18%,rgba(251,191,36,.13),transparent_26rem),linear-gradient(135deg,#edf8ff_0%,#f8fbff_48%,#fff8ea_100%)] px-4 py-5 text-[#10243e] sm:px-6 sm:py-7">
       <div
@@ -452,7 +528,7 @@ export function LeaderboardView({
       />
       <div className="relative mx-auto max-w-6xl">
         <LeaderboardHero periodLabel={leaderboard.periodLabel} />
-        <LeaderboardTabs board={board} />
+        <LeaderboardTabs board={board} onSelect={selectBoard} />
 
         <div className="mt-5 flex items-center gap-3">
           <p className="text-sm font-bold text-[#526b86]">

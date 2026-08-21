@@ -73,6 +73,12 @@ export function GET() {
             security: [{ bearerAuth: [] }, { cookieAuth: [] }],
           },
         },
+        "/learning/progress": {
+          get: {
+            summary: "Lấy tiến độ một hoặc nhiều bài học hiện tại",
+            security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+          },
+        },
       },
       components: {
         securitySchemes: {

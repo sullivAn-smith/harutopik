@@ -1,16 +1,23 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import type { LeaderboardData } from "@/lib/data/rankings";
+import type {
+  LeaderboardBoard,
+  LeaderboardData,
+  LeaderboardSnapshot,
+} from "@/lib/data/rankings";
 import {
   displayLeaderboardScore,
-  isLeaderboardBoard,
   LeaderboardView,
 } from "./leaderboard-view";
+import { isLeaderboardBoard } from "@/lib/rankings/leaderboard-config";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  window.history.replaceState(null, "", "/");
+});
 
 const leaderboard: LeaderboardData = {
   board: "exam",
@@ -54,12 +61,55 @@ const leaderboard: LeaderboardData = {
   ],
 };
 
+function boardData(board: LeaderboardBoard): LeaderboardData {
+  if (board === "exam") return leaderboard;
+  if (board === "current_streak" || board === "longest_streak") {
+    return {
+      ...leaderboard,
+      board,
+      title: board === "current_streak" ? "Chuỗi hiện tại" : "Kỷ lục chuỗi",
+      subtitle: "Chuỗi học",
+      periodLabel: "Mọi thời đại",
+      entries: leaderboard.entries.map((entry) => ({
+        ...entry,
+        detail: `${entry.score} ngày`,
+      })),
+    };
+  }
+  const titles = {
+    typing_sprint: "Typing Sprint",
+    audio_reaction: "Audio Reaction",
+    flash_reaction: "Flash Recall",
+    card_reaction: "Card Reaction",
+  };
+  return {
+    ...leaderboard,
+    board,
+    title: titles[board],
+    subtitle: "Thành tích tốt nhất trong tuần",
+    periodLabel: "Tuần từ 17/8/2026",
+  };
+}
+
+const snapshot: LeaderboardSnapshot = {
+  generatedAt: new Date().toISOString(),
+  boards: {
+    exam: boardData("exam"),
+    typing_sprint: boardData("typing_sprint"),
+    audio_reaction: boardData("audio_reaction"),
+    flash_reaction: boardData("flash_reaction"),
+    card_reaction: boardData("card_reaction"),
+    current_streak: boardData("current_streak"),
+    longest_streak: boardData("longest_streak"),
+  },
+};
+
 describe("LeaderboardView", () => {
   it("trình bày hero, tab, podium và bảng Top 30 từ ranking data có sẵn", () => {
     render(
       <LeaderboardView
-        board="exam"
-        leaderboard={leaderboard}
+        initialBoard="exam"
+        initialSnapshot={snapshot}
         currentUserId="current-user"
       />,
     );
@@ -92,17 +142,23 @@ describe("LeaderboardView", () => {
   });
 
   it("không hiển thị xu hướng và lịch sử tuần trên bảng speed test", () => {
-    render(
-      <LeaderboardView
-        board="typing_sprint"
-        leaderboard={{
-          ...leaderboard,
-          board: "typing_sprint",
+    const speedSnapshot: LeaderboardSnapshot = {
+      ...snapshot,
+      boards: {
+        ...snapshot.boards,
+        typing_sprint: {
+          ...snapshot.boards.typing_sprint,
           weeklyHistory: {
             periodLabel: "Tuần trước",
             entries: leaderboard.entries.slice(0, 1),
           },
-        }}
+        },
+      },
+    };
+    render(
+      <LeaderboardView
+        initialBoard="typing_sprint"
+        initialSnapshot={speedSnapshot}
         currentUserId="current-user"
       />,
     );
@@ -112,5 +168,23 @@ describe("LeaderboardView", () => {
     expect(screen.queryByText("Lịch sử tuần")).toBeNull();
     expect(screen.queryByText("Top 10 tuần trước")).toBeNull();
     expect(screen.queryByRole("link", { name: "Chọn bài để chơi" })).toBeNull();
+  });
+
+  it("chuyển tab bằng snapshot trong bộ nhớ và đồng bộ URL", () => {
+    render(
+      <LeaderboardView
+        initialBoard="exam"
+        initialSnapshot={snapshot}
+        currentUserId="current-user"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("link", { name: /Audio/ }));
+
+    expect(
+      screen.getByRole("heading", { name: "Audio Reaction" }),
+    ).toBeTruthy();
+    expect(window.location.pathname).toBe("/bang-xep-hang");
+    expect(window.location.search).toBe("?board=audio_reaction");
   });
 });

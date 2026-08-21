@@ -19,7 +19,9 @@ describe("desktop home sidebar layout", () => {
   });
 
   it("shows the learner leaderboard in the left navigation", () => {
-    expect(source).toContain('href="/bang-xep-hang"');
+    expect(source).toContain(
+      'href="/bang-xep-hang" prefetch={rankingPrefetchReady}',
+    );
     expect(source).toContain("<span>Bảng xếp hạng</span>");
   });
 });

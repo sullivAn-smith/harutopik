@@ -6,7 +6,6 @@ import {
   calculateLessonProgress,
   lessonProgressModes,
   type ActiveLessonPracticeMode,
-  type LessonProgressComponents,
   type LessonProgressMode,
   type LessonProgressSnapshot,
 } from "@/lib/learning-core/lesson-progress";
@@ -29,7 +28,6 @@ type LessonProgressPercentagesOptions = {
 type StoredProgressRow = {
   lesson_version: number | null;
   completion_percent: number | null;
-  progress_components: unknown;
   speed_test_unlocked_at: string | null;
   completed_at: string | null;
 };
@@ -41,37 +39,14 @@ type LessonSpeedTestAccessOptions = {
 };
 
 /**
- * Fast path for opening Speed Test. Progress is recalculated and persisted
- * whenever learning activity is recorded, so a current stored snapshot is
- * enough to decide the UI gate. Old or incomplete rows are refreshed once.
- *
- * The Speed Test result APIs still recalculate this state before accepting a
- * result, so this read optimization never weakens the server-side lock.
+ * Recalculate the flashcard-based gate so old progress snapshots cannot grant
+ * Speed Test access after the lesson-progress rules change.
  */
 export async function getLessonSpeedTestAccess({
   supabase,
   userId,
   lesson,
 }: LessonSpeedTestAccessOptions) {
-  const { data, error } = await supabase
-    .from("lesson_progress")
-    .select("lesson_version,progress_components,speed_test_unlocked_at")
-    .eq("user_id", userId)
-    .eq("lesson_id", lesson.id)
-    .maybeSingle();
-  if (error) throw error;
-
-  const stored = data as Pick<
-    StoredProgressRow,
-    "lesson_version" | "progress_components" | "speed_test_unlocked_at"
-  > | null;
-  if (
-    stored?.lesson_version === lesson.version &&
-    parseStoredComponents(stored.progress_components)
-  ) {
-    return { speedTestUnlocked: Boolean(stored.speed_test_unlocked_at) };
-  }
-
   const refreshed = await getLessonLearningProgress({
     supabase,
     userId,
@@ -91,10 +66,6 @@ export async function getLessonLearningProgress({
   const practiceBundle = generateLessonPractice(lesson);
   const availablePracticeModes = [
     practiceBundle.quiz.length ? "quiz" : null,
-    practiceBundle.typing.length ? "typing" : null,
-    practiceBundle.matching.length ? "matching" : null,
-    practiceBundle.dictations.length ? "dictation" : null,
-    practiceBundle.translations.length ? "translation" : null,
   ].filter(
     (mode): mode is ActiveLessonPracticeMode => mode !== null,
   );
@@ -151,16 +122,8 @@ export async function getLessonLearningProgress({
     availablePracticeModes,
     practices,
   });
-  const previousPercent = clampPercent(stored?.completion_percent ?? 0);
-  const completionPercent = Math.max(
-    previousPercent,
-    calculated.completionPercent,
-  );
-  const components =
-    previousPercent > calculated.completionPercent
-      ? parseStoredComponents(stored?.progress_components) ??
-        calculated.components
-      : calculated.components;
+  const completionPercent = calculated.completionPercent;
+  const components = calculated.components;
   const unlockedAt =
     stored?.speed_test_unlocked_at ??
     (calculated.eligibleForSpeedTest
@@ -184,7 +147,7 @@ export async function getLessonLearningProgress({
     const completedAt =
       completionPercent >= 100
         ? stored?.completed_at ?? activityAt ?? new Date().toISOString()
-        : stored?.completed_at ?? null;
+        : null;
     const progressRow: Record<string, unknown> = {
       user_id: userId,
       lesson_id: lesson.id,
@@ -239,34 +202,6 @@ function isLessonProgressMode(value: unknown): value is LessonProgressMode {
   return (
     typeof value === "string" &&
     lessonProgressModes.includes(value as LessonProgressMode)
-  );
-}
-
-function parseStoredComponents(value: unknown): LessonProgressComponents | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const components = value as Record<string, unknown>;
-  if (
-    !isPercent(components.vocabulary) ||
-    !isPercent(components.grammar) ||
-    !isPercent(components.practice) ||
-    !isPercent(components.accuracy)
-  ) {
-    return null;
-  }
-  return {
-    vocabulary: components.vocabulary,
-    grammar: components.grammar,
-    practice: components.practice,
-    accuracy: components.accuracy,
-  };
-}
-
-function isPercent(value: unknown): value is number {
-  return (
-    typeof value === "number" &&
-    Number.isFinite(value) &&
-    value >= 0 &&
-    value <= 100
   );
 }
 

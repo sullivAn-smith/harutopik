@@ -131,7 +131,13 @@ export function useStudySession({
 
   const clearSession = useCallback(async () => {
     if (!enabled) return;
+    if (remoteTimerRef.current !== null) {
+      window.clearTimeout(remoteTimerRef.current);
+      remoteTimerRef.current = null;
+    }
     localStorage.removeItem(localKey);
+    remoteCheckedRef.current = true;
+    changedAfterRestoreRef.current = false;
     setRestored(false);
     await fetch(
       `/api/v1/learning/session?lessonId=${encodeURIComponent(lessonId)}`,

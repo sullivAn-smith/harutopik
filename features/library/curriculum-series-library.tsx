@@ -53,7 +53,7 @@ export function CurriculumSeriesLibrary({
 }: {
   series: CurriculumSeriesDefinition;
   books: CurriculumBook[];
-  signedIn?: boolean;
+  signedIn?: boolean | null;
 }) {
   const [expandedBookNumber, setExpandedBookNumber] = useState<number | null>(null);
   const theme = themeStyles[series.theme];
@@ -129,7 +129,11 @@ export function CurriculumSeriesLibrary({
                         <Link
                           key={lesson.id}
                           data-lesson-link
-                          href={signedIn ? lessonHref : `/dang-nhap?next=${encodeURIComponent(lessonHref)}`}
+                          href={
+                            signedIn === false
+                              ? `/dang-nhap?next=${encodeURIComponent(lessonHref)}`
+                              : lessonHref
+                          }
                           className="group/lesson flex items-center gap-4 rounded-2xl border border-sky-300/85 bg-gradient-to-r from-[#edf9ff] via-[#dff2ff] to-[#cfeaff] px-4 py-3 font-bold text-[#344b67] shadow-[0_5px_14px_rgba(8,126,186,.12)] transition hover:-translate-y-0.5 hover:border-sky-400 hover:from-[#f7fcff] hover:to-[#bfe3fb] hover:text-[#087eba] hover:shadow-[0_9px_20px_rgba(8,126,186,.2)]"
                         >
                           <span

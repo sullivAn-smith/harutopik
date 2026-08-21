@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 import {
   CurriculumSeriesLibrary,
@@ -30,10 +31,7 @@ export default async function CurriculumSeriesPage({ params }: CurriculumSeriesP
   const series = getCurriculumSeries(seriesId);
   if (!series) notFound();
 
-  const [courses, user] = await Promise.all([
-    getPublishedCourseShells(),
-    getCurrentUser(),
-  ]);
+  const courses = await getPublishedCourseShells();
 
   const booksWithoutProgress: CurriculumBook[] = series.id === "1"
     ? buildTopikShelf(courses).map((item) => ({
@@ -56,22 +54,9 @@ export default async function CurriculumSeriesPage({ params }: CurriculumSeriesP
   const lessonIds = booksWithoutProgress.flatMap((book) =>
     book.lessons.map((lesson) => lesson.id),
   );
-  const progressByLessonId = user
-    ? await getLessonProgressPercentages({
-        supabase: await createClient(),
-        userId: user.id,
-        lessonIds,
-      })
-    : {};
-  const books = booksWithoutProgress.map((book) => ({
-    ...book,
-    lessons: book.lessons.map((lesson) => ({
-      ...lesson,
-      progressPercent: progressByLessonId[lesson.id] ?? 0,
-    })),
-  }));
-
-  const publishedCount = books.filter((book) => book.status === "published").length;
+  const publishedCount = booksWithoutProgress.filter(
+    (book) => book.status === "published",
+  ).length;
 
   return (
     <main className="elegant-blue min-h-screen text-[#10243e]">
@@ -108,9 +93,57 @@ export default async function CurriculumSeriesPage({ params }: CurriculumSeriesP
         </header>
 
         <section className="mt-6 pb-12" aria-label={`Danh sách quyển của bộ ${series.id}`}>
-          <CurriculumSeriesLibrary series={series} books={books} signedIn={Boolean(user)} />
+          <Suspense
+            fallback={
+              <CurriculumSeriesLibrary
+                series={series}
+                books={booksWithoutProgress}
+                signedIn={null}
+              />
+            }
+          >
+            <PersonalizedCurriculumLibrary
+              series={series}
+              books={booksWithoutProgress}
+              lessonIds={lessonIds}
+            />
+          </Suspense>
         </section>
       </div>
     </main>
+  );
+}
+
+async function PersonalizedCurriculumLibrary({
+  series,
+  books,
+  lessonIds,
+}: {
+  series: NonNullable<ReturnType<typeof getCurriculumSeries>>;
+  books: CurriculumBook[];
+  lessonIds: string[];
+}) {
+  const user = await getCurrentUser();
+  const progressByLessonId = user
+    ? await getLessonProgressPercentages({
+        supabase: await createClient(),
+        userId: user.id,
+        lessonIds,
+      })
+    : {};
+  const booksWithProgress = books.map((book) => ({
+    ...book,
+    lessons: book.lessons.map((lesson) => ({
+      ...lesson,
+      progressPercent: progressByLessonId[lesson.id] ?? 0,
+    })),
+  }));
+
+  return (
+    <CurriculumSeriesLibrary
+      series={series}
+      books={booksWithProgress}
+      signedIn={Boolean(user)}
+    />
   );
 }
